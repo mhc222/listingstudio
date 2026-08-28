@@ -119,7 +119,12 @@ export async function parseIntent(
   conversation: ChatTurn[],
   chips?: Chips
 ): Promise<{ intent: ParsedIntent | null; error?: string; costCents: number }> {
-  const client = new Anthropic()
+  // identity-linked console keys require the workspace id on every request
+  const client = new Anthropic({
+    defaultHeaders: process.env.ANTHROPIC_WORKSPACE_ID
+      ? { "anthropic-workspace-id": process.env.ANTHROPIC_WORKSPACE_ID }
+      : undefined,
+  })
   const chipLines = [
     chips?.edit_type && `edit type = ${chips.edit_type}`,
     chips?.room_type && `room type = ${chips.room_type}`,
