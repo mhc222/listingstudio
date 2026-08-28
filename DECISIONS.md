@@ -13,3 +13,4 @@
 - 2026-08-28: Local dev has no reachable webhook URL, so reconcile route doubles as the completion poller (`?all=1` ignores the 3-min cutoff); webhook param only sent when NEXT_PUBLIC_APP_URL is non-localhost.
 - 2026-08-28: Generation-error auto-retry tracked via retry_count column (migration 0002), one retry then failed + re-run button; step outputs stored at deterministic path {fg}/step-{n}-r{retry} so duplicate completions upsert instead of duplicating objects.
 - 2026-08-28: jobs.total_cost_cents widened to numeric (rates are fractional cents); incremented via security-definer rpc since supabase-js can't do relative updates.
+- 2026-08-28: Parked idea (from flippin.ai scan): 5-sec before/after transformation video per output (one fal image-to-video call) as a social artifact — consider post-phase-10; no prompt reverse-engineering needed, their catalog is a subset of ours.
