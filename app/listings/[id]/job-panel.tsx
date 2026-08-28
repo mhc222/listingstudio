@@ -9,12 +9,18 @@ import { ROOM_TYPES } from "@/lib/roomTypes"
 import { FURNITURE_STYLES, LIGHT_PRESETS } from "@/lib/prompts"
 import type { PhotoRow } from "./photo-grid"
 
-export type SampleRow = { id: string; label: string | null; url: string | null }
+export type SampleRow = {
+  id: string
+  label: string | null
+  use_count: number
+  url: string | null
+}
 
 export type JobRow = {
   id: string
   title: string
   status: string
+  kind: string
   total_cost_cents: number
   grounding_used: { dimension_sentence?: string; floor_plan_photo_id?: string } | null
   file_groups: {
@@ -23,6 +29,7 @@ export type JobRow = {
     current_step: number
     step_status: string
     last_error: string | null
+    comment: string | null
     edit_chain: { edit_type: string; options?: Record<string, unknown> }[]
     output_versions: {
       id: string
@@ -125,6 +132,15 @@ export function JobPanel({
   const [reworkText, setReworkText] = useState<Record<string, string>>({})
   const [reworking, setReworking] = useState<Record<string, boolean>>({})
 
+  // inspiration (phase 9): URL extraction picker + promoted ideas cell per job
+  const [urlText, setUrlText] = useState("")
+  const [urlImages, setUrlImages] = useState<string[]>([])
+  const [urlBusy, setUrlBusy] = useState(false)
+  const [urlError, setUrlError] = useState<string | null>(null)
+  const [importedUrls, setImportedUrls] = useState<Record<string, boolean>>({})
+  const [promoted, setPromoted] = useState<Record<string, string>>({})
+  const [uploadingRef, setUploadingRef] = useState(false)
+
   function toggleSample(id: string) {
     setSampleIds((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]))
   }
@@ -226,13 +242,16 @@ export function JobPanel({
       return
     }
 
-    // kind === "job": summarize, create the job, persist the conversation
-    const chainLabel = (data.edit_chain as ChainEdit[])
-      .map((s) => EDIT_TYPES[s.edit_type]?.label ?? s.edit_type)
-      .join(" → ")
+    // "job" creates one file group; "ideas" creates 4 labeled variants
     const summary =
-      `Running: ${chainLabel}.` +
-      (data.defaults_noted?.length ? ` Assumed: ${data.defaults_noted.join("; ")}.` : "")
+      data.kind === "ideas"
+        ? `Exploring 4 directions: ${(data.directions as { label: string }[])
+            .map((d) => d.label)
+            .join(" / ")}.`
+        : `Running: ${(data.edit_chain as ChainEdit[])
+            .map((s) => EDIT_TYPES[s.edit_type]?.label ?? s.edit_type)
+            .join(" → ")}.` +
+          (data.defaults_noted?.length ? ` Assumed: ${data.defaults_noted.join("; ")}.` : "")
     const convo = [...msgs, { role: "assistant" as const, content: summary }]
     setChatMessages(convo)
 
@@ -242,7 +261,14 @@ export function JobPanel({
       body: JSON.stringify({
         listingId,
         photoId,
-        editChain: data.edit_chain,
+        ...(data.kind === "ideas"
+          ? {
+              kind: "ideas",
+              variants: (data.directions as { label: string; edit_chain: ChainEdit[] }[]).map(
+                (d) => ({ label: d.label, editChain: d.edit_chain })
+              ),
+            }
+          : { editChain: data.edit_chain }),
         comment: data.comment || undefined,
         sizePreset,
         sampleImageIds: sampleIds.length ? sampleIds : undefined,
@@ -262,6 +288,57 @@ export function JobPanel({
     setPhotoId(null)
     setSampleIds([])
     router.refresh()
+  }
+
+  async function fetchUrlImages() {
+    const url = urlText.trim()
+    if (!url || urlBusy) return
+    setUrlBusy(true)
+    setUrlError(null)
+    setUrlImages([])
+    const res = await fetch("/api/extract-images", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url }),
+    })
+    const data = await res.json().catch(() => null)
+    setUrlBusy(false)
+    if (!res.ok) {
+      setUrlError(data?.error ?? "couldn't read that page — screenshot it and upload instead")
+      return
+    }
+    setUrlImages(data.images ?? [])
+  }
+
+  async function importUrlImage(imgUrl: string) {
+    if (importedUrls[imgUrl]) return
+    const res = await fetch("/api/samples/import", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url: imgUrl }),
+    })
+    const data = await res.json().catch(() => null)
+    if (!res.ok) {
+      setUrlError(data?.error ?? "import failed")
+      return
+    }
+    setImportedUrls((s) => ({ ...s, [imgUrl]: true }))
+    setSampleIds((s) => [...s, data.id])
+    router.refresh()
+  }
+
+  async function uploadRefs(files: FileList | null) {
+    if (!files?.length || uploadingRef) return
+    setUploadingRef(true)
+    const form = new FormData()
+    for (const f of Array.from(files)) form.append("files", f)
+    const res = await fetch("/api/samples", { method: "POST", body: form })
+    const data = await res.json().catch(() => null)
+    setUploadingRef(false)
+    if (res.ok && data?.uploaded?.length) {
+      setSampleIds((s) => [...s, ...data.uploaded])
+      router.refresh()
+    }
   }
 
   async function sendRework(fileGroupId: string, versionId: string | undefined) {
@@ -370,6 +447,47 @@ export function JobPanel({
                   ))}
                 </select>
               </div>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <label className="cursor-pointer rounded-md border px-2 py-1 text-xs hover:bg-muted">
+                  {uploadingRef ? "Uploading…" : "📎 Upload ref"}
+                  <input
+                    type="file"
+                    accept="image/*,.heic,.heif"
+                    multiple
+                    className="hidden"
+                    onChange={(e) => uploadRefs(e.target.files)}
+                  />
+                </label>
+                <input
+                  value={urlText}
+                  onChange={(e) => setUrlText(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && fetchUrlImages()}
+                  placeholder="Paste an inspiration URL (Zillow, Pinterest…)"
+                  className="min-w-0 flex-1 rounded-md border bg-transparent px-2 py-1 text-xs"
+                />
+                <Button size="sm" variant="outline" onClick={fetchUrlImages} disabled={urlBusy || !urlText.trim()}>
+                  {urlBusy ? "Reading…" : "Fetch"}
+                </Button>
+              </div>
+              {urlError && <p className="mt-1 text-xs text-red-600">{urlError}</p>}
+              {urlImages.length > 0 && (
+                <div className="mt-2 flex gap-2 overflow-x-auto pb-1">
+                  {urlImages.map((img) => (
+                    <button
+                      key={img}
+                      type="button"
+                      title={importedUrls[img] ? "added to library" : "add as reference"}
+                      onClick={() => importUrlImage(img)}
+                      className={`shrink-0 overflow-hidden rounded-md border-2 ${
+                        importedUrls[img] ? "border-green-500" : "border-transparent hover:border-blue-300"
+                      }`}
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element -- external candidate images */}
+                      <img src={img} alt="" className="h-12 w-16 object-cover" />
+                    </button>
+                  ))}
+                </div>
+              )}
               <div className="mt-2 flex items-center gap-2">
                 <input
                   value={chatText}
@@ -568,15 +686,20 @@ export function JobPanel({
                     <button
                       key={s.id}
                       type="button"
-                      title={s.label ?? ""}
+                      title={`${s.label ?? ""}${s.use_count >= 2 ? ` — used ${s.use_count}×` : ""}`}
                       onClick={() => toggleSample(s.id)}
-                      className={`shrink-0 overflow-hidden rounded-md border-2 ${
+                      className={`relative shrink-0 overflow-hidden rounded-md border-2 ${
                         sampleIds.includes(s.id) ? "border-blue-500" : "border-transparent"
                       }`}
                     >
                       {s.url && (
                         // eslint-disable-next-line @next/next/no-img-element -- signed URLs expire; next/image caching fights that
                         <img src={s.url} alt={s.label ?? ""} className="h-12 w-16 object-cover" />
+                      )}
+                      {s.use_count >= 2 && (
+                        <span className="absolute right-0.5 top-0.5 rounded bg-black/60 px-1 text-[10px] text-white">
+                          ★
+                        </span>
                       )}
                     </button>
                   ))}
@@ -659,7 +782,44 @@ export function JobPanel({
                     .join(" · ")}
                 </p>
               )}
+              {job.kind === "ideas" && (
+                // labeled 2x2 grid; tap promotes a variant into the normal
+                // before/after + refinement chat below (phase 9)
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  {job.file_groups.map((fg) => {
+                    const v = [...fg.output_versions].sort(
+                      (a, b) => b.version_number - a.version_number
+                    )[0]
+                    return (
+                      <button
+                        key={fg.id}
+                        type="button"
+                        onClick={() =>
+                          setPromoted((p) => ({
+                            ...p,
+                            [job.id]: p[job.id] === fg.id ? "" : fg.id,
+                          }))
+                        }
+                        className={`overflow-hidden rounded-md border-2 text-left ${
+                          promoted[job.id] === fg.id ? "border-blue-500" : "border-transparent hover:border-blue-300"
+                        }`}
+                      >
+                        {v?.url ? (
+                          // eslint-disable-next-line @next/next/no-img-element -- signed URLs expire; next/image caching fights that
+                          <img src={v.url} alt="" className="aspect-video w-full object-cover" />
+                        ) : (
+                          <div className="flex aspect-video w-full items-center justify-center bg-muted text-xs text-muted-foreground">
+                            {fg.step_status === "failed" ? "failed" : "generating…"}
+                          </div>
+                        )}
+                        <p className="px-1.5 py-1 text-xs font-medium">{fg.comment}</p>
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
               {job.file_groups.map((fg) => {
+                if (job.kind === "ideas" && promoted[job.id] !== fg.id) return null
                 const before = photoById.get(fg.primary_photo_id)
                 const versionsDesc = [...fg.output_versions].sort(
                   (a, b) => b.version_number - a.version_number

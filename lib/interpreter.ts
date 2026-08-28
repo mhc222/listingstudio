@@ -13,9 +13,12 @@ export type Chips = {
   furniture_style?: string
 }
 
+export type IdeaDirection = { label: string; edit_chain: EditStep[] }
+
 export type ParsedIntent =
   | { kind: "job"; edit_chain: EditStep[]; comment: string; defaults_noted: string[] }
   | { kind: "question"; question: string }
+  | { kind: "ideas"; directions: IdeaDirection[]; comment: string }
 
 const SKY_STYLES = ["any", "clear_blue", "clouds_blue", "orange_sunrise"]
 const ROOM_TYPES = [
@@ -86,11 +89,35 @@ export function validateIntent(raw: unknown): ParsedIntent {
     if (!question) throw new Error('kind "question" requires a non-empty question string')
     return { kind: "question", question }
   }
-  if (obj.kind !== "job") throw new Error('kind must be "job" or "question"')
-  if (!Array.isArray(obj.edit_chain) || obj.edit_chain.length === 0) {
+  if (obj.kind === "ideas") {
+    if (!Array.isArray(obj.directions) || obj.directions.length !== 4) {
+      throw new Error('kind "ideas" requires exactly 4 directions')
+    }
+    const directions: IdeaDirection[] = obj.directions.map((d, i) => {
+      const dir = (d ?? {}) as Record<string, unknown>
+      const label = str(dir.label)
+      if (!label) throw new Error(`direction ${i + 1} is missing a label`)
+      return { label, edit_chain: sanitizeChain(dir.edit_chain) }
+    })
+    return { kind: "ideas", directions, comment: str(obj.comment) }
+  }
+  if (obj.kind !== "job") throw new Error('kind must be "job", "question", or "ideas"')
+  const defaults = Array.isArray(obj.defaults_noted)
+    ? obj.defaults_noted.map(str).filter(Boolean)
+    : []
+  return {
+    kind: "job",
+    edit_chain: sanitizeChain(obj.edit_chain),
+    comment: str(obj.comment),
+    defaults_noted: defaults,
+  }
+}
+
+function sanitizeChain(raw: unknown): EditStep[] {
+  if (!Array.isArray(raw) || raw.length === 0) {
     throw new Error("edit_chain must be a non-empty array")
   }
-  const edit_chain: EditStep[] = obj.edit_chain.map((step) => {
+  return raw.map((step) => {
     const s = (step ?? {}) as Record<string, unknown>
     const editType = str(s.edit_type)
     const sanitize = SANITIZERS[editType]
@@ -100,10 +127,6 @@ export function validateIntent(raw: unknown): ParsedIntent {
       options: sanitize((s.options ?? {}) as Record<string, unknown>),
     }
   })
-  const defaults = Array.isArray(obj.defaults_noted)
-    ? obj.defaults_noted.map(str).filter(Boolean)
-    : []
-  return { kind: "job", edit_chain, comment: str(obj.comment), defaults_noted: defaults }
 }
 
 function extractJson(text: string): unknown {

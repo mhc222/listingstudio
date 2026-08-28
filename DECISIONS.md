@@ -31,3 +31,9 @@
 - 2026-08-28: QA never blocks delivery — an errored/unparseable QA call stores a "QA skipped" note and the version ships as passed.
 - 2026-08-28: buildRework falls back to the raw user reaction as instructions if the Haiku call fails — a rework never hard-fails on interpreter errors.
 - 2026-08-28: QA vision and rework-interpreter costs increment jobs.total_cost_cents (job exists by then), unlike pre-job intent-parsing calls which stay ledger-only with null job_id.
+- 2026-08-28: Ideas spend = one upfront kind=ideas ledger row (Σ provider cost × chain length over the 4 variants); per-completion rows skipped for ideas fgs EXCEPT retries and reworks (extra calls are always counted, never double-counted).
+- 2026-08-28: Ideas variants skip auto-QA (exploratory throwaways); a promoted variant gets QA through its rework cycle like any other output.
+- 2026-08-28: Ideas labels live in file_groups.comment and are deliberately fed to the prompt as style language ("Warm Farmhouse") — no schema change, and the label doubles as useful prompt signal.
+- 2026-08-28: Ideas promotion is client-side only (tap expands the variant into the normal before/after + rework UI) — every ideas fg already carries full version/rework machinery, so no backend "promote" exists.
+- 2026-08-28: URL extraction parses HTML with regex (og:image + img tags, skip-list, 12-candidate cap), no parser dep; the min-size filter runs at import time via sharp (400px min) since candidate dimensions aren't knowable without fetching each image.
+- 2026-08-28: sample_images.use_count incremented read-then-write, no rpc — single-user, races don't matter.

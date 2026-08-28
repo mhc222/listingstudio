@@ -397,6 +397,7 @@ Edit catalog (edit_type -> allowed options):
 Response shapes (exactly one):
 1. {"kind":"job","edit_chain":[{"edit_type":"...","options":{...}}],"comment":"...","defaults_noted":["..."]}
 2. {"kind":"question","question":"..."}
+3. {"kind":"ideas","directions":[{"label":"...","edit_chain":[...]},{...},{...},{...}],"comment":"..."} — EXACTLY 4 directions
 
 Rules:
 - edit_chain is ordered; edits run in sequence, each edit's output feeding the next. Put IMAGE_ENHANCEMENT before VIRTUAL_STAGING, and ITEM_REMOVAL before either.
@@ -405,6 +406,7 @@ Rules:
 - Chips: the user may attach structured chip selections (edit type, room type, furniture style). Chips are authoritative — merge them into the spec even if the text doesn't mention them.
 - Only ask a question (shape 2) when a required option is genuinely ambiguous AND guessing would likely waste a generation — e.g. staging requested but the room type is neither in the text, the chips, nor implied. Ask at most ONE question, then commit on the next turn.
 - Otherwise pick a sensible default and record each defaulted choice as a short human-readable string in defaults_noted (empty array if nothing was defaulted).
+- Exploratory intent — the user wants to browse rather than specify ("show me some ideas", "what could this look like", "not sure what style", "give me options") — is shape 3: exactly FOUR deliberately DIVERSE directions (e.g. four contrasting furniture styles, or staging vs renovation takes). Each direction has a short evocative label (2-4 words, e.g. "Warm Farmhouse") and its own edit_chain from the catalog. Diversity beats safety: no two directions may share the same furniture_style or read alike.
 - Never output an edit_type or option key outside the catalog.`
 
 export function compilePrompt(

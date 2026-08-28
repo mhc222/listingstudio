@@ -190,19 +190,29 @@ export async function completeStep(
     .select("id")
   if (!transitioned?.length) return // duplicate delivery — no ledger, no advance
 
-  // ledger: exactly one row per successful generation
+  // ledger: exactly one row per successful generation. Ideas jobs were
+  // counted upfront as ONE ideas entry (4 calls), so their completions skip
+  // the ledger — except retries, which are extra calls and always counted.
   const step = fg.edit_chain[fg.current_step]
   const isRework = step?.edit_type === "REWORK"
+  const { data: jobRow } = await db
+    .from("jobs")
+    .select("kind")
+    .eq("id", fg.job_id)
+    .single<{ kind: string }>()
+  const isIdeasJob = jobRow?.kind === "ideas"
   const cost = MODELS[fg.provider].costCents
-  await db.from("spend_ledger").insert({
-    job_id: fg.job_id,
-    file_group_id: fg.id,
-    edit_type: step?.edit_type ?? null,
-    model: MODELS[fg.provider].label,
-    cost_cents: cost,
-    kind: isRework ? "rework" : "generation",
-  })
-  await db.rpc("increment_job_cost", { p_job_id: fg.job_id, p_cents: cost })
+  if (!isIdeasJob || isRework || fg.retry_count > 0) {
+    await db.from("spend_ledger").insert({
+      job_id: fg.job_id,
+      file_group_id: fg.id,
+      edit_type: step?.edit_type ?? null,
+      model: MODELS[fg.provider].label,
+      cost_cents: cost,
+      kind: isRework ? "rework" : "generation",
+    })
+    await db.rpc("increment_job_cost", { p_job_id: fg.job_id, p_cents: cost })
+  }
 
   if (fg.current_step + 1 < fg.edit_chain.length) {
     // advance the chain
@@ -242,6 +252,26 @@ export async function completeStep(
 
   // Auto-QA (phase 8): vision pass on every delivered version. Never blocks —
   // a failed QA call records a skipped note and the version still ships.
+  // Ideas variants skip QA: they're exploratory; the promoted one gets QA'd
+  // through its rework cycle.
+  if (isIdeasJob && !isRework) {
+    const { data: siblingsIdeas } = await db
+      .from("file_groups")
+      .select("id, step_status, current_step, edit_chain")
+      .eq("job_id", fg.job_id)
+    const allDoneIdeas = (siblingsIdeas ?? []).every(
+      (s) =>
+        s.step_status === "complete" &&
+        s.current_step === (s.edit_chain as EditStep[]).length - 1
+    )
+    if (allDoneIdeas) {
+      await db
+        .from("jobs")
+        .update({ status: "complete", completed_at: new Date().toISOString() })
+        .eq("id", fg.job_id)
+    }
+    return
+  }
   const verdict = await runQA(db, fg, outPath)
   if (verdict.costCents > 0) {
     await db.from("spend_ledger").insert({

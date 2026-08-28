@@ -23,8 +23,8 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
       supabase
         .from("jobs")
         .select(
-          `id, title, status, total_cost_cents, grounding_used,
-         file_groups (id, primary_photo_id, current_step, step_status, last_error, edit_chain,
+          `id, title, status, kind, total_cost_cents, grounding_used,
+         file_groups (id, primary_photo_id, current_step, step_status, last_error, edit_chain, comment,
            output_versions (id, version_number, parent_version_id, qa_note, storage_path),
            chat_messages (role, content, created_at))`
         )
@@ -32,7 +32,8 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
         .order("created_at", { ascending: false }),
       supabase
         .from("sample_images")
-        .select("id, label, storage_path")
+        .select("id, label, storage_path, use_count")
+        .order("use_count", { ascending: false })
         .order("created_at", { ascending: false }),
     ])
   if (!listing) notFound()
@@ -50,6 +51,7 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
   const sampleRows: SampleRow[] = (samples ?? []).map((s) => ({
     id: s.id,
     label: s.label,
+    use_count: s.use_count ?? 0,
     url: sampleUrls[s.storage_path] ?? null,
   }))
   const jobRows: JobRow[] = (jobs ?? []).map((j) => ({
