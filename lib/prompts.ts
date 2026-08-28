@@ -31,6 +31,7 @@ export function ITEM_REMOVAL(
       ? "Fully declutter the space: also remove all loose clutter, personal items, cords, papers, and small objects from floors, counters, and surfaces, leaving furniture and fixed decor in place."
       : "Remove only these specific items; leave all other furniture and decor exactly as it is.",
     "Realistically reconstruct the floors, walls, and surfaces revealed behind removed items, matching the existing materials, lighting, and shadows.",
+    "Keep every fixed fixture and architectural feature pixel-identical to the original: fireplace and its flames, built-in shelving and cabinetry, light fixtures, windows, and trim.",
     GEOMETRY_INTERIOR,
   ]
   if (comment?.trim()) parts.push(comment.trim())
