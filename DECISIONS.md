@@ -8,3 +8,8 @@
 - 2026-08-28: HEIC decode via `heic-convert` (wasm libheif), not sharp — sharp prebuilt binaries exclude patent-encumbered HEIC; sharp still does dimension extraction and later resizing.
 - 2026-08-28: PDF floor plans stored as-is with null dimensions and rendered as a link, not thumbnailed — avoids a PDF-render dependency for a single-user nicety.
 - 2026-08-28: Photo grid uses plain `<img>` with signed URLs (1h expiry), not next/image — the optimizer caching signed URLs that expire causes broken images.
+- 2026-08-28: fal called via raw fetch against the queue API, no @fal-ai/client dep — three endpoints, one auth header.
+- 2026-08-28: Webhook auth = fal's ED25519 signature verified against their JWKS (node:crypto, fail closed, 5-min replay window); FAL_WEBHOOK_SECRET dropped from .env.example — fal has no shared-secret scheme.
+- 2026-08-28: Local dev has no reachable webhook URL, so reconcile route doubles as the completion poller (`?all=1` ignores the 3-min cutoff); webhook param only sent when NEXT_PUBLIC_APP_URL is non-localhost.
+- 2026-08-28: Generation-error auto-retry tracked via retry_count column (migration 0002), one retry then failed + re-run button; step outputs stored at deterministic path {fg}/step-{n}-r{retry} so duplicate completions upsert instead of duplicating objects.
+- 2026-08-28: jobs.total_cost_cents widened to numeric (rates are fractional cents); incremented via security-definer rpc since supabase-js can't do relative updates.
