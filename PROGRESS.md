@@ -26,8 +26,9 @@ Outstanding (Matt, manual):
 - No auth user exists yet (auth.users count = 0). Supabase dashboard -> Authentication -> Add user (email + password).
 - SUPABASE_SERVICE_ROLE_KEY blank in .env.local (dashboard Settings -> API) — REQUIRED for phase 3 job submission (orchestrator/webhook/cron use the admin client).
 - FAL_KEY blank in .env.local (fal.ai dashboard) — REQUIRED to run a job.
-- Phase 2 + 3 manual tests not yet run (need the above).
-- Phase 3 manual test: create listing → upload cluttered room photo → Jobs panel: pick photo, "Minor removal", describe items → Run. Locally, hit `curl "http://localhost:3000/api/cron/reconcile?all=1"` to poll completion (no webhook on localhost). Verify before/after appears, spend_ledger row exists, and re-running reconcile is a no-op (idempotency). Simulate a kill: while a step is running, wait 3+ min and let reconcile rescue it.
+- ~~Keys/auth user~~ DONE 2026-08-28: service role key + FAL_KEY in .env.local, auth user created, fal balance topped up.
+- Phase 3 manual test PASSED 2026-08-28: ITEM_REMOVAL (full declutter) ran end to end — job complete, 1 output version, 1 ledger row (2.1¢, no double-charge despite a failed first attempt on exhausted fal balance), second reconcile pass a no-op (idempotency proven), reconcile-as-completion-path proven (localhost has no webhook). Found+fixed live: middleware was auth-gating /api/cron (commit 9abeee4).
+- Webhook signature verification still unexercised locally (needs deployed URL — phase 16).
 
 ## Next action
 Phase 4 — IMAGE_ENHANCEMENT + TURN_ON_LIGHTS + edit chaining (see PLAN.md).
