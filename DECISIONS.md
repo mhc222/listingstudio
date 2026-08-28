@@ -20,3 +20,5 @@
 - 2026-08-28: Grounding computed once at job creation and stored in jobs.grounding_used ({dimension_sentence, floor_plan_photo_id}); orchestrator reads it per submit rather than re-deriving from rooms — the job record doubles as the "grounding used" audit per CLAUDE.md.
 - 2026-08-28: VIRTUAL_RENOVATION already included in groundable/floor-plan-ref edit-type lists in the jobs route (a string match, not a stub) so phase 6 doesn't have to touch the route.
 - 2026-08-28: Sample library has no delete UI — single-user tool, Supabase dashboard covers it; add when it actually annoys.
+- 2026-08-28: DAY_TO_DUSK modeled as one edit type with a `preset` option (dusk default + 3 interior relight siblings) rather than 4 edit types — one template function, one picker entry; dusk QA checklist gated on preset=dusk.
+- 2026-08-28: Dusk QA checkboxes are ephemeral client-side only (no persistence) — they are an eyeball aid until phase 8 auto-QA stores real verdicts.

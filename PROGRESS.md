@@ -6,7 +6,7 @@
 - [x] Phase 3 — Imaging provider layer + orchestration + ITEM_REMOVAL end to end
 - [x] Phase 4 — IMAGE_ENHANCEMENT + TURN_ON_LIGHTS + edit chaining
 - [x] Phase 5 — VIRTUAL_STAGING + sample library + context grounding
-- [ ] Phase 6 — RENOVATION + LANDSCAPING + DAY_TO_DUSK + presets + COLOUR_CHANGE + SHADOW_REMOVAL
+- [x] Phase 6 — RENOVATION + LANDSCAPING + DAY_TO_DUSK + presets + COLOUR_CHANGE + SHADOW_REMOVAL
 - [ ] Phase 7 — Interpreter loop 1: intent parsing + prompt compilation + chat UI
 - [ ] Phase 8 — Interpreter loop 2: conversational rework + branching + auto-QA
 - [ ] Phase 9 — Inspiration: ideas grid + URL extraction + attachments + style memory
@@ -20,7 +20,11 @@
 - [ ] Phase 17 — Experimental 360 edits
 
 ## Current state
-Phase 5 complete (code; manual test pending — needs fal spend). `lib/prompts.ts`: VIRTUAL_STAGING template — 9 FURNITURE_STYLES (specific materials each), per-room-type furniture map, spatial anchoring sentence, FURNITURE_REQUIRED free text, ref-image-matching line, verbatim geometry + brightness cue + listing suffix; `Grounding` type threaded through compilePrompt into VIRTUAL_STAGING and ITEM_REMOVAL. Jobs route computes grounding at creation (primary photo's room dims → CLAUDE.md dimension sentence; first non-PDF floor plan auto-attached as photo ref for staging/renovation chains), stores `jobs.grounding_used`, validates sampleImageIds via RLS read, inserts `file_group_refs`. Orchestrator fetches grounding + signed ref URLs at submit; imaging passes `image_urls: [primary, ...refs]` to gemini; refs force the gemini provider (only multi-image fal endpoint — DECISIONS.md). Sample library: `app/api/samples` upload (heic-converted, references bucket, path `{user}/{id}`), `app/library` page (upload + grid), refs picker strip + staging option form (room type / style / required text) in the job panel, grounding line shown on job cards, library link on listings index. No migration needed (0001 already had sample_images / file_group_refs / grounding_used / references bucket). Build + lint + tsc clean; template + grounding compilation verified via tsx self-check.
+Phase 6 complete (code; manual test pending — needs fal spend). Tier-1 catalog done. `lib/prompts.ts` adds: VIRTUAL_RENOVATION (light/mid/full tier lines, changes free text, grounding + interior geometry verbatim), VIRTUAL_LANDSCAPING (exterior geometry verbatim, optional instructions), DAY_TO_DUSK as one edit type with `preset` option — dusk (exterior, default) / bright_daylight / golden_hour / soft_overcast (interior relight-only siblings, exported as LIGHT_PRESETS), COLOUR_CHANGE (element + colour slots, all-else-pixel-identical), SHADOW_REMOVAL (no options). compilePrompt cases added; templates verified via tsx self-check (geometry verbatim, slots, suffix last). Job panel: 5 new picker entries + option forms (reno tier select + changes text; landscaping text; dusk preset select; colour element+colour inputs); dusk outputs (preset=dusk only) show the two named manual QA checks as checkboxes with a re-run hint (auto-QA phase 8; checkbox state ephemeral by design). Jobs route untouched — VIRTUAL_RENOVATION was already in its groundable/floor-plan lists (DECISIONS.md 2026-08-28).
+
+Phase 6 manual test (Matt): dusk-convert a front exterior and eyeball both checklist items; recolor a front door (COLOUR_CHANGE); renovate a kitchen (mid tier) with described finishes; optionally try a golden-hour interior relight.
+
+Phase 5 (code done; manual test pending — needs fal spend). `lib/prompts.ts`: VIRTUAL_STAGING template — 9 FURNITURE_STYLES (specific materials each), per-room-type furniture map, spatial anchoring sentence, FURNITURE_REQUIRED free text, ref-image-matching line, verbatim geometry + brightness cue + listing suffix; `Grounding` type threaded through compilePrompt into VIRTUAL_STAGING and ITEM_REMOVAL. Jobs route computes grounding at creation (primary photo's room dims → CLAUDE.md dimension sentence; first non-PDF floor plan auto-attached as photo ref for staging/renovation chains), stores `jobs.grounding_used`, validates sampleImageIds via RLS read, inserts `file_group_refs`. Orchestrator fetches grounding + signed ref URLs at submit; imaging passes `image_urls: [primary, ...refs]` to gemini; refs force the gemini provider (only multi-image fal endpoint — DECISIONS.md). Sample library: `app/api/samples` upload (heic-converted, references bucket, path `{user}/{id}`), `app/library` page (upload + grid), refs picker strip + staging option form (room type / style / required text) in the job panel, grounding line shown on job cards, library link on listings index. No migration needed (0001 already had sample_images / file_group_refs / grounding_used / references bucket). Build + lint + tsc clean; template + grounding compilation verified via tsx self-check.
 
 Phase 4 manual test (Matt, still pending): enhance a dull exterior with clear-blue sky + grass repair; chain ITEM_REMOVAL → IMAGE_ENHANCEMENT on an interior and confirm two ledger rows + both step outputs in the outputs bucket; download an output with an under-5MB preset.
 
@@ -37,4 +41,4 @@ Outstanding (Matt, manual):
 - Webhook signature verification still unexercised locally (needs deployed URL — phase 16).
 
 ## Next action
-Phase 6 — RENOVATION + LANDSCAPING + DAY_TO_DUSK + light presets + COLOUR_CHANGE + SHADOW_REMOVAL (see PLAN.md).
+Phase 7 — Interpreter loop part 1: intent parsing + prompt compilation + chat UI (see PLAN.md).
