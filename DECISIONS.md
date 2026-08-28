@@ -22,3 +22,7 @@
 - 2026-08-28: Sample library has no delete UI — single-user tool, Supabase dashboard covers it; add when it actually annoys.
 - 2026-08-28: DAY_TO_DUSK modeled as one edit type with a `preset` option (dusk default + 3 interior relight siblings) rather than 4 edit types — one template function, one picker entry; dusk QA checklist gated on preset=dusk.
 - 2026-08-28: Dusk QA checkboxes are ephemeral client-side only (no persistence) — they are an eyeball aid until phase 8 auto-QA stores real verdicts.
+- 2026-08-28: Interpreter uses the official @anthropic-ai/sdk (unlike fal's raw fetch) — one dep also serves phase 13 copywriting; model claude-haiku-4-5 with rates as data in config/models.ts.
+- 2026-08-28: Interpreter ledger rows carry null job_id (the call precedes job creation; abandoned conversations still count) and are written via the admin client — RLS makes them invisible to user-scoped reads, so phase 15 spend aggregation must run server-side with the admin client.
+- 2026-08-28: Chat conversation is ephemeral client state until a job is created, then persisted to chat_messages on the new file group; a question-only conversation that never becomes a job is not persisted (chat_messages requires a file_group_id).
+- 2026-08-28: Interpreter defaults are "noted on the job record" as the assistant summary chat message ("Running: … Assumed: …") rather than a new jsonb column — visible in the thread, no migration.

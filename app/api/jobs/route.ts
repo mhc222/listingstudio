@@ -15,13 +15,15 @@ export async function POST(req: Request) {
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 })
 
   const body = await req.json()
-  const { listingId, photoId, editChain, comment, sizePreset, sampleImageIds } = body as {
+  const { listingId, photoId, editChain, comment, sizePreset, sampleImageIds, chat } = body as {
     listingId: string
     photoId: string
     editChain: EditStep[]
     comment?: string
     sizePreset?: string
     sampleImageIds?: string[]
+    // interpreter-path conversation, persisted per FileGroup (phase 7)
+    chat?: { role: string; content: string }[]
   }
   if (!listingId || !photoId || !editChain?.length) {
     return NextResponse.json({ error: "listingId, photoId, editChain required" }, { status: 400 })
@@ -132,6 +134,13 @@ export async function POST(req: Request) {
     if (refError) {
       return NextResponse.json({ error: refError.message }, { status: 500 })
     }
+  }
+
+  const chatRows = (chat ?? [])
+    .filter((m) => ["user", "assistant"].includes(m.role) && m.content?.trim())
+    .map((m) => ({ file_group_id: fg.id, role: m.role, content: m.content.trim() }))
+  if (chatRows.length) {
+    await supabase.from("chat_messages").insert(chatRows)
   }
 
   // submission runs with the admin client (also used by webhook/cron paths)

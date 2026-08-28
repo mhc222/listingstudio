@@ -25,7 +25,8 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
         .select(
           `id, title, status, total_cost_cents, grounding_used,
          file_groups (id, primary_photo_id, current_step, step_status, last_error, edit_chain,
-           output_versions (version_number, storage_path))`
+           output_versions (version_number, storage_path),
+           chat_messages (role, content, created_at))`
         )
         .eq("listing_id", id)
         .order("created_at", { ascending: false }),

@@ -7,7 +7,7 @@
 - [x] Phase 4 — IMAGE_ENHANCEMENT + TURN_ON_LIGHTS + edit chaining
 - [x] Phase 5 — VIRTUAL_STAGING + sample library + context grounding
 - [x] Phase 6 — RENOVATION + LANDSCAPING + DAY_TO_DUSK + presets + COLOUR_CHANGE + SHADOW_REMOVAL
-- [ ] Phase 7 — Interpreter loop 1: intent parsing + prompt compilation + chat UI
+- [x] Phase 7 — Interpreter loop 1: intent parsing + prompt compilation + chat UI
 - [ ] Phase 8 — Interpreter loop 2: conversational rework + branching + auto-QA
 - [ ] Phase 9 — Inspiration: ideas grid + URL extraction + attachments + style memory
 - [ ] Phase 10 — Batch mode + cost simulator + before/after polish + MLS presets
@@ -20,6 +20,10 @@
 - [ ] Phase 17 — Experimental 360 edits
 
 ## Current state
+Phase 7 complete (code; manual test pending — needs ANTHROPIC_API_KEY, currently blank in .env.local). Interpreter part 1: `lib/interpreter.ts` (parseIntent: @anthropic-ai/sdk → claude-haiku-4-5, strict-JSON output validated against the full edit catalog via per-type sanitizers — unknown edit_type rejects, enums coerce to defaults, unknown option keys dropped; one retry with the validation error appended; API/validation failures return cost instead of throwing so failed attempts still hit the ledger). `INTERPRETER_SYSTEM` in lib/prompts.ts (catalog + two response shapes job/question, ordering rules, darkness→IMAGE_ENHANCEMENT, chips authoritative, one-question rule, defaults_noted). `/api/interpret` (auth-gated; ledger row kind=interpreter model=claude-haiku-4-5 via admin client, job_id null — call precedes job). Rates in config/models.ts (INTERPRETER_MODEL + interpreterCostCents). Jobs route accepts optional `chat[]` → chat_messages rows on the new file group. Job panel: "Describe it" box (chips: edit type/room type/style; thread bubbles; Enter-to-send; requires photo selected) → interpret → question loops in-thread, job spec auto-creates job with conversation + "Running: … Assumed: …" summary persisted. Job cards: latest user chat message shown as description; per-FileGroup thread rendered above status. Validation + prompt + rate math verified via tsx self-check; build + lint clean.
+
+Phase 7 manual test (Matt): add ANTHROPIC_API_KEY to .env.local first. Type three varied plain-English requests (e.g. "this empty living room needs to feel warm modern farmhouse and it's way too dark" → expect IMAGE_ENHANCEMENT → VIRTUAL_STAGING with room/style set and the sentence as comment; something ambiguous like "stage this" with no chips/room hints → expect exactly one clarifying question; "make the front door navy" → COLOUR_CHANGE). Inspect compiled specs on the job records (edit_chain jsonb + chat thread + defaults in the Assumed line), check spend_ledger has kind=interpreter rows, run one job end to end.
+
 Phase 6 complete (code; manual test pending — needs fal spend). Tier-1 catalog done. `lib/prompts.ts` adds: VIRTUAL_RENOVATION (light/mid/full tier lines, changes free text, grounding + interior geometry verbatim), VIRTUAL_LANDSCAPING (exterior geometry verbatim, optional instructions), DAY_TO_DUSK as one edit type with `preset` option — dusk (exterior, default) / bright_daylight / golden_hour / soft_overcast (interior relight-only siblings, exported as LIGHT_PRESETS), COLOUR_CHANGE (element + colour slots, all-else-pixel-identical), SHADOW_REMOVAL (no options). compilePrompt cases added; templates verified via tsx self-check (geometry verbatim, slots, suffix last). Job panel: 5 new picker entries + option forms (reno tier select + changes text; landscaping text; dusk preset select; colour element+colour inputs); dusk outputs (preset=dusk only) show the two named manual QA checks as checkboxes with a re-run hint (auto-QA phase 8; checkbox state ephemeral by design). Jobs route untouched — VIRTUAL_RENOVATION was already in its groundable/floor-plan lists (DECISIONS.md 2026-08-28).
 
 Phase 6 manual test (Matt): dusk-convert a front exterior and eyeball both checklist items; recolor a front door (COLOUR_CHANGE); renovate a kitchen (mid tier) with described finishes; optionally try a golden-hour interior relight.
@@ -41,4 +45,4 @@ Outstanding (Matt, manual):
 - Webhook signature verification still unexercised locally (needs deployed URL — phase 16).
 
 ## Next action
-Phase 7 — Interpreter loop part 1: intent parsing + prompt compilation + chat UI (see PLAN.md).
+Phase 8 — Interpreter loop part 2: conversational rework + branching + auto-QA (see PLAN.md).

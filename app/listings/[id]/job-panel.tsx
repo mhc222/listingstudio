@@ -25,6 +25,7 @@ export type JobRow = {
     last_error: string | null
     edit_chain: { edit_type: string; options?: Record<string, unknown> }[]
     output_versions: { version_number: number; url: string | null }[]
+    chat_messages: { role: string; content: string; created_at: string }[]
   }[]
 }
 
@@ -103,6 +104,16 @@ export function JobPanel({
   const [running, setRunning] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // interpreter chat (phase 7): conversation is ephemeral until a job is
+  // created, then persisted to chat_messages on the new file group
+  const [chatMessages, setChatMessages] = useState<{ role: "user" | "assistant"; content: string }[]>([])
+  const [chatText, setChatText] = useState("")
+  const [chipEdit, setChipEdit] = useState("")
+  const [chipRoom, setChipRoom] = useState("")
+  const [chipStyle, setChipStyle] = useState("")
+  const [interpreting, setInterpreting] = useState(false)
+  const [chatError, setChatError] = useState<string | null>(null)
+
   function toggleSample(id: string) {
     setSampleIds((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]))
   }
@@ -169,6 +180,76 @@ export function JobPanel({
     router.refresh()
   }
 
+  async function sendChat() {
+    const text = chatText.trim()
+    if (!text || !photoId || interpreting) return
+    const msgs = [...chatMessages, { role: "user" as const, content: text }]
+    setChatMessages(msgs)
+    setChatText("")
+    setChatError(null)
+    setInterpreting(true)
+
+    const chips = {
+      edit_type: chipEdit || undefined,
+      room_type: chipRoom || undefined,
+      furniture_style: chipStyle || undefined,
+    }
+    const res = await fetch("/api/interpret", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ messages: msgs, chips }),
+    })
+    const data = await res.json().catch(() => null)
+    if (!res.ok) {
+      setInterpreting(false)
+      setChatError(data?.error ?? `request failed (${res.status})`)
+      return
+    }
+
+    if (data.kind === "question") {
+      setChatMessages([...msgs, { role: "assistant", content: data.question }])
+      setInterpreting(false)
+      return
+    }
+
+    // kind === "job": summarize, create the job, persist the conversation
+    const chainLabel = (data.edit_chain as ChainEdit[])
+      .map((s) => EDIT_TYPES[s.edit_type]?.label ?? s.edit_type)
+      .join(" → ")
+    const summary =
+      `Running: ${chainLabel}.` +
+      (data.defaults_noted?.length ? ` Assumed: ${data.defaults_noted.join("; ")}.` : "")
+    const convo = [...msgs, { role: "assistant" as const, content: summary }]
+    setChatMessages(convo)
+
+    const jobRes = await fetch("/api/jobs", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        listingId,
+        photoId,
+        editChain: data.edit_chain,
+        comment: data.comment || undefined,
+        sizePreset,
+        sampleImageIds: sampleIds.length ? sampleIds : undefined,
+        chat: convo,
+      }),
+    })
+    setInterpreting(false)
+    if (!jobRes.ok) {
+      const jobData = await jobRes.json().catch(() => null)
+      setChatError(jobData?.error ?? `job creation failed (${jobRes.status})`)
+      return
+    }
+    setChatMessages([])
+    setChipEdit("")
+    setChipRoom("")
+    setChipStyle("")
+    setPhotoId(null)
+    setSampleIds([])
+    router.refresh()
+  }
+
   async function rerun(fileGroupId: string) {
     await fetch(`/api/file-groups/${fileGroupId}/rerun`, { method: "POST" })
     router.refresh()
@@ -200,6 +281,81 @@ export function JobPanel({
                   )}
                 </button>
               ))}
+            </div>
+
+            <div className="mt-2 rounded-md border p-3">
+              <p className="text-sm font-medium">Describe it</p>
+              {chatMessages.length > 0 && (
+                <div className="mt-2 grid gap-1.5">
+                  {chatMessages.map((m, i) => (
+                    <p
+                      key={i}
+                      className={`max-w-[85%] rounded-md px-2 py-1 text-sm ${
+                        m.role === "user"
+                          ? "justify-self-end bg-blue-50 text-blue-900"
+                          : "justify-self-start bg-muted"
+                      }`}
+                    >
+                      {m.content}
+                    </p>
+                  ))}
+                </div>
+              )}
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <select
+                  value={chipEdit}
+                  onChange={(e) => setChipEdit(e.target.value)}
+                  className="rounded-full border bg-transparent px-2 py-1 text-xs"
+                >
+                  <option value="">Edit type…</option>
+                  {Object.entries(EDIT_TYPES).map(([k, { label }]) => (
+                    <option key={k} value={k}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  value={chipRoom}
+                  onChange={(e) => setChipRoom(e.target.value)}
+                  className="rounded-full border bg-transparent px-2 py-1 text-xs"
+                >
+                  <option value="">Room type…</option>
+                  {ROOM_TYPES.map((r) => (
+                    <option key={r.value} value={r.value}>
+                      {r.label}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  value={chipStyle}
+                  onChange={(e) => setChipStyle(e.target.value)}
+                  className="rounded-full border bg-transparent px-2 py-1 text-xs"
+                >
+                  <option value="">Style…</option>
+                  {Object.entries(FURNITURE_STYLES).map(([k, { label }]) => (
+                    <option key={k} value={k}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="mt-2 flex items-center gap-2">
+                <input
+                  value={chatText}
+                  onChange={(e) => setChatText(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && sendChat()}
+                  placeholder={
+                    photoId
+                      ? "e.g. this empty living room needs to feel warm modern farmhouse and it's way too dark"
+                      : "Select a photo first, then describe what you want"
+                  }
+                  className="min-w-0 flex-1 rounded-md border bg-transparent px-2 py-1.5 text-sm"
+                />
+                <Button size="sm" onClick={sendChat} disabled={!photoId || !chatText.trim() || interpreting}>
+                  {interpreting ? "Thinking…" : "Send"}
+                </Button>
+              </div>
+              {chatError && <p className="mt-2 text-sm text-red-600">{chatError}</p>}
             </div>
 
             {chain.map((edit, i) => (
@@ -450,6 +606,17 @@ export function JobPanel({
                   {job.status}
                 </span>
               </div>
+              {(() => {
+                // job cards show the latest user message as description (CLAUDE.md)
+                const lastUser = job.file_groups
+                  .flatMap((fg) => fg.chat_messages ?? [])
+                  .filter((m) => m.role === "user")
+                  .sort((a, b) => a.created_at.localeCompare(b.created_at))
+                  .at(-1)
+                return lastUser ? (
+                  <p className="mt-1 text-sm text-muted-foreground">“{lastUser.content}”</p>
+                ) : null
+              })()}
               {job.grounding_used && (
                 <p className="mt-1 text-xs text-muted-foreground">
                   Grounding:{" "}
@@ -471,8 +638,23 @@ export function JobPanel({
                     s.edit_type === "DAY_TO_DUSK" &&
                     (s.options?.preset ?? "dusk") === "dusk"
                 )
+                const thread = [...(fg.chat_messages ?? [])].sort((a, b) =>
+                  a.created_at.localeCompare(b.created_at)
+                )
                 return (
                   <div key={fg.id} className="mt-3">
+                    {thread.length > 0 && (
+                      <div className="mb-2 grid gap-1 rounded-md bg-muted/40 p-2">
+                        {thread.map((m, mi) => (
+                          <p key={mi} className="text-xs">
+                            <span className="font-medium">
+                              {m.role === "user" ? "You" : "Studio"}:
+                            </span>{" "}
+                            {m.content}
+                          </p>
+                        ))}
+                      </div>
+                    )}
                     <p className="text-xs text-muted-foreground">
                       Step {fg.current_step + 1}/{fg.edit_chain.length} — {fg.step_status}
                       {job.total_cost_cents > 0 &&
