@@ -1,0 +1,1 @@
+Read CLAUDE.md, PROGRESS.md, and DECISIONS.md, then continue with the next unchecked phase in PLAN.md following the execution protocol in CLAUDE.md. One phase only, checkpoint commits throughout, update PROGRESS.md when done.
