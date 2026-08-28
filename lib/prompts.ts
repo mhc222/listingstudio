@@ -206,6 +206,129 @@ export function VIRTUAL_STAGING(
   return parts.join(" ")
 }
 
+// Tiers change prompt aggressiveness only (CLAUDE.md).
+const RENOVATION_TIERS: Record<string, string> = {
+  light:
+    "Make only the minimal changes described, keeping every other finish, fixture, and surface exactly as photographed.",
+  mid: "Update the described finishes plus directly adjacent trim and hardware so the result reads cohesive; leave everything else as photographed.",
+  full: "Comprehensively renovate the visible finishes into one cohesive result built around the described changes.",
+}
+
+export type VirtualRenovationOptions = {
+  tier?: string
+  changes?: string
+}
+
+export function VIRTUAL_RENOVATION(
+  options: VirtualRenovationOptions = {},
+  comment?: string | null,
+  grounding?: Grounding
+): string {
+  const changes = (options.changes ?? "").trim()
+  const parts = [
+    // brightness cue inside the first ten words
+    "Bright natural daylight photo of this exact room, virtually renovated.",
+    changes
+      ? `Apply these finish changes: ${changes}.`
+      : "Tastefully update the visible finishes to a clean, current look.",
+    RENOVATION_TIERS[options.tier ?? "mid"] ?? RENOVATION_TIERS.mid,
+    // spatial anchoring: everything stays where it is, only finishes change
+    "Keep all cabinetry, appliances, fixtures, and furniture in their existing positions, and keep the natural light entering through the existing windows unchanged.",
+  ]
+  if (grounding?.dimensions) parts.push(grounding.dimensions)
+  parts.push(GEOMETRY_INTERIOR)
+  if (comment?.trim()) parts.push(comment.trim())
+  parts.push(LISTING_SUFFIX)
+  return parts.join(" ")
+}
+
+export function VIRTUAL_LANDSCAPING(
+  options: { instructions?: string } = {},
+  comment?: string | null
+): string {
+  const instructions = (options.instructions ?? "").trim()
+  const parts = [
+    // brightness cue inside the first ten words
+    "Bright natural daylight photo of this exact home exterior, professionally landscaped.",
+    "Make the lawn evenly green and healthy, tidy the planting beds with fresh dark mulch and flowering shrubs, and keep walkways clean and edged.",
+    // spatial anchoring: plantings follow the existing beds and paths
+    "Place all new plantings along the existing bed lines and walkway edges, realistically scaled, without blocking windows, doors, or the view of the house.",
+  ]
+  if (instructions) parts.push(`Also: ${instructions}.`)
+  parts.push(GEOMETRY_EXTERIOR)
+  if (comment?.trim()) parts.push(comment.trim())
+  parts.push(LISTING_SUFFIX)
+  return parts.join(" ")
+}
+
+// dusk (exterior) is the headline preset; the interior siblings are
+// relight-only variants (CLAUDE.md).
+export const LIGHT_PRESETS: Record<string, { label: string; opening: string; body: string }> = {
+  dusk: {
+    label: "Dusk (exterior)",
+    opening: "Warm glowing twilight photo of this exact home exterior at dusk.",
+    body: "Replace the sky with a rich dusk gradient of deep blue fading to soft orange at the horizon, make every visible window glow with warm interior light, turn on exterior fixtures, and keep the remaining shadows consistent with the dusk sky's light direction.",
+  },
+  bright_daylight: {
+    label: "Bright daylight (interior)",
+    opening: "Bright natural daylight relighting of this exact room.",
+    body: "Relight the scene as a bright, airy daytime interior with soft natural light from the existing windows. Change only the lighting; leave every object and surface exactly as photographed.",
+  },
+  golden_hour: {
+    label: "Golden hour (interior)",
+    opening: "Warm golden hour relighting of this exact room.",
+    body: "Relight the scene with low warm golden-hour sunlight streaming through the existing windows, casting soft warm highlights. Change only the lighting; leave every object and surface exactly as photographed.",
+  },
+  soft_overcast: {
+    label: "Soft overcast (interior)",
+    opening: "Soft, evenly lit overcast relighting of this exact room.",
+    body: "Relight the scene with diffuse, shadowless overcast daylight from the existing windows. Change only the lighting; leave every object and surface exactly as photographed.",
+  },
+}
+
+export function DAY_TO_DUSK(
+  options: { preset?: string } = {},
+  comment?: string | null
+): string {
+  const preset = LIGHT_PRESETS[options.preset ?? "dusk"] ?? LIGHT_PRESETS.dusk
+  const isDusk = (options.preset ?? "dusk") === "dusk"
+  const parts = [preset.opening, preset.body, isDusk ? GEOMETRY_EXTERIOR : GEOMETRY_INTERIOR]
+  if (comment?.trim()) parts.push(comment.trim())
+  parts.push(LISTING_SUFFIX)
+  return parts.join(" ")
+}
+
+// One named element, all else untouched (CLAUDE.md).
+export function COLOUR_CHANGE(
+  options: { element?: string; colour?: string } = {},
+  comment?: string | null
+): string {
+  const element = (options.element ?? "").trim() || "the named element"
+  const colour = (options.colour ?? "").trim() || "the requested colour"
+  const parts = [
+    // brightness cue inside the first ten words
+    `Bright natural daylight photo of this exact scene, recoloring ${element}.`,
+    `Change the colour of ${element} to ${colour}, keeping its material, texture, sheen, and lighting realistic.`,
+    "Leave every other element of the image pixel-identical to the original.",
+    GEOMETRY_INTERIOR,
+  ]
+  if (comment?.trim()) parts.push(comment.trim())
+  parts.push(LISTING_SUFFIX)
+  return parts.join(" ")
+}
+
+export function SHADOW_REMOVAL(comment?: string | null): string {
+  const parts = [
+    // brightness cue inside the first ten words
+    "Bright, evenly lit real estate photo of this exact scene.",
+    "Remove harsh cast shadows and hotspots, balancing the lighting evenly across all surfaces while preserving natural depth, textures, and soft ambient shading.",
+    GEOMETRY_INTERIOR,
+  ]
+  if (comment?.trim()) parts.push(comment.trim())
+  parts.push(LISTING_SUFFIX)
+  return parts.join(" ")
+}
+
 export function compilePrompt(
   step: EditStep,
   comment?: string | null,
@@ -224,6 +347,20 @@ export function compilePrompt(
       return TURN_ON_LIGHTS(comment)
     case "VIRTUAL_STAGING":
       return VIRTUAL_STAGING((step.options ?? {}) as VirtualStagingOptions, comment, grounding)
+    case "VIRTUAL_RENOVATION":
+      return VIRTUAL_RENOVATION(
+        (step.options ?? {}) as VirtualRenovationOptions,
+        comment,
+        grounding
+      )
+    case "VIRTUAL_LANDSCAPING":
+      return VIRTUAL_LANDSCAPING((step.options ?? {}) as { instructions?: string }, comment)
+    case "DAY_TO_DUSK":
+      return DAY_TO_DUSK((step.options ?? {}) as { preset?: string }, comment)
+    case "COLOUR_CHANGE":
+      return COLOUR_CHANGE((step.options ?? {}) as { element?: string; colour?: string }, comment)
+    case "SHADOW_REMOVAL":
+      return SHADOW_REMOVAL(comment)
     default:
       throw new Error(`No prompt template for edit type: ${step.edit_type}`)
   }

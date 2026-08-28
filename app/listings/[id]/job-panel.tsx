@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { ROOM_TYPES } from "@/lib/roomTypes"
-import { FURNITURE_STYLES } from "@/lib/prompts"
+import { FURNITURE_STYLES, LIGHT_PRESETS } from "@/lib/prompts"
 import type { PhotoRow } from "./photo-grid"
 
 export type SampleRow = { id: string; label: string | null; url: string | null }
@@ -23,7 +23,7 @@ export type JobRow = {
     current_step: number
     step_status: string
     last_error: string | null
-    edit_chain: { edit_type: string }[]
+    edit_chain: { edit_type: string; options?: Record<string, unknown> }[]
     output_versions: { version_number: number; url: string | null }[]
   }[]
 }
@@ -48,7 +48,27 @@ const EDIT_TYPES: Record<string, { label: string; defaults: Record<string, unkno
     label: "Virtual staging",
     defaults: { room_type: "living_room", furniture_style: "modern", furniture_required: "" },
   },
+  VIRTUAL_RENOVATION: {
+    label: "Virtual renovation",
+    defaults: { tier: "mid", changes: "" },
+  },
+  VIRTUAL_LANDSCAPING: { label: "Virtual landscaping", defaults: { instructions: "" } },
+  DAY_TO_DUSK: { label: "Day to dusk / relight", defaults: { preset: "dusk" } },
+  COLOUR_CHANGE: { label: "Colour change", defaults: { element: "", colour: "" } },
+  SHADOW_REMOVAL: { label: "Shadow removal", defaults: {} },
 }
+
+const RENOVATION_TIER_LABELS: Record<string, string> = {
+  light: "Light touch",
+  mid: "Mid renovation",
+  full: "Full renovation",
+}
+
+// Manual QA checklist for dusk outputs (CLAUDE.md rule 5); auto-QA arrives phase 8.
+const DUSK_CHECKS = [
+  "No windows glowing in rooms that were dark in the original",
+  "Dusk sky consistent with the shadow direction",
+]
 
 const SKY_STYLE_LABELS: Record<string, string> = {
   any: "Any sky",
@@ -279,6 +299,68 @@ export function JobPanel({
                     />
                   </div>
                 )}
+                {edit.edit_type === "VIRTUAL_RENOVATION" && (
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <select
+                      value={String(edit.options.tier)}
+                      onChange={(e) => setOption(i, "tier", e.target.value)}
+                      className="rounded-md border bg-transparent px-2 py-1.5 text-sm"
+                    >
+                      {Object.entries(RENOVATION_TIER_LABELS).map(([k, label]) => (
+                        <option key={k} value={k}>
+                          {label}
+                        </option>
+                      ))}
+                    </select>
+                    <input
+                      value={String(edit.options.changes ?? "")}
+                      onChange={(e) => setOption(i, "changes", e.target.value)}
+                      placeholder="Describe the finish changes, e.g. white shaker cabinets and quartz counters"
+                      className="min-w-0 flex-1 rounded-md border bg-transparent px-2 py-1.5 text-sm"
+                    />
+                  </div>
+                )}
+                {edit.edit_type === "VIRTUAL_LANDSCAPING" && (
+                  <div className="mt-2">
+                    <input
+                      value={String(edit.options.instructions ?? "")}
+                      onChange={(e) => setOption(i, "instructions", e.target.value)}
+                      placeholder="Optional extras, e.g. paint the front door navy, add porch furniture"
+                      className="w-full rounded-md border bg-transparent px-2 py-1.5 text-sm"
+                    />
+                  </div>
+                )}
+                {edit.edit_type === "DAY_TO_DUSK" && (
+                  <div className="mt-2">
+                    <select
+                      value={String(edit.options.preset)}
+                      onChange={(e) => setOption(i, "preset", e.target.value)}
+                      className="rounded-md border bg-transparent px-2 py-1.5 text-sm"
+                    >
+                      {Object.entries(LIGHT_PRESETS).map(([k, { label }]) => (
+                        <option key={k} value={k}>
+                          {label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+                {edit.edit_type === "COLOUR_CHANGE" && (
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <input
+                      value={String(edit.options.element ?? "")}
+                      onChange={(e) => setOption(i, "element", e.target.value)}
+                      placeholder="Element, e.g. the front door"
+                      className="min-w-0 flex-1 rounded-md border bg-transparent px-2 py-1.5 text-sm"
+                    />
+                    <input
+                      value={String(edit.options.colour ?? "")}
+                      onChange={(e) => setOption(i, "colour", e.target.value)}
+                      placeholder="New colour, e.g. deep navy blue"
+                      className="min-w-0 flex-1 rounded-md border bg-transparent px-2 py-1.5 text-sm"
+                    />
+                  </div>
+                )}
               </div>
             ))}
 
@@ -384,6 +466,11 @@ export function JobPanel({
                 const latest = [...fg.output_versions].sort(
                   (a, b) => b.version_number - a.version_number
                 )[0]
+                const isDusk = fg.edit_chain.some(
+                  (s) =>
+                    s.edit_type === "DAY_TO_DUSK" &&
+                    (s.options?.preset ?? "dusk") === "dusk"
+                )
                 return (
                   <div key={fg.id} className="mt-3">
                     <p className="text-xs text-muted-foreground">
@@ -427,6 +514,20 @@ export function JobPanel({
                             </a>
                           </figcaption>
                         </figure>
+                      </div>
+                    )}
+                    {isDusk && latest?.url && (
+                      <div className="mt-2 rounded-md border p-2">
+                        <p className="text-xs font-medium">Dusk checks (manual)</p>
+                        {DUSK_CHECKS.map((check) => (
+                          <label key={check} className="mt-1 flex items-center gap-1.5 text-xs">
+                            <input type="checkbox" />
+                            {check}
+                          </label>
+                        ))}
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          If either fails, re-run with a corrective note.
+                        </p>
                       </div>
                     )}
                   </div>
