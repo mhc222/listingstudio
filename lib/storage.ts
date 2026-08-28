@@ -54,6 +54,13 @@ export async function getUrls(
   return Object.fromEntries(data.map((d) => [d.path, d.signedUrl]))
 }
 
+export async function list(bucket: Bucket, prefix: string, client?: SupabaseClient) {
+  const supabase = await resolveClient(client)
+  const { data, error } = await supabase.storage.from(bucket).list(prefix)
+  if (error) throw error
+  return data.map((o) => o.name)
+}
+
 export async function download(bucket: Bucket, path: string, client?: SupabaseClient) {
   const supabase = await resolveClient(client)
   const { data, error } = await supabase.storage.from(bucket).download(path)

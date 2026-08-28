@@ -39,10 +39,71 @@ export function ITEM_REMOVAL(
   return parts.join(" ")
 }
 
+const SKY_STYLES: Record<string, string> = {
+  any: "an attractive natural daytime sky",
+  clear_blue: "a clear blue daytime sky",
+  clouds_blue: "a blue daytime sky with scattered white clouds",
+  orange_sunrise: "a warm orange sunrise sky",
+}
+
+export type ImageEnhancementOptions = {
+  sky_replacement?: boolean
+  day_sky_style?: string
+  grass_repair?: boolean
+}
+
+export function IMAGE_ENHANCEMENT(
+  options: ImageEnhancementOptions = {},
+  comment?: string | null
+): string {
+  const parts = [
+    // brightness cue inside the first ten words
+    "Bright natural daylight enhancement of this exact real estate photo.",
+    "Correct white balance and color tone, sharpen details, straighten verticals, and correct lens distortion.",
+    "Remove dust spots, blemishes, camera flash hotspots, and any photographer reflections in mirrors or windows.",
+    "Balance window exposure so the view outside stays visible without darkening the interior.",
+    "If a TV screen is visible, replace its contents with a neutral scenic image. If a fireplace is present, show a warm lit fire in it.",
+  ]
+  if (options.sky_replacement) {
+    parts.push(
+      `Replace the sky with ${SKY_STYLES[options.day_sky_style ?? "any"] ?? SKY_STYLES.any}, keeping lighting on the scene consistent with it.`
+    )
+  }
+  if (options.grass_repair) {
+    parts.push(
+      "Repair the lawn: make all grass evenly green, healthy, and neatly maintained, filling in bare and brown patches."
+    )
+  }
+  parts.push(GEOMETRY_INTERIOR)
+  if (comment?.trim()) parts.push(comment.trim())
+  parts.push(LISTING_SUFFIX)
+  return parts.join(" ")
+}
+
+export function TURN_ON_LIGHTS(
+  _options: Record<string, unknown> = {},
+  comment?: string | null
+): string {
+  const parts = [
+    // brightness cue inside the first ten words
+    "Bright, warmly lit real estate photo of this exact room.",
+    "Turn on every light fixture: ceiling lights, chandeliers, pendant lights, lamps, and sconces all emit a warm inviting glow.",
+    "Render realistic warm illumination and soft light falloff from each fixture onto nearby surfaces, leaving everything else in the scene unchanged.",
+    GEOMETRY_INTERIOR,
+  ]
+  if (comment?.trim()) parts.push(comment.trim())
+  parts.push(LISTING_SUFFIX)
+  return parts.join(" ")
+}
+
 export function compilePrompt(step: EditStep, comment?: string | null): string {
   switch (step.edit_type) {
     case "ITEM_REMOVAL":
       return ITEM_REMOVAL((step.options ?? {}) as { tier?: 1 | 2; items?: string }, comment)
+    case "IMAGE_ENHANCEMENT":
+      return IMAGE_ENHANCEMENT((step.options ?? {}) as ImageEnhancementOptions, comment)
+    case "TURN_ON_LIGHTS":
+      return TURN_ON_LIGHTS(step.options ?? {}, comment)
     default:
       throw new Error(`No prompt template for edit type: ${step.edit_type}`)
   }

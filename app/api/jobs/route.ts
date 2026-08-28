@@ -15,11 +15,12 @@ export async function POST(req: Request) {
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 })
 
   const body = await req.json()
-  const { listingId, photoId, editChain, comment } = body as {
+  const { listingId, photoId, editChain, comment, sizePreset } = body as {
     listingId: string
     photoId: string
     editChain: EditStep[]
     comment?: string
+    sizePreset?: string
   }
   if (!listingId || !photoId || !editChain?.length) {
     return NextResponse.json({ error: "listingId, photoId, editChain required" }, { status: 400 })
@@ -60,6 +61,9 @@ export async function POST(req: Request) {
       primary_photo_id: photoId,
       edit_chain: editChain,
       comment: comment ?? null,
+      size_preset: ["original", "under_10mb", "under_5mb"].includes(sizePreset ?? "")
+        ? sizePreset
+        : "original",
       provider: pickProvider(editChain.length),
     })
     .select("id")

@@ -5,7 +5,7 @@ import type { SupabaseClient } from "@supabase/supabase-js"
 import { MODELS, type ProviderKey } from "@/config/models"
 import { compilePrompt, type EditStep } from "@/lib/prompts"
 import { submitGeneration, getResultImageUrl, extractImageUrl } from "@/lib/imaging"
-import { getUrl, upload } from "@/lib/storage"
+import { getUrl, list, upload } from "@/lib/storage"
 
 export type FileGroupRow = {
   id: string
@@ -39,8 +39,16 @@ async function inputUrlForStep(db: SupabaseClient, fg: FileGroupRow): Promise<st
     if (error || !photo) throw new Error("primary photo not found")
     return getUrl("originals", photo.storage_path, 6 * 3600, db)
   }
-  // chained step: previous step's stored output
-  return getUrl("outputs", stepOutputPath(fg, fg.current_step - 1), 6 * 3600, db)
+  // chained step: previous step's stored output. retry_count may have advanced
+  // since that step completed (it's per-group, not per-step), so find the
+  // newest step-{n-1}-r* object instead of computing the path from retry_count.
+  const re = new RegExp(`^step-${fg.current_step - 1}-r(\\d+)\\.jpg$`)
+  const matches = (await list("outputs", fg.id, db))
+    .map((name) => re.exec(name))
+    .filter((m): m is RegExpExecArray => m !== null)
+    .sort((a, b) => Number(b[1]) - Number(a[1]))
+  if (!matches.length) throw new Error(`output of step ${fg.current_step - 1} not found`)
+  return getUrl("outputs", `${fg.id}/${matches[0][0]}`, 6 * 3600, db)
 }
 
 // Deterministic per (file group, step, retry) so duplicate completions upsert
