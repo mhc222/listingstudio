@@ -1,3 +1,4 @@
+import Link from "next/link"
 import { createClient } from "@/lib/supabase/server"
 import { Button } from "@/components/ui/button"
 
@@ -20,8 +21,10 @@ export default async function Dashboard() {
       <p className="mt-2 text-sm text-muted-foreground">
         Signed in as {user?.email}
       </p>
-      <div className="mt-10 rounded-lg border border-dashed p-10 text-center text-muted-foreground">
-        No listings yet. Listings arrive in Phase 2.
+      <div className="mt-10">
+        <Link href="/listings" className="text-primary underline">
+          Go to listings →
+        </Link>
       </div>
     </main>
   )

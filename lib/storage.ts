@@ -26,6 +26,16 @@ export async function getUrl(bucket: Bucket, path: string, expiresInSeconds = 36
   return data.signedUrl
 }
 
+export async function getUrls(bucket: Bucket, paths: string[], expiresInSeconds = 3600) {
+  if (paths.length === 0) return {}
+  const supabase = await createClient()
+  const { data, error } = await supabase.storage
+    .from(bucket)
+    .createSignedUrls(paths, expiresInSeconds)
+  if (error) throw error
+  return Object.fromEntries(data.map((d) => [d.path, d.signedUrl]))
+}
+
 export async function download(bucket: Bucket, path: string) {
   const supabase = await createClient()
   const { data, error } = await supabase.storage.from(bucket).download(path)

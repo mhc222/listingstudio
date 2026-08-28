@@ -2,7 +2,7 @@
 
 ## Phases
 - [x] Phase 1 — Scaffold + auth + schema + storage buckets
-- [ ] Phase 2 — Listings + photo upload + rooms + floor plans
+- [x] Phase 2 — Listings + photo upload + rooms + floor plans
 - [ ] Phase 3 — Imaging provider layer + orchestration + ITEM_REMOVAL end to end
 - [ ] Phase 4 — IMAGE_ENHANCEMENT + TURN_ON_LIGHTS + edit chaining
 - [ ] Phase 5 — VIRTUAL_STAGING + sample library + context grounding
@@ -20,11 +20,12 @@
 - [ ] Phase 17 — Experimental 360 edits
 
 ## Current state
-Phase 1 complete. Supabase project "Listing Studio" (id gczmpmjaqgtkxqdopknx, org zzbpawcjzxujqxustqup — Matt created it in the dashboard, different org than DarylV3's). Migration 0001_init applied and verified: 10 tables, 3 buckets (originals/outputs/references), 10 RLS policies. .env.local written with URL + anon key. `npm run build` clean.
+Phase 2 complete. Listings CRUD (`app/listings/page.tsx`), listing detail with photo grid + room panel + floor plans (`app/listings/[id]/page.tsx`), batch upload route (`app/api/upload/route.ts`: heic-convert for HEIC → JPEG, sharp for dimensions, PDFs allowed as floor plans only), room CRUD via server actions, quick-tag at upload + per-photo re-tag. `npm run build` + `npm run lint` clean. Supabase project gczmpmjaqgtkxqdopknx (org zzbpawcjzxujqxustqup).
 
 Outstanding (Matt, manual):
 - No auth user exists yet (auth.users count = 0). Supabase dashboard -> Authentication -> Add user (email + password).
 - SUPABASE_SERVICE_ROLE_KEY blank in .env.local — paste from dashboard Settings -> API when a phase needs it.
+- Phase 2 manual test not yet run (needs the auth user above).
 
 ## Next action
-Phase 2 — Listings + photo upload + rooms + floor plans (see PLAN.md).
+Phase 3 — Imaging provider layer + orchestration + ITEM_REMOVAL end to end (see PLAN.md). Needs FAL_KEY in .env.local.
