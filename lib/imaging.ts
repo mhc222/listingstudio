@@ -18,8 +18,15 @@ function basePath(falId: string) {
   return falId.split("/").slice(0, 2).join("/")
 }
 
-function buildInput(provider: ProviderKey, prompt: string, imageUrl: string) {
-  if (provider === "gemini") return { prompt, image_urls: [imageUrl] }
+function buildInput(
+  provider: ProviderKey,
+  prompt: string,
+  imageUrl: string,
+  refUrls: string[]
+) {
+  // only gemini accepts multiple input images; refs are dropped elsewhere
+  // (provider selection routes ref-carrying groups to gemini)
+  if (provider === "gemini") return { prompt, image_urls: [imageUrl, ...refUrls] }
   return { prompt, image_url: imageUrl }
 }
 
@@ -28,7 +35,8 @@ export async function submitGeneration(
   provider: ProviderKey,
   prompt: string,
   imageUrl: string,
-  webhookUrl?: string
+  webhookUrl?: string,
+  refUrls: string[] = []
 ): Promise<string> {
   const model = MODELS[provider]
   if (!model.falId) {
@@ -40,7 +48,7 @@ export async function submitGeneration(
   const res = await fetch(url, {
     method: "POST",
     headers: falHeaders(),
-    body: JSON.stringify(buildInput(provider, prompt, imageUrl)),
+    body: JSON.stringify(buildInput(provider, prompt, imageUrl, refUrls)),
   })
   if (!res.ok) throw new Error(`fal submit failed (${res.status}): ${await res.text()}`)
   const data = await res.json()

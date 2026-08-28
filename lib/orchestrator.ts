@@ -3,7 +3,7 @@
 // duplicate webhooks / concurrent cron runs are no-ops. Server-only.
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { MODELS, type ProviderKey } from "@/config/models"
-import { compilePrompt, type EditStep } from "@/lib/prompts"
+import { compilePrompt, type EditStep, type Grounding } from "@/lib/prompts"
 import { submitGeneration, getResultImageUrl, extractImageUrl } from "@/lib/imaging"
 import { getUrl, list, upload } from "@/lib/storage"
 
@@ -51,6 +51,37 @@ async function inputUrlForStep(db: SupabaseClient, fg: FileGroupRow): Promise<st
   return getUrl("outputs", `${fg.id}/${matches[0][0]}`, 6 * 3600, db)
 }
 
+// Grounding computed at job creation (jobs.grounding_used); the compiler
+// injects the dimension sentence into groundable templates.
+async function groundingFor(db: SupabaseClient, fg: FileGroupRow): Promise<Grounding | undefined> {
+  const { data: job } = await db
+    .from("jobs")
+    .select("grounding_used")
+    .eq("id", fg.job_id)
+    .single<{ grounding_used: { dimension_sentence?: string } | null }>()
+  const sentence = job?.grounding_used?.dimension_sentence
+  return sentence ? { dimensions: sentence } : undefined
+}
+
+// Reference images (sample library + auto-attached floor plan) as signed URLs.
+async function refUrlsFor(db: SupabaseClient, fg: FileGroupRow): Promise<string[]> {
+  const { data: refs } = await db
+    .from("file_group_refs")
+    .select("photos(storage_path), sample_images(storage_path)")
+    .eq("file_group_id", fg.id)
+  // supabase-js types to-one joins as arrays without generated DB types
+  const one = (v: unknown) =>
+    (Array.isArray(v) ? v[0] : v) as { storage_path: string } | null | undefined
+  const urls: string[] = []
+  for (const ref of refs ?? []) {
+    const photo = one(ref.photos)
+    const sample = one(ref.sample_images)
+    if (photo) urls.push(await getUrl("originals", photo.storage_path, 6 * 3600, db))
+    else if (sample) urls.push(await getUrl("references", sample.storage_path, 6 * 3600, db))
+  }
+  return urls
+}
+
 // Deterministic per (file group, step, retry) so duplicate completions upsert
 // the same object instead of piling up copies.
 function stepOutputPath(fg: FileGroupRow, step: number): string {
@@ -92,15 +123,16 @@ export async function submitStep(db: SupabaseClient, fileGroupId: string): Promi
   }
 
   try {
-    const prompt = compilePrompt(step, fg.comment)
+    const prompt = compilePrompt(step, fg.comment, await groundingFor(db, fg))
     const imageUrl = await inputUrlForStep(db, fg)
+    const refUrls = await refUrlsFor(db, fg)
     let requestId: string
     try {
-      requestId = await submitGeneration(fg.provider, prompt, imageUrl, webhookUrl())
+      requestId = await submitGeneration(fg.provider, prompt, imageUrl, webhookUrl(), refUrls)
     } catch {
       // retry once with backoff (CLAUDE.md quality bar)
       await new Promise((r) => setTimeout(r, SUBMIT_RETRY_BACKOFF_MS))
-      requestId = await submitGeneration(fg.provider, prompt, imageUrl, webhookUrl())
+      requestId = await submitGeneration(fg.provider, prompt, imageUrl, webhookUrl(), refUrls)
     }
     await db.from("file_groups").update({ fal_request_id: requestId }).eq("id", fg.id)
   } catch (e) {

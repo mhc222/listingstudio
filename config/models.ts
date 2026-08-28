@@ -20,7 +20,10 @@ export const MODELS: Record<
   local: { falId: null, label: "Local endpoint", costCents: 0 },
 }
 
-export function pickProvider(chainLength: number): ProviderKey {
+export function pickProvider(chainLength: number, hasRefs = false): ProviderKey {
+  // gemini is the only endpoint accepting multiple input images, so reference
+  // images force it (DECISIONS.md)
+  if (hasRefs) return "gemini"
   return chainLength >= 3 ? "kontext" : "qwen"
 }
 

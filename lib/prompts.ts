@@ -15,9 +15,16 @@ export type EditStep = {
   options?: Record<string, unknown>
 }
 
+// Context grounding injected by the compiler (CLAUDE.md): room dimensions as a
+// sentence for staging/renovation/item-removal prompts.
+export type Grounding = {
+  dimensions?: string | null
+}
+
 export function ITEM_REMOVAL(
   options: { tier?: 1 | 2; items?: string } = {},
-  comment?: string | null
+  comment?: string | null,
+  grounding?: Grounding
 ): string {
   const tier = options.tier === 2 ? 2 : 1
   const items = (options.items ?? "").trim()
@@ -34,6 +41,7 @@ export function ITEM_REMOVAL(
     "Keep every fixed fixture and architectural feature pixel-identical to the original: fireplace and its flames, built-in shelving and cabinetry, light fixtures, windows, and trim.",
     GEOMETRY_INTERIOR,
   ]
+  if (grounding?.dimensions) parts.push(grounding.dimensions)
   if (comment?.trim()) parts.push(comment.trim())
   parts.push(LISTING_SUFFIX)
   return parts.join(" ")
@@ -94,14 +102,128 @@ export function TURN_ON_LIGHTS(comment?: string | null): string {
   return parts.join(" ")
 }
 
-export function compilePrompt(step: EditStep, comment?: string | null): string {
+// One aesthetic per style, specific materials (prompt engineering rule 3).
+export const FURNITURE_STYLES: Record<string, { label: string; desc: string }> = {
+  modern: {
+    label: "Modern",
+    desc: "modern style: clean-lined furniture, charcoal and white upholstery, matte black metal accents, light oak wood",
+  },
+  contemporary: {
+    label: "Contemporary",
+    desc: "contemporary style: soft neutral upholstery in warm greige, walnut wood, brushed nickel accents",
+  },
+  farmhouse: {
+    label: "Farmhouse",
+    desc: "modern farmhouse style: natural linen upholstery, reclaimed pine wood, a woven jute rug, soft white and sage accents",
+  },
+  traditional: {
+    label: "Traditional",
+    desc: "traditional style: rolled-arm seating in cream fabric, dark cherry wood, brass accents",
+  },
+  urban_industrial: {
+    label: "Urban/Industrial",
+    desc: "urban industrial style: cognac brown leather seating, raw steel frames, reclaimed wood surfaces",
+  },
+  mid_century_modern: {
+    label: "Mid-Century Modern",
+    desc: "mid-century modern style: teak wood furniture with tapered legs, mustard and teal accents, a geometric-pattern rug",
+  },
+  hamptons: {
+    label: "Hamptons",
+    desc: "Hamptons coastal style: light linen upholstery in a white and navy palette, natural rattan accents, whitewashed oak",
+  },
+  commercial: {
+    label: "Commercial",
+    desc: "commercial style: office-grade desks and seating in gray and white laminate, minimal decor",
+  },
+  scandinavian: {
+    label: "Scandinavian",
+    desc: "Scandinavian style: light birch wood furniture, white and pale gray textiles, simple clean lines, wool throw accents",
+  },
+}
+
+const ROOM_LABELS: Record<string, string> = {
+  living_room: "living room",
+  kitchen: "kitchen",
+  dining: "dining room",
+  main_bedroom: "main bedroom",
+  bedroom_2: "bedroom",
+  bedroom_3: "bedroom",
+  bedroom_4: "bedroom",
+  bathroom_ensuite: "bathroom",
+  office: "home office",
+  outdoor_patio: "outdoor patio",
+  other: "room",
+}
+
+const ROOM_FURNITURE: Record<string, string> = {
+  living_room:
+    "a sofa, accent chairs, a coffee table, an area rug, side tables with lamps, and tasteful wall art",
+  kitchen: "bar stools at any counter or island and minimal styled counter decor",
+  dining: "a dining table with chairs, a simple centerpiece, and an area rug",
+  main_bedroom:
+    "a made bed with headboard and layered bedding, nightstands with lamps, a bench at the foot of the bed, and an area rug",
+  bedroom_2: "a made bed with headboard, nightstands with lamps, and an area rug",
+  bedroom_3: "a made bed with headboard, nightstands with lamps, and an area rug",
+  bedroom_4: "a made bed with headboard, nightstands with lamps, and an area rug",
+  bathroom_ensuite: "neatly folded towels, a bath mat, and minimal counter styling",
+  office: "a desk with a chair, a bookshelf, and an area rug",
+  outdoor_patio: "an outdoor seating set, an outdoor rug, and potted plants",
+  other: "furniture and decor appropriate to the room's function",
+}
+
+export type VirtualStagingOptions = {
+  room_type?: string
+  furniture_style?: string
+  furniture_required?: string
+}
+
+export function VIRTUAL_STAGING(
+  options: VirtualStagingOptions = {},
+  comment?: string | null,
+  grounding?: Grounding
+): string {
+  const roomType = options.room_type ?? "other"
+  const style = FURNITURE_STYLES[options.furniture_style ?? "modern"] ?? FURNITURE_STYLES.modern
+  const required = (options.furniture_required ?? "").trim()
+  const parts = [
+    // brightness cue inside the first ten words
+    `Bright natural daylight photo of this exact ${ROOM_LABELS[roomType] ?? "room"}, virtually staged.`,
+    `Furnish it in ${style.desc}.`,
+    `Add ${ROOM_FURNITURE[roomType] ?? ROOM_FURNITURE.other}.`,
+    // spatial anchoring (prompt engineering rule 1): light entry, furniture vs walls/windows, surfaces
+    "Anchor every piece to the room as photographed: orient seating toward the room's natural focal point, place large furniture against walls, leave every window, doorway, and walkway unobstructed, and light the furniture consistently with the natural light entering through the existing windows.",
+    "Keep the existing flooring, wall finishes, and ceiling exactly as they appear in the photo.",
+  ]
+  if (grounding?.dimensions) parts.push(grounding.dimensions)
+  if (required) parts.push(`Required furniture: ${required}.`)
+  parts.push(
+    "If reference images are provided, match their furniture style, materials, and color palette."
+  )
+  parts.push(GEOMETRY_INTERIOR)
+  if (comment?.trim()) parts.push(comment.trim())
+  parts.push(LISTING_SUFFIX)
+  return parts.join(" ")
+}
+
+export function compilePrompt(
+  step: EditStep,
+  comment?: string | null,
+  grounding?: Grounding
+): string {
   switch (step.edit_type) {
     case "ITEM_REMOVAL":
-      return ITEM_REMOVAL((step.options ?? {}) as { tier?: 1 | 2; items?: string }, comment)
+      return ITEM_REMOVAL(
+        (step.options ?? {}) as { tier?: 1 | 2; items?: string },
+        comment,
+        grounding
+      )
     case "IMAGE_ENHANCEMENT":
       return IMAGE_ENHANCEMENT((step.options ?? {}) as ImageEnhancementOptions, comment)
     case "TURN_ON_LIGHTS":
       return TURN_ON_LIGHTS(comment)
+    case "VIRTUAL_STAGING":
+      return VIRTUAL_STAGING((step.options ?? {}) as VirtualStagingOptions, comment, grounding)
     default:
       throw new Error(`No prompt template for edit type: ${step.edit_type}`)
   }
