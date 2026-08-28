@@ -53,4 +53,11 @@ Outstanding (Matt, manual):
 - Webhook signature verification still unexercised locally (needs deployed URL — phase 16).
 
 ## Next action
-Phase 10 — Batch mode + cost simulator + before/after polish + MLS presets (see PLAN.md).
+Phase 10 — Batch mode + cost simulator + before/after polish + MLS presets (see PLAN.md). STARTED, barely: jszip installed (wip commit), NO phase 10 code written yet. Design already settled this session — implement exactly this:
+- Concurrency gate (max 3 running, CLAUDE.md): in orchestrator submitStep, before the claim, count file_groups with step_status='running'; if ≥3 return (leave queued). Add kickQueued(db) helper (select queued fgs with fal_request_id null, submit up to free slots); call it at the end of completeStep and failGroup, and from the reconcile cron as a sweep (gate is best-effort ±1 under concurrent webhooks — protects fal rate limits, not correctness; log in DECISIONS).
+- Batch: jobs route accepts photoIds[] (keep photoId back-compat); one job, one fg per photo, same chain/comment/refs; title "Batch ×N — …"; when >1 photo skip room-dimension grounding (per-photo dims don't fit jobs.grounding_used), floor-plan ref still attached. UI: photoId → photoIds[] multi-select toggle; chat path requires exactly 1 selected.
+- lib/simulate.ts: simulateCents(chainLength, photoCount, hasRefs) → {provider, firstRun: chainLen×rate×N, expected: AVG_GENERATIONS_PER_FILE_GROUP×rate×N}; show estimate line under chain builder before Run (client-importable, pure config data).
+- Download route rework: ?variant=original|full|web1920|under_10mb|under_5mb (default fg.size_preset), ?version=<id>, ?watermark=1|0 (default ON when chain has VIRTUAL_STAGING/VIRTUAL_RENOVATION); watermark = sharp composite of an SVG "VIRTUALLY STAGED" pill, gravity southeast, applied BEFORE the quality ladder; filename gets "-virtually-staged" suffix. Shared helpers in lib/deliver.ts (applyVariant, applyWatermark, isStaged) reused by the zip route.
+- Zip: app/api/listings/[id]/download-all/route.ts via jszip — latest version of every complete fg across the listing's jobs, watermark per staging default, maxDuration 120.
+- components/before-after.tsx: clip-path slider (range input over stacked imgs); replace the side-by-side grid in job-panel fg detail.
+- DoD: 6-photo batch max 3 concurrent; estimate matches rate math; watermark+suffix when toggled; zip has latest final per fg; build clean.
