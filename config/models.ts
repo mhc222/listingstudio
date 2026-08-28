@@ -29,3 +29,20 @@ export function pickProvider(chainLength: number, hasRefs = false): ProviderKey 
 
 // Cost simulation assumption (phase 10)
 export const AVG_GENERATIONS_PER_FILE_GROUP = 2.5
+
+// Interpreter (CLAUDE.md: cheapest adequate model, Haiku-tier). Rates are
+// cents per million tokens ($1 in / $5 out).
+export const INTERPRETER_MODEL = {
+  id: "claude-haiku-4-5",
+  label: "Claude Haiku 4.5",
+  inputCentsPerMTok: 100,
+  outputCentsPerMTok: 500,
+}
+
+export function interpreterCostCents(inputTokens: number, outputTokens: number): number {
+  return (
+    (inputTokens * INTERPRETER_MODEL.inputCentsPerMTok +
+      outputTokens * INTERPRETER_MODEL.outputCentsPerMTok) /
+    1_000_000
+  )
+}
