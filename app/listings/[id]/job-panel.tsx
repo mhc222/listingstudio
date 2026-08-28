@@ -1,16 +1,22 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
+import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
+import { ROOM_TYPES } from "@/lib/roomTypes"
+import { FURNITURE_STYLES } from "@/lib/prompts"
 import type { PhotoRow } from "./photo-grid"
+
+export type SampleRow = { id: string; label: string | null; url: string | null }
 
 export type JobRow = {
   id: string
   title: string
   status: string
   total_cost_cents: number
+  grounding_used: { dimension_sentence?: string; floor_plan_photo_id?: string } | null
   file_groups: {
     id: string
     primary_photo_id: string
@@ -38,6 +44,10 @@ const EDIT_TYPES: Record<string, { label: string; defaults: Record<string, unkno
     defaults: { sky_replacement: false, day_sky_style: "any", grass_repair: false },
   },
   TURN_ON_LIGHTS: { label: "Turn on lights", defaults: {} },
+  VIRTUAL_STAGING: {
+    label: "Virtual staging",
+    defaults: { room_type: "living_room", furniture_style: "modern", furniture_required: "" },
+  },
 }
 
 const SKY_STYLE_LABELS: Record<string, string> = {
@@ -57,18 +67,25 @@ export function JobPanel({
   listingId,
   photos,
   jobs,
+  samples,
 }: {
   listingId: string
   photos: PhotoRow[]
   jobs: JobRow[]
+  samples: SampleRow[]
 }) {
   const router = useRouter()
   const [photoId, setPhotoId] = useState<string | null>(null)
   const [chain, setChain] = useState<ChainEdit[]>([])
   const [comment, setComment] = useState("")
   const [sizePreset, setSizePreset] = useState("original")
+  const [sampleIds, setSampleIds] = useState<string[]>([])
   const [running, setRunning] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  function toggleSample(id: string) {
+    setSampleIds((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]))
+  }
 
   function addEdit(editType: string) {
     setChain((c) => [...c, { edit_type: editType, options: { ...EDIT_TYPES[editType].defaults } }])
@@ -116,6 +133,7 @@ export function JobPanel({
         editChain: chain,
         comment: comment.trim() || undefined,
         sizePreset,
+        sampleImageIds: sampleIds.length ? sampleIds : undefined,
       }),
     })
     setRunning(false)
@@ -127,6 +145,7 @@ export function JobPanel({
     setChain([])
     setComment("")
     setPhotoId(null)
+    setSampleIds([])
     router.refresh()
   }
 
@@ -228,8 +247,73 @@ export function JobPanel({
                     </label>
                   </div>
                 )}
+                {edit.edit_type === "VIRTUAL_STAGING" && (
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <select
+                      value={String(edit.options.room_type)}
+                      onChange={(e) => setOption(i, "room_type", e.target.value)}
+                      className="rounded-md border bg-transparent px-2 py-1.5 text-sm"
+                    >
+                      {ROOM_TYPES.map((r) => (
+                        <option key={r.value} value={r.value}>
+                          {r.label}
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      value={String(edit.options.furniture_style)}
+                      onChange={(e) => setOption(i, "furniture_style", e.target.value)}
+                      className="rounded-md border bg-transparent px-2 py-1.5 text-sm"
+                    >
+                      {Object.entries(FURNITURE_STYLES).map(([k, { label }]) => (
+                        <option key={k} value={k}>
+                          {label}
+                        </option>
+                      ))}
+                    </select>
+                    <input
+                      value={String(edit.options.furniture_required ?? "")}
+                      onChange={(e) => setOption(i, "furniture_required", e.target.value)}
+                      placeholder="Required furniture (optional), e.g. a king bed and reading chair"
+                      className="min-w-0 flex-1 rounded-md border bg-transparent px-2 py-1.5 text-sm"
+                    />
+                  </div>
+                )}
               </div>
             ))}
+
+            <div className="mt-3">
+              <p className="text-xs font-medium text-muted-foreground">
+                Reference images{" "}
+                <Link href="/library" className="font-normal underline hover:text-foreground">
+                  Sample library
+                </Link>
+              </p>
+              {samples.length === 0 ? (
+                <p className="mt-1 text-xs text-muted-foreground">
+                  No samples yet — add style references in the library.
+                </p>
+              ) : (
+                <div className="mt-1 flex gap-2 overflow-x-auto pb-2">
+                  {samples.map((s) => (
+                    <button
+                      key={s.id}
+                      type="button"
+                      title={s.label ?? ""}
+                      onClick={() => toggleSample(s.id)}
+                      className={`shrink-0 overflow-hidden rounded-md border-2 ${
+                        sampleIds.includes(s.id) ? "border-blue-500" : "border-transparent"
+                      }`}
+                    >
+                      {s.url && (
+                        // eslint-disable-next-line @next/next/no-img-element -- signed URLs expire; next/image caching fights that
+                        <img src={s.url} alt={s.label ?? ""} className="h-12 w-16 object-cover" />
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
 
             <div className="mt-2 flex flex-wrap items-center gap-2">
               <select
@@ -284,6 +368,17 @@ export function JobPanel({
                   {job.status}
                 </span>
               </div>
+              {job.grounding_used && (
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Grounding:{" "}
+                  {[
+                    job.grounding_used.dimension_sentence,
+                    job.grounding_used.floor_plan_photo_id && "floor plan attached as reference",
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </p>
+              )}
               {job.file_groups.map((fg) => {
                 const before = photoById.get(fg.primary_photo_id)
                 const latest = [...fg.output_versions].sort(

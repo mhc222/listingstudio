@@ -16,9 +16,14 @@ export default async function ListingsPage() {
     <main className="mx-auto max-w-5xl p-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Listings</h1>
-        <Link href="/" className="text-sm text-muted-foreground hover:underline">
-          Dashboard
-        </Link>
+        <div className="flex gap-4">
+          <Link href="/library" className="text-sm text-muted-foreground hover:underline">
+            Sample library
+          </Link>
+          <Link href="/" className="text-sm text-muted-foreground hover:underline">
+            Dashboard
+          </Link>
+        </div>
       </div>
 
       <Card className="mt-6">

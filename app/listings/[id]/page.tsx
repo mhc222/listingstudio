@@ -5,30 +5,35 @@ import { getUrls } from "@/lib/storage"
 import { UploadPanel } from "./upload-panel"
 import { PhotoGrid, type PhotoRow } from "./photo-grid"
 import { RoomPanel, type RoomRow } from "./room-panel"
-import { JobPanel, type JobRow } from "./job-panel"
+import { JobPanel, type JobRow, type SampleRow } from "./job-panel"
 
 export default async function ListingPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const supabase = await createClient()
 
-  const [{ data: listing }, { data: rooms }, { data: photos }, { data: jobs }] = await Promise.all([
-    supabase.from("listings").select("id, address, mls_number").eq("id", id).single(),
-    supabase.from("rooms").select("*").eq("listing_id", id).order("name"),
-    supabase
-      .from("photos")
-      .select("id, room_id, storage_path, is_floor_plan")
-      .eq("listing_id", id)
-      .order("created_at"),
-    supabase
-      .from("jobs")
-      .select(
-        `id, title, status, total_cost_cents,
+  const [{ data: listing }, { data: rooms }, { data: photos }, { data: jobs }, { data: samples }] =
+    await Promise.all([
+      supabase.from("listings").select("id, address, mls_number").eq("id", id).single(),
+      supabase.from("rooms").select("*").eq("listing_id", id).order("name"),
+      supabase
+        .from("photos")
+        .select("id, room_id, storage_path, is_floor_plan")
+        .eq("listing_id", id)
+        .order("created_at"),
+      supabase
+        .from("jobs")
+        .select(
+          `id, title, status, total_cost_cents, grounding_used,
          file_groups (id, primary_photo_id, current_step, step_status, last_error, edit_chain,
            output_versions (version_number, storage_path))`
-      )
-      .eq("listing_id", id)
-      .order("created_at", { ascending: false }),
-  ])
+        )
+        .eq("listing_id", id)
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("sample_images")
+        .select("id, label, storage_path")
+        .order("created_at", { ascending: false }),
+    ])
   if (!listing) notFound()
 
   const urls = await getUrls("originals", (photos ?? []).map((p) => p.storage_path))
@@ -40,6 +45,12 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
     j.file_groups.flatMap((fg) => fg.output_versions.map((v) => v.storage_path))
   )
   const outputUrls = await getUrls("outputs", outputPaths)
+  const sampleUrls = await getUrls("references", (samples ?? []).map((s) => s.storage_path))
+  const sampleRows: SampleRow[] = (samples ?? []).map((s) => ({
+    id: s.id,
+    label: s.label,
+    url: sampleUrls[s.storage_path] ?? null,
+  }))
   const jobRows: JobRow[] = (jobs ?? []).map((j) => ({
     ...j,
     file_groups: j.file_groups.map((fg) => ({
@@ -77,7 +88,7 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
               <PhotoGrid photos={floorPlans} rooms={rooms ?? []} listingId={id} />
             </section>
           )}
-          <JobPanel listingId={id} photos={regular} jobs={jobRows} />
+          <JobPanel listingId={id} photos={regular} jobs={jobRows} samples={sampleRows} />
         </div>
         <aside>
           <h2 className="mb-3 text-lg font-medium">Rooms</h2>

@@ -16,3 +16,7 @@
 - 2026-08-28: Parked idea (from flippin.ai scan): 5-sec before/after transformation video per output (one fal image-to-video call) as a social artifact — consider post-phase-10; no prompt reverse-engineering needed, their catalog is a subset of ours.
 - 2026-08-28: Chained-step input resolved by listing outputs/{fg}/ for the newest step-{n-1}-r* object, not by computing the path from retry_count — the retry counter is per-group, so a retry on step N would otherwise point at a nonexistent previous-step path.
 - 2026-08-28: Size presets enforced as a descending-JPEG-quality ladder (90→40) in the download route, no resizing — resolution-based MLS presets arrive with the phase 10 download menu.
+- 2026-08-28: Reference images force the gemini provider — it's the only wired fal endpoint accepting multiple input images (qwen/kontext take a single image_url); refs are silently dropped elsewhere by design.
+- 2026-08-28: Grounding computed once at job creation and stored in jobs.grounding_used ({dimension_sentence, floor_plan_photo_id}); orchestrator reads it per submit rather than re-deriving from rooms — the job record doubles as the "grounding used" audit per CLAUDE.md.
+- 2026-08-28: VIRTUAL_RENOVATION already included in groundable/floor-plan-ref edit-type lists in the jobs route (a string match, not a stub) so phase 6 doesn't have to touch the route.
+- 2026-08-28: Sample library has no delete UI — single-user tool, Supabase dashboard covers it; add when it actually annoys.
