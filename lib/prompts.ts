@@ -80,10 +80,8 @@ export function IMAGE_ENHANCEMENT(
   return parts.join(" ")
 }
 
-export function TURN_ON_LIGHTS(
-  _options: Record<string, unknown> = {},
-  comment?: string | null
-): string {
+// no options — standalone or stacked
+export function TURN_ON_LIGHTS(comment?: string | null): string {
   const parts = [
     // brightness cue inside the first ten words
     "Bright, warmly lit real estate photo of this exact room.",
@@ -103,7 +101,7 @@ export function compilePrompt(step: EditStep, comment?: string | null): string {
     case "IMAGE_ENHANCEMENT":
       return IMAGE_ENHANCEMENT((step.options ?? {}) as ImageEnhancementOptions, comment)
     case "TURN_ON_LIGHTS":
-      return TURN_ON_LIGHTS(step.options ?? {}, comment)
+      return TURN_ON_LIGHTS(comment)
     default:
       throw new Error(`No prompt template for edit type: ${step.edit_type}`)
   }
