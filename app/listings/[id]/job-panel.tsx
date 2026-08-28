@@ -24,7 +24,13 @@ export type JobRow = {
     step_status: string
     last_error: string | null
     edit_chain: { edit_type: string; options?: Record<string, unknown> }[]
-    output_versions: { version_number: number; url: string | null }[]
+    output_versions: {
+      id: string
+      version_number: number
+      parent_version_id: string | null
+      qa_note: string | null
+      url: string | null
+    }[]
     chat_messages: { role: string; content: string; created_at: string }[]
   }[]
 }
@@ -114,6 +120,11 @@ export function JobPanel({
   const [interpreting, setInterpreting] = useState(false)
   const [chatError, setChatError] = useState<string | null>(null)
 
+  // rework + version selection, keyed by file group id (phase 8)
+  const [selectedVersion, setSelectedVersion] = useState<Record<string, string>>({})
+  const [reworkText, setReworkText] = useState<Record<string, string>>({})
+  const [reworking, setReworking] = useState<Record<string, boolean>>({})
+
   function toggleSample(id: string) {
     setSampleIds((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]))
   }
@@ -143,6 +154,9 @@ export function JobPanel({
         router.refresh()
       )
       .on("postgres_changes", { event: "*", schema: "public", table: "jobs" }, () =>
+        router.refresh()
+      )
+      .on("postgres_changes", { event: "*", schema: "public", table: "output_versions" }, () =>
         router.refresh()
       )
       .subscribe()
@@ -247,6 +261,23 @@ export function JobPanel({
     setChipStyle("")
     setPhotoId(null)
     setSampleIds([])
+    router.refresh()
+  }
+
+  async function sendRework(fileGroupId: string, versionId: string | undefined) {
+    const message = (reworkText[fileGroupId] ?? "").trim()
+    if (!message || reworking[fileGroupId]) return
+    setReworking((r) => ({ ...r, [fileGroupId]: true }))
+    const res = await fetch(`/api/file-groups/${fileGroupId}/rework`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message, versionId }),
+    })
+    setReworking((r) => ({ ...r, [fileGroupId]: false }))
+    if (res.ok) {
+      setReworkText((t) => ({ ...t, [fileGroupId]: "" }))
+      setSelectedVersion((s) => ({ ...s, [fileGroupId]: "" }))
+    }
     router.refresh()
   }
 
@@ -630,9 +661,12 @@ export function JobPanel({
               )}
               {job.file_groups.map((fg) => {
                 const before = photoById.get(fg.primary_photo_id)
-                const latest = [...fg.output_versions].sort(
+                const versionsDesc = [...fg.output_versions].sort(
                   (a, b) => b.version_number - a.version_number
-                )[0]
+                )
+                const latest =
+                  versionsDesc.find((v) => v.id === selectedVersion[fg.id]) ?? versionsDesc[0]
+                const settled = ["complete", "failed"].includes(fg.step_status)
                 const isDusk = fg.edit_chain.some(
                   (s) =>
                     s.edit_type === "DAY_TO_DUSK" &&
@@ -696,6 +730,52 @@ export function JobPanel({
                             </a>
                           </figcaption>
                         </figure>
+                      </div>
+                    )}
+                    {latest?.qa_note && (
+                      <p className="mt-1 text-xs text-muted-foreground">QA: {latest.qa_note}</p>
+                    )}
+                    {versionsDesc.length > 1 && (
+                      <div className="mt-2 flex flex-wrap items-center gap-1">
+                        <span className="text-xs text-muted-foreground">Versions:</span>
+                        {[...versionsDesc].reverse().map((v) => (
+                          <button
+                            key={v.id}
+                            type="button"
+                            title={v.parent_version_id ? "branched" : undefined}
+                            onClick={() =>
+                              setSelectedVersion((s) => ({ ...s, [fg.id]: v.id }))
+                            }
+                            className={`rounded-full border px-2 py-0.5 text-xs ${
+                              latest?.id === v.id
+                                ? "border-blue-500 font-medium"
+                                : "hover:bg-muted"
+                            }`}
+                          >
+                            v{v.version_number}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    {settled && versionsDesc.length > 0 && (
+                      <div className="mt-2 flex items-center gap-2">
+                        <input
+                          value={reworkText[fg.id] ?? ""}
+                          onChange={(e) =>
+                            setReworkText((t) => ({ ...t, [fg.id]: e.target.value }))
+                          }
+                          onKeyDown={(e) => e.key === "Enter" && sendRework(fg.id, latest?.id)}
+                          placeholder={`React to v${latest?.version_number} to rework it, e.g. couch in gray, lose the wall art`}
+                          className="min-w-0 flex-1 rounded-md border bg-transparent px-2 py-1.5 text-sm"
+                        />
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => sendRework(fg.id, latest?.id)}
+                          disabled={!(reworkText[fg.id] ?? "").trim() || reworking[fg.id]}
+                        >
+                          {reworking[fg.id] ? "Reworking…" : "Rework"}
+                        </Button>
                       </div>
                     )}
                     {isDusk && latest?.url && (

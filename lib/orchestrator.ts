@@ -2,10 +2,11 @@
 // of the edit_chain at a time. Every transition is a conditional update so
 // duplicate webhooks / concurrent cron runs are no-ops. Server-only.
 import type { SupabaseClient } from "@supabase/supabase-js"
-import { MODELS, type ProviderKey } from "@/config/models"
-import { compilePrompt, type EditStep, type Grounding } from "@/lib/prompts"
+import { MODELS, INTERPRETER_MODEL, type ProviderKey } from "@/config/models"
+import { compilePrompt, type EditStep, type Grounding, type ReworkOptions } from "@/lib/prompts"
 import { submitGeneration, getResultImageUrl, extractImageUrl } from "@/lib/imaging"
 import { getUrl, list, upload } from "@/lib/storage"
+import { runQA } from "@/lib/qa"
 
 export type FileGroupRow = {
   id: string
@@ -18,6 +19,7 @@ export type FileGroupRow = {
   step_status: string
   fal_request_id: string | null
   retry_count: number
+  qa_retry_count: number
 }
 
 const SUBMIT_RETRY_BACKOFF_MS = 1500
@@ -30,6 +32,13 @@ function webhookUrl(): string | undefined {
 }
 
 async function inputUrlForStep(db: SupabaseClient, fg: FileGroupRow): Promise<string> {
+  // rework steps edit the specific version they branch from, not the chain
+  const step = fg.edit_chain[fg.current_step]
+  if (step?.edit_type === "REWORK") {
+    const source = (step.options as ReworkOptions)?.source_path
+    if (!source) throw new Error("rework step has no source_path")
+    return getUrl("outputs", source, 6 * 3600, db)
+  }
   if (fg.current_step === 0) {
     const { data: photo, error } = await db
       .from("photos")
@@ -183,6 +192,7 @@ export async function completeStep(
 
   // ledger: exactly one row per successful generation
   const step = fg.edit_chain[fg.current_step]
+  const isRework = step?.edit_type === "REWORK"
   const cost = MODELS[fg.provider].costCents
   await db.from("spend_ledger").insert({
     job_id: fg.job_id,
@@ -190,7 +200,7 @@ export async function completeStep(
     edit_type: step?.edit_type ?? null,
     model: MODELS[fg.provider].label,
     cost_cents: cost,
-    kind: "generation",
+    kind: isRework ? "rework" : "generation",
   })
   await db.rpc("increment_job_cost", { p_job_id: fg.job_id, p_cents: cost })
 
@@ -217,11 +227,67 @@ export async function completeStep(
     .order("version_number", { ascending: false })
     .limit(1)
   const nextVersion = (latest?.[0]?.version_number ?? 0) + 1
-  await db.from("output_versions").insert({
-    file_group_id: fg.id,
-    version_number: nextVersion,
-    storage_path: outPath,
-  })
+  const { data: inserted } = await db
+    .from("output_versions")
+    .insert({
+      file_group_id: fg.id,
+      version_number: nextVersion,
+      storage_path: outPath,
+      parent_version_id: isRework
+        ? ((step!.options as ReworkOptions).parent_version_id ?? null)
+        : null,
+    })
+    .select("id")
+    .single()
+
+  // Auto-QA (phase 8): vision pass on every delivered version. Never blocks —
+  // a failed QA call records a skipped note and the version still ships.
+  const verdict = await runQA(db, fg, outPath)
+  if (verdict.costCents > 0) {
+    await db.from("spend_ledger").insert({
+      job_id: fg.job_id,
+      file_group_id: fg.id,
+      edit_type: step?.edit_type ?? null,
+      model: INTERPRETER_MODEL.label,
+      cost_cents: verdict.costCents,
+      kind: "qa",
+    })
+    await db.rpc("increment_job_cost", { p_job_id: fg.job_id, p_cents: verdict.costCents })
+  }
+  if (inserted) {
+    await db.from("output_versions").update({ qa_note: verdict.note }).eq("id", inserted.id)
+  }
+
+  // QA failure: one auto-retry as a system rework, cap enforced as a state
+  // transition on qa_retry_count (a concurrent duplicate loses the update).
+  if (!verdict.pass && verdict.corrective && fg.qa_retry_count === 0) {
+    const qaStep: EditStep = {
+      edit_type: "REWORK",
+      options: {
+        instructions: verdict.corrective,
+        source_path: outPath,
+        parent_version_id: inserted?.id,
+      },
+    }
+    const { data: appended } = await db
+      .from("file_groups")
+      .update({
+        edit_chain: [...fg.edit_chain, qaStep],
+        current_step: fg.edit_chain.length,
+        step_status: "queued",
+        retry_count: 0,
+        fal_request_id: null,
+        qa_retry_count: 1,
+      })
+      .eq("id", fg.id)
+      .eq("step_status", "complete")
+      .eq("qa_retry_count", 0)
+      .select("id")
+    if (appended?.length) {
+      await submitStep(db, fg.id)
+      return // job stays processing until the QA rework lands
+    }
+  }
 
   const { data: siblings } = await db
     .from("file_groups")

@@ -25,7 +25,7 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
         .select(
           `id, title, status, total_cost_cents, grounding_used,
          file_groups (id, primary_photo_id, current_step, step_status, last_error, edit_chain,
-           output_versions (version_number, storage_path),
+           output_versions (id, version_number, parent_version_id, qa_note, storage_path),
            chat_messages (role, content, created_at))`
         )
         .eq("listing_id", id)
@@ -57,7 +57,10 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
     file_groups: j.file_groups.map((fg) => ({
       ...fg,
       output_versions: fg.output_versions.map((v) => ({
+        id: v.id,
         version_number: v.version_number,
+        parent_version_id: v.parent_version_id,
+        qa_note: v.qa_note,
         url: outputUrls[v.storage_path] ?? null,
       })),
     })),

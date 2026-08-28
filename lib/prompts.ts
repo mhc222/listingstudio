@@ -329,6 +329,55 @@ export function SHADOW_REMOVAL(comment?: string | null): string {
   return parts.join(" ")
 }
 
+// Internal edit type (never user-pickable): a corrective pass over an existing
+// output version. Used by conversational rework AND the auto-QA retry.
+export type ReworkOptions = {
+  instructions?: string
+  // storage path (outputs bucket) of the version being branched from
+  source_path?: string
+  parent_version_id?: string
+}
+
+export function REWORK(options: ReworkOptions = {}): string {
+  const instructions = (options.instructions ?? "").trim() || "improve the requested edit"
+  const parts = [
+    // brightness cue inside the first ten words
+    "Bright natural real estate photo; apply only these corrections.",
+    `Corrections: ${instructions}.`,
+    "Change nothing else — every element not named above stays identical to the input image.",
+    GEOMETRY_INTERIOR,
+    LISTING_SUFFIX,
+  ]
+  return parts.join(" ")
+}
+
+// Rework interpreter (phase 8): reaction + conversation -> explicit corrective
+// instructions. The instructions fill the REWORK template's slot.
+export const REWORK_SYSTEM = `You turn a client's reaction to an AI-edited real estate photo into explicit corrective instructions for an image-editing model. You are given the conversation so far (what was requested and previously corrected) and the client's new reaction. Respond with a single JSON object and nothing else: {"instructions":"..."}
+
+Rules:
+- Imperative, concrete, self-contained: name the specific objects and the exact change ("change the sofa to gray", "remove the framed wall art above the sofa"). The image model sees only your instructions, never the conversation.
+- Cover everything actionable in the new reaction; carry forward earlier corrections ONLY if the reaction says they are still wrong.
+- Vague reactions get a sensible concrete reading ("too yellow" -> "correct the white balance to neutral, removing the yellow color cast").
+- Never invent changes the client didn't imply.`
+
+// Auto-QA vision pass (phase 8): result vs request + known failure modes.
+export const QA_SYSTEM = `You are a strict QA reviewer for AI-edited real estate listing photos. You are shown the ORIGINAL photo first, then the EDITED result, plus the edit request. Judge whether the edit is acceptable to deliver. Respond with a single JSON object and nothing else: {"pass":true|false,"note":"one short sentence","corrective_instruction":null|"..."}
+
+Check, in order:
+1. The requested edits were actually applied.
+2. No geometry drift: room dimensions, wall positions, window and door placement, flooring, ceiling height, and camera perspective must match the original.
+3. No obvious AI artifacts: warped straight lines, impossible furniture, garbled text, duplicated objects, unrealistic scale.
+Extra named checks may be appended to the request — apply them strictly.
+
+- pass=true when the result is deliverable, even if imperfect; note the imperfection.
+- pass=false only for defects a client would reject; corrective_instruction must then be a concrete imperative fix for the image model ("straighten the warped window frame on the left wall"). corrective_instruction is null when pass=true.`
+
+// The two named dusk checks (CLAUDE.md rule 5), appended to the QA request
+// when the chain contains a dusk conversion.
+export const DUSK_QA_CHECKS =
+  "Named checks for the dusk conversion: (a) no windows may glow in rooms that were dark in the original photo; (b) the dusk sky must be consistent with the direction of remaining shadows."
+
 // Interpreter loop part 1 (CLAUDE.md): free text -> strict JSON job spec
 // validated against the edit catalog. User language is preserved as comment
 // and fills slots — it never replaces the hardened templates above.
@@ -390,6 +439,10 @@ export function compilePrompt(
       return COLOUR_CHANGE((step.options ?? {}) as { element?: string; colour?: string }, comment)
     case "SHADOW_REMOVAL":
       return SHADOW_REMOVAL(comment)
+    case "REWORK":
+      // internal: instructions already carry the user's language; the group
+      // comment belongs to the original chain, not the correction
+      return REWORK(step.options as ReworkOptions)
     default:
       throw new Error(`No prompt template for edit type: ${step.edit_type}`)
   }

@@ -1,7 +1,8 @@
 // Interpreter loop part 1 (CLAUDE.md): plain English -> validated job spec.
 // Invalid model output is rejected and retried once with the error appended.
 import Anthropic from "@anthropic-ai/sdk"
-import { INTERPRETER_SYSTEM, type EditStep } from "@/lib/prompts"
+import { anthropicClient } from "@/lib/anthropic"
+import { INTERPRETER_SYSTEM, REWORK_SYSTEM, type EditStep } from "@/lib/prompts"
 import { INTERPRETER_MODEL, interpreterCostCents } from "@/config/models"
 
 export type ChatTurn = { role: "user" | "assistant"; content: string }
@@ -119,12 +120,7 @@ export async function parseIntent(
   conversation: ChatTurn[],
   chips?: Chips
 ): Promise<{ intent: ParsedIntent | null; error?: string; costCents: number }> {
-  // identity-linked console keys require the workspace id on every request
-  const client = new Anthropic({
-    defaultHeaders: process.env.ANTHROPIC_WORKSPACE_ID
-      ? { "anthropic-workspace-id": process.env.ANTHROPIC_WORKSPACE_ID }
-      : undefined,
-  })
+  const client = anthropicClient()
   const chipLines = [
     chips?.edit_type && `edit type = ${chips.edit_type}`,
     chips?.room_type && `room type = ${chips.room_type}`,
@@ -180,4 +176,47 @@ export async function parseIntent(
     }
   }
   return { intent: null, error: `interpreter produced invalid output twice: ${lastError}`, costCents }
+}
+
+// Rework (phase 8): reaction + conversation -> explicit corrective
+// instructions for the REWORK template. Falls back to the raw reaction when
+// the model output is unusable — a rework should never hard-fail on parsing.
+export async function buildRework(
+  conversation: ChatTurn[],
+  reaction: string
+): Promise<{ instructions: string; costCents: number }> {
+  const client = anthropicClient()
+  const transcript = conversation
+    .map((m) => `${m.role === "user" ? "Client" : "Studio"}: ${m.content}`)
+    .join("\n")
+  let response: Anthropic.Message
+  try {
+    response = await client.messages.create({
+      model: INTERPRETER_MODEL.id,
+      max_tokens: 512,
+      system: REWORK_SYSTEM,
+      messages: [
+        {
+          role: "user",
+          content: `Conversation so far:\n${transcript || "(none)"}\n\nNew reaction: ${reaction}`,
+        },
+      ],
+    })
+  } catch {
+    return { instructions: reaction.trim(), costCents: 0 }
+  }
+  const costCents = interpreterCostCents(
+    response.usage.input_tokens,
+    response.usage.output_tokens
+  )
+  try {
+    const text = response.content
+      .filter((b): b is Anthropic.TextBlock => b.type === "text")
+      .map((b) => b.text)
+      .join("")
+    const parsed = JSON.parse(text.slice(text.indexOf("{"), text.lastIndexOf("}") + 1))
+    return { instructions: str(parsed.instructions) || reaction.trim(), costCents }
+  } catch {
+    return { instructions: reaction.trim(), costCents }
+  }
 }

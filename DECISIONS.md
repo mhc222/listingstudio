@@ -26,3 +26,8 @@
 - 2026-08-28: Interpreter ledger rows carry null job_id (the call precedes job creation; abandoned conversations still count) and are written via the admin client — RLS makes them invisible to user-scoped reads, so phase 15 spend aggregation must run server-side with the admin client.
 - 2026-08-28: Chat conversation is ephemeral client state until a job is created, then persisted to chat_messages on the new file group; a question-only conversation that never becomes a job is not persisted (chat_messages requires a file_group_id).
 - 2026-08-28: Interpreter defaults are "noted on the job record" as the assistant summary chat message ("Running: … Assumed: …") rather than a new jsonb column — visible in the thread, no migration.
+- 2026-08-28: Rework modeled as an internal REWORK edit type appended to edit_chain (never user-pickable) — user reworks AND QA auto-retries reuse the whole state machine (idempotency, retries, realtime) instead of a second machine; ledger kind=rework.
+- 2026-08-28: QA auto-retry cap = conditional qa_retry_count 0→1 transition (migration 0003); reset to 0 on each user rework so every rework cycle gets one auto-fix; "show best" = latest version displayed with its qa_note, all versions kept and switchable (no scoring comparison).
+- 2026-08-28: QA never blocks delivery — an errored/unparseable QA call stores a "QA skipped" note and the version ships as passed.
+- 2026-08-28: buildRework falls back to the raw user reaction as instructions if the Haiku call fails — a rework never hard-fails on interpreter errors.
+- 2026-08-28: QA vision and rework-interpreter costs increment jobs.total_cost_cents (job exists by then), unlike pre-job intent-parsing calls which stay ledger-only with null job_id.
