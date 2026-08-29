@@ -18,11 +18,17 @@
 - [x] Phase 15 — Dashboard + spend tracking
 - [x] Phase 16 — Vercel deploy
 - [x] Phase 17 — Experimental 360 edits
-- [ ] Phase 18 — Darkroom visual identity
+- [x] Phase 18 — Darkroom visual identity
 - [ ] Phase 19 — Listing video reels
 - [ ] Phase 20 — Terms of Use acceptance modal (source text in docs/terms-of-use.md)
 
 ## Current state
+
+Phase 18 COMPLETE (code + live-verified in the browser 2026-08-29). Darkroom identity applied per spec artifact c59ca593: **tokens** — full dark/light OKLCH blocks in globals.css (cyan-biased greys hue 220, signal teal #3FBFB9 dark / #147F7A light, separate `--state-*` semantic set exposed as Tailwind colors, radius 0.375rem); dark follows `prefers-color-scheme` (class-variant removed — OS appearance is the toggle, see DECISIONS). **Fonts** — JetBrains Mono + Public Sans via next/font (`font-sans` applied on the body rule — next/font vars are body-scoped, found live); h1/h2 mono globally; numerics mono+tabular on dashboard/job cards. **Mark** — three hand-tuned SVGs in public/ (stroke 1.9/2.6/3.8, 16px room solid-filled), favicon = app/icon.svg, `components/brand.tsx` (Mark/Wordmark/StatePill, currentColor crop marks + teal room/floor); wordmark in dashboard header + stacked on login. **State** — StatePill (mono uppercase, left border stripe + dot, colour+form double encoding) on job cards, fg step lines, dashboard active jobs; per-fg progress stripe fills as chain steps complete (teal running / green complete / red failed). Hardcoded blue/green/red/amber swept to tokens across all panels incl. public tour page. **Shipped output (last)** — watermark pill redesigned (mark sans floor rule + VIRTUALLY STAGED in mono teal-light on 82% dark scrim); plan address band now tracked mono uppercase, still pure black on white; both pixel-checked via scripts/check-brand-output.ts (dark scrim 9611px, teal 220px, band brand-teal 15px = AA fringe only). **Ride-along presets** — ENHANCEMENT_STYLES (Natural default/Bright & Airy/Warm/Crisp) in prompts.ts, one grading clause each (natural = base template), chip row on the IMAGE_ENHANCEMENT option form, recorded via step options in edit_chain. Live-verified: fonts/tokens/pills/stripes/chips/dark-mode DOM-checked + dark screenshot on 123 Smith Street; tsc + lint clean; local `next build` skipped (dev preview running — kills it; Vercel build will prove it on deploy).
+
+Phase 18 manual test (Matt, per PLAN.md DoD): eyeball dashboard, a listing page, and running job cards in light AND dark (toggle macOS appearance — that's the theme switch now); download a staged photo (new teal-on-dark watermark pill); export a plan PNG (bands still plain black on white); run the same photo through two style presets (e.g. Bright & Airy vs Warm) and confirm visibly different looks + the preset on the job record.
+
+---
 
 Bugfix session 2026-08-29 (not a phase): both unfixed bugs from the DECISIONS 2026-08-29 lighting experiment are FIXED and live-verified. (1) gemini ref-aspect bug — refs are now letterboxed to the primary's aspect in lib/imaging.ts (`padRefsToPrimaryAspect`, data-URI submit); proven with one sync gemini call (scripts/test-ref-aspect.mjs): padded ref → 1280x800 output (primary's aspect) vs the bug's 832x1248. Unblocks phase 9's inspiration refs; the phase 17 "reject sample refs on 360" guard can stay (padding a ref is still worse than no ref on an equirect). (2) TURN_ON_LIGHTS fixture-invention — enumeration replaced with the proven only-existing-fixtures clause in lib/prompts.ts. tsc clean; full build not run (dev preview running — a local next build kills it).
 
@@ -105,4 +111,4 @@ Outstanding (Matt, manual):
 - Webhook signature verification still unexercised locally (needs deployed URL — phase 16).
 
 ## Next action
-Phase 18 — Darkroom visual identity (re-read the spec artifact via the Artifact tool at phase start — https://claude.ai/code/artifact/c59ca593-118c-4584-9364-a80994a20b62; ride-along: 4 enhancement style presets).
+Phase 19 — Listing video reels (Tier A Ken Burns slideshow first; see PLAN.md + DECISIONS 2026-08-29 + memory `listing-video-reels-idea`).
