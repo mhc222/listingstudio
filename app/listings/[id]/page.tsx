@@ -9,6 +9,9 @@ import { JobPanel, type JobRow, type SampleRow } from "./job-panel"
 import { PlanPanel } from "./plan-panel"
 import { TourPanel, type TourRow } from "./tour-panel"
 import { AerialPanel } from "./aerial-panel"
+import { ReelPanel, type ReelRecord, type ReelSource } from "./reel-panel"
+import { MUSIC_DIR } from "@/lib/reel"
+import { promises as fs } from "node:fs"
 
 export default async function ListingPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -21,6 +24,7 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
     { data: jobs },
     { data: samples },
     { data: tours },
+    { data: reels },
   ] = await Promise.all([
       supabase.from("listings").select("id, address, mls_number").eq("id", id).single(),
       supabase.from("rooms").select("*").eq("listing_id", id).order("name"),
@@ -51,6 +55,11 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
         )
         .eq("listing_id", id)
         .order("created_at"),
+      supabase
+        .from("reels")
+        .select("id, status, format, error, music, clips")
+        .eq("listing_id", id)
+        .order("created_at", { ascending: false }),
     ])
   if (!listing) notFound()
 
@@ -101,6 +110,45 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
     })),
   }))
 
+  // reel sources: latest output version per file group first, then originals
+  const latestOutputs: ReelSource[] = (jobs ?? []).flatMap((j) =>
+    j.file_groups.flatMap((fg) => {
+      if (fg.output_versions.length === 0) return []
+      const latest = [...fg.output_versions].sort((a, b) => b.version_number - a.version_number)[0]
+      return [
+        {
+          key: `output:${latest.id}`,
+          kind: "output" as const,
+          id: latest.id,
+          url: outputUrls[latest.storage_path] ?? null,
+          label: "edited",
+        },
+      ]
+    })
+  )
+  const reelSources: ReelSource[] = [
+    ...latestOutputs,
+    ...regular.map((p) => ({
+      key: `photo:${p.id}`,
+      kind: "photo" as const,
+      id: p.id,
+      url: p.url,
+      label: "original",
+    })),
+  ]
+  const reelRecords: ReelRecord[] = (reels ?? []).map((r) => ({
+    id: r.id,
+    status: r.status,
+    format: r.format,
+    error: r.error,
+    music: r.music,
+    clip_count: Array.isArray(r.clips) ? r.clips.length : 0,
+  }))
+  const musicTracks = await fs
+    .readdir(MUSIC_DIR)
+    .then((files) => files.filter((f) => /\.(mp3|m4a|wav)$/i.test(f)).sort())
+    .catch(() => [] as string[])
+
   return (
     <main className="mx-auto max-w-6xl p-6">
       <Link href="/listings" className="text-sm text-muted-foreground hover:underline">
@@ -137,6 +185,12 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
             </section>
           )}
           <AerialPanel listingId={id} photos={regular} />
+          <ReelPanel
+            listingId={id}
+            sources={reelSources}
+            reels={reelRecords}
+            musicTracks={musicTracks}
+          />
           <TourPanel listingId={id} tours={tourRows} />
           <JobPanel
             listingId={id}

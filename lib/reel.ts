@@ -57,7 +57,7 @@ function kenBurns(i: number, w: number, h: number) {
   return `zoompan=z='${p.z}':x='${p.x}':y='${p.y}':d=${FRAMES}:s=${w}x${h}:fps=${FPS},settb=AVTB`
 }
 
-function captionSvg(lines: string[], w: number) {
+export function captionSvg(lines: string[], w: number) {
   const pad = Math.round(w * 0.045)
   const addressSize = Math.round(w * 0.037)
   const factsSize = Math.round(w * 0.024)
@@ -73,6 +73,62 @@ function captionSvg(lines: string[], w: number) {
   ${hasFacts ? `<text x="${pad}" y="${height - pad}" font-family="monospace" font-size="${factsSize}" fill="#3FBFB9" letter-spacing="2">${esc(lines[1])}</text>` : ""}
 </svg>`,
   }
+}
+
+export function buildFfmpegArgs({
+  stills,
+  capPath,
+  musicPath,
+  w,
+  h,
+  outPath,
+}: {
+  stills: string[]
+  capPath: string
+  musicPath: string | null
+  w: number
+  h: number
+  outPath: string
+}) {
+  const filters: string[] = []
+  stills.forEach((_, i) => filters.push(`[${i}:v]${kenBurns(i, w, h)}[v${i}]`))
+  let vout = "[v0]"
+  for (let i = 1; i < stills.length; i++) {
+    const offset = (CLIP_SECONDS - FADE_SECONDS) * i
+    const label = `[x${i}]`
+    filters.push(
+      `${vout}[v${i}]xfade=transition=fade:duration=${FADE_SECONDS}:offset=${offset}${label}`
+    )
+    vout = label
+  }
+  const capIndex = stills.length
+  filters.push(
+    `${vout}[${capIndex}:v]overlay=0:main_h-overlay_h-${Math.round(h * 0.05)},format=yuv420p[vfinal]`
+  )
+
+  const total = reelDuration(stills.length)
+  const args: string[] = []
+  stills.forEach((s) => args.push("-i", s))
+  args.push("-i", capPath)
+
+  const musicIndex = capIndex + 1
+  if (musicPath) {
+    args.push("-stream_loop", "-1", "-i", musicPath)
+    filters.push(`[${musicIndex}:a]afade=t=out:st=${Math.max(0, total - 1.5)}:d=1.5[afinal]`)
+  }
+
+  args.push("-filter_complex", filters.join(";"), "-map", "[vfinal]")
+  if (musicPath) args.push("-map", "[afinal]", "-c:a", "aac", "-b:a", "128k")
+  args.push(
+    "-t", String(total),
+    "-r", String(FPS),
+    "-c:v", "libx264",
+    "-preset", "medium",
+    "-crf", "21",
+    "-movflags", "+faststart",
+    "-y", outPath
+  )
+  return args
 }
 
 async function claim(db: SupabaseClient, reelId: string) {
@@ -114,48 +170,15 @@ export async function renderReel(db: SupabaseClient, reelId: string) {
     await sharp(Buffer.from(cap.svg)).png().toFile(capPath)
 
     // 3. filtergraph: per-still Ken Burns → xfade chain → caption overlay
-    const filters: string[] = []
-    stills.forEach((_, i) => filters.push(`[${i}:v]${kenBurns(i, w, h)}[v${i}]`))
-    let vout = "[v0]"
-    for (let i = 1; i < stills.length; i++) {
-      const offset = (CLIP_SECONDS - FADE_SECONDS) * i
-      const label = `[x${i}]`
-      filters.push(
-        `${vout}[v${i}]xfade=transition=fade:duration=${FADE_SECONDS}:offset=${offset}${label}`
-      )
-      vout = label
-    }
-    const capIndex = stills.length
-    filters.push(
-      `${vout}[${capIndex}:v]overlay=0:main_h-overlay_h-${Math.round(h * 0.05)},format=yuv420p[vfinal]`
-    )
-
-    const total = reelDuration(stills.length)
-    const args: string[] = []
-    stills.forEach((s) => args.push("-i", s))
-    args.push("-i", capPath)
-
-    const musicIndex = capIndex + 1
-    if (reel.music) {
-      args.push("-stream_loop", "-1", "-i", path.join(MUSIC_DIR, path.basename(reel.music)))
-      filters.push(
-        `[${musicIndex}:a]afade=t=out:st=${Math.max(0, total - 1.5)}:d=1.5[afinal]`
-      )
-    }
-
-    args.push("-filter_complex", filters.join(";"), "-map", "[vfinal]")
-    if (reel.music) args.push("-map", "[afinal]", "-c:a", "aac", "-b:a", "128k")
     const outPath = path.join(tmp, "reel.mp4")
-    args.push(
-      "-t", String(total),
-      "-r", String(FPS),
-      "-c:v", "libx264",
-      "-preset", "medium",
-      "-crf", "21",
-      "-movflags", "+faststart",
-      "-y", outPath
-    )
-
+    const args = buildFfmpegArgs({
+      stills,
+      capPath,
+      musicPath: reel.music ? path.join(MUSIC_DIR, path.basename(reel.music)) : null,
+      w,
+      h,
+      outPath,
+    })
     await execFileAsync(ffmpegBin(), args, { maxBuffer: 32 * 1024 * 1024 })
 
     // 4. upload + complete (conditional — only the claiming render completes)
