@@ -1,6 +1,7 @@
 // Single provider interface over the fal.ai queue API. All generation calls go
 // through here — never call fal from anywhere else.
 import { createHash, createPublicKey, verify as edVerify } from "node:crypto"
+import sharp from "sharp"
 import { MODELS, type ProviderKey } from "@/config/models"
 
 const FAL_QUEUE = "https://queue.fal.run"
@@ -16,6 +17,45 @@ function falHeaders() {
 // has a subpath (e.g. fal-ai/gemini-25-flash-image/edit).
 function basePath(falId: string) {
   return falId.split("/").slice(0, 2).join("/")
+}
+
+// gemini's edit endpoint takes the OUTPUT aspect ratio from the REFERENCE
+// image, not the primary (measured live 2026-08-29, DECISIONS.md) — prompt
+// instructions to preserve the framing do not override it. Letterbox every
+// aspect-mismatched ref onto a canvas at the primary's aspect so the primary's
+// shape is the only one the model sees. Padded refs go up as data URIs (no
+// storage round trip); refs are style references, so the REF_MAX_DIM downscale
+// costs nothing.
+const REF_MAX_DIM = 1536
+const REF_ASPECT_TOLERANCE = 0.02
+
+async function fetchImageBuffer(url: string): Promise<Buffer> {
+  const res = await fetch(url)
+  if (!res.ok) throw new Error(`image fetch for ref padding failed (${res.status})`)
+  return Buffer.from(await res.arrayBuffer())
+}
+
+async function padRefsToPrimaryAspect(imageUrl: string, refUrls: string[]): Promise<string[]> {
+  const meta = await sharp(await fetchImageBuffer(imageUrl)).metadata()
+  if (!meta.width || !meta.height) return refUrls
+  const target = meta.width / meta.height
+  const [w, h] =
+    target >= 1
+      ? [REF_MAX_DIM, Math.round(REF_MAX_DIM / target)]
+      : [Math.round(REF_MAX_DIM * target), REF_MAX_DIM]
+  return Promise.all(
+    refUrls.map(async (url) => {
+      const buf = await fetchImageBuffer(url)
+      const m = await sharp(buf).metadata()
+      if (m.width && m.height && Math.abs(m.width / m.height - target) / target < REF_ASPECT_TOLERANCE)
+        return url
+      const padded = await sharp(buf)
+        .resize(w, h, { fit: "contain", background: { r: 128, g: 128, b: 128 } })
+        .jpeg({ quality: 90 })
+        .toBuffer()
+      return `data:image/jpeg;base64,${padded.toString("base64")}`
+    })
+  )
 }
 
 function buildInput(
@@ -45,6 +85,10 @@ export async function submitGeneration(
   if (!model.falId) {
     // ponytail: LOCAL_ENDPOINT is a stub per CLAUDE.md — wiring is Matt's job
     throw new Error("Local endpoint not wired (LOCAL_IMAGING_BASE_URL)")
+  }
+  // only gemini takes refs (buildInput), and only gemini has the ref-aspect bug
+  if (provider === "gemini" && refUrls.length) {
+    refUrls = await padRefsToPrimaryAspect(imageUrl, refUrls)
   }
   const url = new URL(`${FAL_QUEUE}/${model.falId}`)
   if (webhookUrl) url.searchParams.set("fal_webhook", webhookUrl)
