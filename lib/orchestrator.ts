@@ -287,8 +287,10 @@ export async function completeStep(
   // Auto-QA (phase 8): vision pass on every delivered version. Never blocks —
   // a failed QA call records a skipped note and the version still ships.
   // Ideas variants skip QA: they're exploratory; the promoted one gets QA'd
-  // through its rework cycle.
-  if (isIdeasJob && !isRework) {
+  // through its rework cycle. Floor plan redraws skip QA too — the QA prompt
+  // judges photo geometry, which a sketch->plan redraw legitimately "violates".
+  const isPlanRedraw = fg.edit_chain.some((s) => s.edit_type === "FLOOR_PLAN_REDRAW")
+  if ((isIdeasJob && !isRework) || isPlanRedraw) {
     const { data: siblingsIdeas } = await db
       .from("file_groups")
       .select("id, step_status, current_step, edit_chain")

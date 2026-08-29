@@ -48,13 +48,38 @@ export async function POST(req: Request) {
   // RLS-scoped read proves ownership of the photos/listing
   const { data: ownedPhotos } = await supabase
     .from("photos")
-    .select("id, listing_id, room_id")
+    .select("id, listing_id, room_id, is_floor_plan, storage_path")
     .in("id", requestedPhotoIds)
     .eq("listing_id", listingId)
   if ((ownedPhotos ?? []).length !== requestedPhotoIds.length) {
     return NextResponse.json({ error: "photo not found" }, { status: 404 })
   }
   const photo = ownedPhotos![0]
+
+  // FLOOR_PLAN_REDRAW (phase 11): never infer plans from room photos
+  // (CLAUDE.md) — input must be an image floor plan/sketch, and the redraw
+  // runs as its own single-step chain.
+  const hasPlanRedraw = cells.some((c) => c.chain.some((s) => s.edit_type === "FLOOR_PLAN_REDRAW"))
+  if (hasPlanRedraw) {
+    if (cells.some((c) => c.chain.length !== 1 || c.chain[0].edit_type !== "FLOOR_PLAN_REDRAW")) {
+      return NextResponse.json(
+        { error: "FLOOR_PLAN_REDRAW runs alone, not chained with other edits" },
+        { status: 400 }
+      )
+    }
+    if (ownedPhotos!.some((p) => !p.is_floor_plan)) {
+      return NextResponse.json(
+        { error: "floor plan redraw needs a floor plan or sketch as input, not a room photo" },
+        { status: 400 }
+      )
+    }
+    if (ownedPhotos!.some((p) => p.storage_path.endsWith(".pdf"))) {
+      return NextResponse.json(
+        { error: "PDF plans can't be redrawn — upload the plan as an image" },
+        { status: 400 }
+      )
+    }
+  }
 
   // RLS-scoped read proves ownership of any sample refs
   let sampleIds: string[] = []
@@ -89,6 +114,24 @@ export async function POST(req: Request) {
         `The room measures ${room.length} x ${room.width} ${unitWord}` +
         (room.ceiling_height ? ` with ${room.ceiling_height}-${unitAdj} ceilings` : "") +
         "; scale all furniture and objects to these dimensions."
+    }
+  }
+  // Room dimensions pre-fill FLOOR_PLAN_REDRAW labels (CLAUDE.md context
+  // grounding): every listing room with known dims feeds the label sentence.
+  if (hasPlanRedraw) {
+    const { data: dimRooms } = await supabase
+      .from("rooms")
+      .select("name, length, width, units")
+      .eq("listing_id", listingId)
+      .not("length", "is", null)
+      .not("width", "is", null)
+    if (dimRooms?.length) {
+      grounding.dimension_sentence =
+        "Use these known room dimensions on the plan labels: " +
+        dimRooms
+          .map((r) => `${r.name} ${r.length} x ${r.width} ${r.units === "m" ? "m" : "ft"}`)
+          .join("; ") +
+        "."
     }
   }
   if (allSteps.some((s) => ["VIRTUAL_STAGING", "VIRTUAL_RENOVATION"].includes(s.edit_type))) {
@@ -133,7 +176,9 @@ export async function POST(req: Request) {
   const fgIds: string[] = []
   let ideasCost = 0
   for (const cell of cells) {
-    const provider = pickProvider(cell.chain.length, hasRefs)
+    // plan redraws force gemini — the only wired provider that renders room
+    // labels and dimension text legibly (phase 11)
+    const provider = hasPlanRedraw ? "gemini" : pickProvider(cell.chain.length, hasRefs)
     ideasCost += MODELS[provider].costCents * cell.chain.length
     const { data: fg, error: fgError } = await supabase
       .from("file_groups")

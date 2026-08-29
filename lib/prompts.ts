@@ -329,6 +329,65 @@ export function SHADOW_REMOVAL(comment?: string | null): string {
   return parts.join(" ")
 }
 
+// Floor plan redraw (phase 11). Input must be a plan/sketch, never a room
+// photo (CLAUDE.md) — the jobs route enforces is_floor_plan input. The 3D
+// variant re-renders a finished 2D plan (attach it, then redraw in 3D).
+export const PLAN_STYLES: Record<string, { label: string; desc: string }> = {
+  "2d_bw": {
+    label: "2D Black & White",
+    desc: "clean 2D black-and-white architectural floor plan: crisp black wall lines on a pure white background, door swing arcs, and window openings marked in the walls",
+  },
+  "2d_colour": {
+    label: "2D Full Colour",
+    desc: "professional 2D full-colour floor plan: soft flat colour fills per room, dark wall lines, door swing arcs, and window openings marked in the walls",
+  },
+  "2d_textured": {
+    label: "2D Colour Textured",
+    desc: "professional 2D colour floor plan with realistic material textures: wood-look flooring in living areas, tile in kitchens and bathrooms, carpet in bedrooms, dark wall lines, door swing arcs",
+  },
+  "3d": {
+    label: "3D Isometric",
+    desc: "3D isometric cutaway render of this single storey: walls extruded to partial height, realistic floor materials and finishes, viewed from an elevated 45-degree angle",
+  },
+}
+
+// Standard export disclaimer (address label + disclaimer are composited in
+// code at export/attach time — never prompted, AI-rendered fine print garbles).
+export const PLAN_DISCLAIMER =
+  "This floor plan is for illustrative purposes only. All measurements are approximate and should be independently verified."
+
+export type FloorPlanRedrawOptions = {
+  style?: string
+  units?: string // "sqft" | "sqm"
+  furniture?: boolean
+  north_arrow?: boolean
+  // export-time compositing flags, carried on the step but not prompted
+  address_label?: boolean
+  disclaimer?: string
+}
+
+export function FLOOR_PLAN_REDRAW(
+  options: FloorPlanRedrawOptions = {},
+  comment?: string | null,
+  grounding?: Grounding
+): string {
+  const style = PLAN_STYLES[options.style ?? "2d_colour"] ?? PLAN_STYLES["2d_colour"]
+  const units = options.units === "sqm" ? "square meters" : "square feet"
+  const parts = [
+    `Redraw the floor plan in this image as a ${style.desc}.`,
+    "Reproduce the layout exactly as drawn: every wall, room, door, window, and opening stays in its drawn position and relative proportion. Never invent, remove, or move rooms or walls.",
+    `Label every room with its name in clear, correctly spelled text, and show room dimensions in ${units} where the source plan provides measurements.`,
+    options.furniture === false
+      ? "Do not draw any furniture."
+      : "Include simple to-scale furniture symbols appropriate to each room.",
+  ]
+  if (options.north_arrow) parts.push("Include a small north arrow.")
+  if (grounding?.dimensions) parts.push(grounding.dimensions)
+  if (comment?.trim()) parts.push(comment.trim())
+  // no brightness cue or listing-photography suffix — this is a drawing, not a photo
+  return parts.join(" ")
+}
+
 // Internal edit type (never user-pickable): a corrective pass over an existing
 // output version. Used by conversational rework AND the auto-QA retry.
 export type ReworkOptions = {
@@ -441,6 +500,12 @@ export function compilePrompt(
       return COLOUR_CHANGE((step.options ?? {}) as { element?: string; colour?: string }, comment)
     case "SHADOW_REMOVAL":
       return SHADOW_REMOVAL(comment)
+    case "FLOOR_PLAN_REDRAW":
+      return FLOOR_PLAN_REDRAW(
+        (step.options ?? {}) as FloorPlanRedrawOptions,
+        comment,
+        grounding
+      )
     case "REWORK":
       // internal: instructions already carry the user's language; the group
       // comment belongs to the original chain, not the correction
