@@ -92,7 +92,7 @@ export function extractImageUrl(payload: unknown): string {
 
 // ---- Webhook signature verification (ED25519 against fal's JWKS) ----
 
-const JWKS_URL = "https://rest.alpha.fal.ai/tooling/public-keys"
+const JWKS_URL = "https://rest.alpha.fal.ai/.well-known/jwks.json"
 let jwksCache: { keys: { x: string }[]; fetchedAt: number } | null = null
 
 async function getJwks() {
@@ -130,7 +130,8 @@ export async function verifyFalWebhook(
   for (const jwk of keys) {
     try {
       const key = createPublicKey({
-        key: { kty: "OKP", crv: "Ed25519", x: jwk.x },
+        // fal pads its base64url x values; strict JWK import rejects padding
+        key: { kty: "OKP", crv: "Ed25519", x: jwk.x.replace(/=+$/, "") },
         format: "jwk",
       })
       if (edVerify(null, message, key, sig)) return true
