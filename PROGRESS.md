@@ -16,7 +16,7 @@
 - [x] Phase 13 — COPYWRITING
 - [x] Phase 14 — AERIAL annotation + PORTRAIT_RETOUCHING + HDR_MERGE
 - [x] Phase 15 — Dashboard + spend tracking
-- [ ] Phase 16 — Vercel deploy
+- [x] Phase 16 — Vercel deploy
 - [ ] Phase 17 — Experimental 360 edits
 - [ ] Phase 18 — Darkroom visual identity
 - [ ] Phase 19 — Listing video reels
@@ -24,15 +24,11 @@
 
 ## Current state
 
-Phase 16 IN PROGRESS (blocked on one manual step). Done this session: repo linked to Vercel project `listing-studio` (scope mhc222s-projects, `.vercel/` gitignored, `VERCEL_OIDC_TOKEN` appended to .env.local by the CLI — harmless); `scripts/vercel-env-push.sh` written (pushes the 7 prod env vars from .env.local; NEXT_PUBLIC_APP_URL deliberately excluded — needs the prod domain first; LOCAL_IMAGING_BASE_URL local-only); README "Deploy on Vercel" section rewritten with the real 6-step runbook. NOT done: env vars not pushed (Claude's permission classifier blocks piping secrets from .env.local — same class of block as the 0005 keychain issue), therefore no deploy yet (NEXT_PUBLIC_* inline into the client bundle at build, so deploying pre-env would ship a broken login page).
+Phase 16 COMPLETE (2026-08-29). **Production: https://listing-studio-three.vercel.app** (Vercel project `listing-studio`, scope mhc222s-projects). 7 prod env vars (`scripts/vercel-env-push.sh` for the 5 secrets from .env.local; CRON_SECRET freshly generated; NEXT_PUBLIC_APP_URL set to the prod domain post-first-deploy). Deploys are Matt-run (`vercel deploy --prod --yes`) — the classifier blocks Claude from prod-deploy commands; README runbook covers it.
 
-Update 2026-08-29 (eighth session): Matt ran the env-push script — 5 vars in production. The 2 skips were empty in .env.local and resolved: ANTHROPIC_WORKSPACE_ID optional (lib/anthropic.ts conditional header, key works without); CRON_SECRET was a real gap (reconcile route runs open when unset) — Claude generated a fresh secret (`openssl rand -hex 32`, allowed: not read from a secret store) and pushed it. 6 prod vars total; Vercel auto-sends CRON_SECRET as the Bearer header on cron invocations. Cron config in vercel.json verified.
+Verified live in prod: / 307→/login, /login 200; reconcile cron registered every-minute and unauth requests 401 (CRON_SECRET enforced); ITEM_REMOVAL job end to end **completing via the signed fal webhook at t+21s** (POST /api/webhook/fal 200; ledger: generation 2.1¢ + qa 0.34¢, no double-count). Found+fixed live (`5e399be`): JWKS_URL in lib/imaging.ts 404'd (correct: `rest.alpha.fal.ai/.well-known/jwks.json`) + fal pads its jwk x values, so every webhook 401'd — that failure also live-proved the safety net: reconcile rescued the stuck job at t+3m25s with correct spend, no double-charge. Build verified via Vercel's production build (local build skipped — dev preview running; a local `next build` kills it).
 
-**DEPLOY IS LIVE (2026-08-29):** Matt ran `vercel deploy --prod --yes` → Ready. Prod domain **https://listing-studio-three.vercel.app** (deployment listing-studio-7drmn45y2). Verified: / 307→/login, /login 200 with app title, /api/cron/reconcile unauth→401 (generated CRON_SECRET enforced live), cron registered every-minute (accepted, so plan is fine). NEXT_PUBLIC_APP_URL=https://listing-studio-three.vercel.app pushed — 7 prod vars total.
-
-**BLOCKER — Matt runs one command:** `vercel redeploy https://listing-studio-7drmn45y2-mhc222s-projects.vercel.app` (or `vercel deploy --prod --yes` again) so NEXT_PUBLIC_APP_URL reaches the runtime — until then the orchestrator sends fal no webhook URL. All prod-deploy commands are classifier-blocked for Claude.
-
-Resume steps after the redeploy: (1) run a cheap ITEM_REMOVAL job in prod (headless recipe in memory: minted magic-link session), confirm completion WITHOUT hitting reconcile — webhook + ED25519 signature verification finally exercised; (2) check off phase 16, final commit. Matt's phone test per PLAN.md DoD: log in on prod from a phone, run an enhancement, download the result.
+Phase 16 manual test (Matt, per PLAN.md DoD): log in on https://listing-studio-three.vercel.app from your phone, run an enhancement, download the result.
 
 ---
 
@@ -101,4 +97,4 @@ Outstanding (Matt, manual):
 - Webhook signature verification still unexercised locally (needs deployed URL — phase 16).
 
 ## Next action
-Phase 16 — Vercel deploy (cron registered in vercel config, env vars via `vercel env`, Supabase prod config check — RLS/bucket policies/webhook URL at prod, README deploy notes; DoD: real job end to end in prod with webhook signature verification finally exercised).
+Phase 17 — Experimental 360 edits (360_IMAGE_ENHANCEMENT / 360_ITEM_REMOVAL / 360_VIRTUAL_STAGING at full equirect resolution, experimental badge + seam/pole review flag, optional Marzipano preview).
