@@ -289,8 +289,12 @@ export async function completeStep(
   // Ideas variants skip QA: they're exploratory; the promoted one gets QA'd
   // through its rework cycle. Floor plan redraws skip QA too — the QA prompt
   // judges photo geometry, which a sketch->plan redraw legitimately "violates".
-  const isPlanRedraw = fg.edit_chain.some((s) => s.edit_type === "FLOOR_PLAN_REDRAW")
-  if ((isIdeasJob && !isRework) || isPlanRedraw) {
+  // Portrait retouches skip QA for the same reason: the prompt judges real
+  // estate photo geometry, not faces (phase 14).
+  const skipsQA = fg.edit_chain.some((s) =>
+    ["FLOOR_PLAN_REDRAW", "PORTRAIT_RETOUCHING"].includes(s.edit_type)
+  )
+  if ((isIdeasJob && !isRework) || skipsQA) {
     const { data: siblingsIdeas } = await db
       .from("file_groups")
       .select("id, step_status, current_step, edit_chain")

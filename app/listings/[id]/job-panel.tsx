@@ -72,6 +72,11 @@ const EDIT_TYPES: Record<string, { label: string; defaults: Record<string, unkno
   DAY_TO_DUSK: { label: "Day to dusk / relight", defaults: { preset: "dusk" } },
   COLOUR_CHANGE: { label: "Colour change", defaults: { element: "", colour: "" } },
   SHADOW_REMOVAL: { label: "Shadow removal", defaults: {} },
+  AERIAL_EDITING: {
+    label: "Aerial enhancement",
+    defaults: { sky_replacement: false, day_sky_style: "any", grass_repair: false },
+  },
+  PORTRAIT_RETOUCHING: { label: "Portrait retouch", defaults: {} },
 }
 
 const RENOVATION_TIER_LABELS: Record<string, string> = {
@@ -615,7 +620,7 @@ export function JobPanel({
                     />
                   </div>
                 )}
-                {edit.edit_type === "IMAGE_ENHANCEMENT" && (
+                {["IMAGE_ENHANCEMENT", "AERIAL_EDITING"].includes(edit.edit_type) && (
                   <div className="mt-2 flex flex-wrap items-center gap-3 text-sm">
                     <label className="flex items-center gap-1.5">
                       <input

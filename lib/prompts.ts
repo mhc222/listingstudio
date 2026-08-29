@@ -102,6 +102,52 @@ export function TURN_ON_LIGHTS(comment?: string | null): string {
   return parts.join(" ")
 }
 
+// AERIAL_EDITING (phase 14): drone-tuned enhancement — haze, clarity, sky,
+// grass; shares the sky/grass option shape with IMAGE_ENHANCEMENT.
+export function AERIAL_EDITING(
+  options: ImageEnhancementOptions = {},
+  comment?: string | null
+): string {
+  const parts = [
+    // brightness cue inside the first ten words
+    "Bright natural daylight enhancement of this exact aerial drone photo.",
+    "Correct white balance and color tone, reduce atmospheric haze, sharpen details, and boost clarity across the whole landscape.",
+    "Remove sensor dust spots, propeller intrusions, and any visible drone shadow.",
+  ]
+  if (options.sky_replacement) {
+    parts.push(
+      `Replace the sky with ${SKY_STYLES[options.day_sky_style ?? "any"] ?? SKY_STYLES.any}, keeping lighting on the scene consistent with it.`
+    )
+  }
+  if (options.grass_repair) {
+    parts.push(
+      "Repair the lawn: make all grass evenly green, healthy, and neatly maintained, filling in bare and brown patches."
+    )
+  }
+  parts.push(
+    "Do not move, add, or remove buildings, roads, vehicles, fences, or any property features.",
+    GEOMETRY_EXTERIOR
+  )
+  if (comment?.trim()) parts.push(comment.trim())
+  parts.push(LISTING_SUFFIX)
+  return parts.join(" ")
+}
+
+// PORTRAIT_RETOUCHING (phase 14): conservative, identity preserved exactly
+// (CLAUDE.md). No options — the conservatism IS the template. Not a listing
+// photo: no geometry sentence, no listing suffix.
+export function PORTRAIT_RETOUCHING(comment?: string | null): string {
+  const parts = [
+    "Professional, conservative retouch of this exact portrait photograph.",
+    "Even out skin tone and remove only temporary flaws: blemishes, stray hairs, lint on clothing, shine, and minor red-eye.",
+    "Very slightly brighten the eyes and teeth; the result must look natural, never airbrushed or smoothed.",
+    "Preserve the subject's identity exactly: do not change facial structure or features, expression, body shape, weight, skin texture, age, hairstyle, or clothing. Do not slim, reshape, or beautify beyond removing temporary flaws.",
+    "Keep the background, framing, and camera perspective unchanged.",
+  ]
+  if (comment?.trim()) parts.push(comment.trim())
+  return parts.join(" ")
+}
+
 // One aesthetic per style, specific materials (prompt engineering rule 3).
 export const FURNITURE_STYLES: Record<string, { label: string; desc: string }> = {
   modern: {
@@ -452,6 +498,8 @@ Edit catalog (edit_type -> allowed options):
 - DAY_TO_DUSK: { preset: "dusk"|"bright_daylight"|"golden_hour"|"soft_overcast" } — dusk is an exterior twilight conversion; the other three are interior relight-only presets.
 - COLOUR_CHANGE: { element: string, colour: string } — recolor exactly one named element.
 - SHADOW_REMOVAL: {} — remove harsh cast shadows.
+- AERIAL_EDITING: { sky_replacement: boolean, day_sky_style: "any"|"clear_blue"|"clouds_blue"|"orange_sunrise", grass_repair: boolean } — drone/aerial photo enhancement: haze reduction, clarity, dust removal. Use whenever the photo is described as a drone or aerial shot.
+- PORTRAIT_RETOUCHING: {} — conservative headshot/portrait retouch (blemishes, stray hairs); identity preserved exactly.
 
 Response shapes (exactly one):
 1. {"kind":"job","edit_chain":[{"edit_type":"...","options":{...}}],"comment":"...","defaults_noted":["..."]}
@@ -531,6 +579,10 @@ export function compilePrompt(
       return COLOUR_CHANGE((step.options ?? {}) as { element?: string; colour?: string }, comment)
     case "SHADOW_REMOVAL":
       return SHADOW_REMOVAL(comment)
+    case "AERIAL_EDITING":
+      return AERIAL_EDITING((step.options ?? {}) as ImageEnhancementOptions, comment)
+    case "PORTRAIT_RETOUCHING":
+      return PORTRAIT_RETOUCHING(comment)
     case "FLOOR_PLAN_REDRAW":
       return FLOOR_PLAN_REDRAW(
         (step.options ?? {}) as FloorPlanRedrawOptions,

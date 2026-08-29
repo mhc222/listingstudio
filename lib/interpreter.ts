@@ -78,6 +78,12 @@ const SANITIZERS: Record<string, (o: Record<string, unknown>) => Record<string, 
   DAY_TO_DUSK: (o) => ({ preset: oneOf(o.preset, LIGHT_PRESETS, "dusk") }),
   COLOUR_CHANGE: (o) => ({ element: str(o.element), colour: str(o.colour) }),
   SHADOW_REMOVAL: () => ({}),
+  AERIAL_EDITING: (o) => ({
+    sky_replacement: Boolean(o.sky_replacement),
+    day_sky_style: oneOf(o.day_sky_style, SKY_STYLES, "any"),
+    grass_repair: Boolean(o.grass_repair),
+  }),
+  PORTRAIT_RETOUCHING: () => ({}),
 }
 
 // Throws with a description of what's wrong so the retry message can carry it.
