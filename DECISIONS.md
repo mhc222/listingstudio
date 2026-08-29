@@ -54,3 +54,8 @@
 - 2026-08-28: Tour viewer tears down and rebuilds all Marzipano scenes whenever scene data changes (no incremental diffing) — single-user tool, panos are browser-cached, and it keeps hotspot DOM in sync for free.
 - 2026-08-28: Tour editor state is remounted via a React key of tour.id + scene-id set — server-confirmed scene changes (upload/save) re-seed local edits instead of merging; unsaved renames are lost on upload, acceptable for one user.
 - 2026-08-28: Hotspot placement = stationary click (<5px pointer travel) in the viewer, distinguishing it from Marzipano's drag-to-pan; removing a scene client-side also strips hotspots targeting it so saves never point at deleted scenes.
+- 2026-08-28: Copywriting reuses INTERPRETER_MODEL (Haiku 4.5, vision-capable) and interpreterCostCents — cheapest adequate per CLAUDE.md; if copy quality disappoints, swap the model id in config/models.ts, nothing else changes.
+- 2026-08-28: listing_copy is one row per (listing, tone) — regenerating a tone overwrites only that tone; edits persist per tone; facts jsonb rides the row so the form re-seeds.
+- 2026-08-28: spend_ledger kind check extended with 'copywriting' in 0005 (edit_type='COPYWRITING' set for phase-15 aggregation) rather than overloading kind=interpreter.
+- 2026-08-28: Migration 0005 could NOT be applied live this session — no Supabase MCP connected and the permission classifier blocked keychain reads (CLI token) twice; left for Matt's SQL editor or an MCP session, per the blocker note in PROGRESS.md.
+- 2026-08-28: ~100/250 word targets are prompt-enforced only (live word counts shown in the UI, no server validation) — MLS tolerances are loose and the user edits in-app anyway.

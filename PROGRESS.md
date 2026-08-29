@@ -13,13 +13,21 @@
 - [x] Phase 10 — Batch mode + cost simulator + before/after polish + MLS presets
 - [x] Phase 11 — FLOOR_PLAN_REDRAW
 - [x] Phase 12 — VIRTUAL_TOUR builder
-- [ ] Phase 13 — COPYWRITING
+- [x] Phase 13 — COPYWRITING
 - [ ] Phase 14 — AERIAL annotation + PORTRAIT_RETOUCHING + HDR_MERGE
 - [ ] Phase 15 — Dashboard + spend tracking
 - [ ] Phase 16 — Vercel deploy
 - [ ] Phase 17 — Experimental 360 edits
 
 ## Current state
+
+Phase 13 complete (code; ⚠️ migration 0005 NOT applied live — see below). COPYWRITING: `supabase/migrations/0005_copy.sql` (listing_copy table — unique(listing_id, tone), facts jsonb, headline/desc_100/desc_250, RLS via listing ownership; spend_ledger kind check extended with 'copywriting'). `lib/prompts.ts`: COPY_TONES (luxury/family/investor voice lines) + COPYWRITING_SYSTEM (strict JSON {headline, desc_100, desc_250}, ~100w/~250w, photos-and-facts-only rule, fair-housing rule). `/api/listings/[id]/copy`: POST (photoIds ≤8 + facts {beds,baths,sqft,features} + tone → signed photo URLs → Haiku vision call → parse/validate → upsert listing_copy per tone; ledger kind=copywriting edit_type=COPYWRITING via admin client), PATCH (persist in-app edits per tone). `app/listings/[id]/copy/` page + CopyPanel (photo multi-select thumbs, facts form, tone select seeded from saved rows, Generate/Regenerate, editable headline input + two textareas with live word counts, per-block clipboard Copy buttons, Save edits). "Listing copy →" link in the listing header. Build + lint + tsx self-check (tone keys match the 0005 check constraint, JSON keys in system prompt) clean.
+
+**⚠️ BLOCKER for Matt: migration 0005 is NOT applied to the live DB.** This session had no Supabase MCP and the permission classifier blocked keychain access (CLI token unreachable, no DB password on disk). Apply it before using the copy page: paste `supabase/migrations/0005_copy.sql` into the dashboard SQL editor (project gczmpmjaqgtkxqdopknx), or re-run from a session with the Supabase MCP connected. Until then: Generate fails at the upsert, and the ledger row silently no-ops (kind check constraint).
+
+Phase 13 manual test (Matt): apply 0005 first. Open a staged listing → "Listing copy →" → select 4 photos, enter beds/baths/sqft + a couple of features, tone Luxury → Generate → headline + ~100w + ~250w appear with word counts. Edit the headline → Save edits → reload page → edit persisted. Copy button on the 250w block → paste elsewhere. Switch tone to Investor → Generate → different voice, same facts; switch back to Luxury → the edited luxury copy is still there. spend_ledger should show kind=copywriting rows.
+
+---
 
 Phase 12 complete (code; manual test pending — needs 360 panos). Backend (prior session): migration 0004 applied live (tours + tour_scenes, hotspots jsonb, RLS via listing ownership), POST /api/tours, PATCH/DELETE /api/tours/[id] (scene updates + hotspot sanitize + deleteSceneIds), POST /api/tours/[id]/scenes (multipart, jpg/png/webp, 2:1 ±0.1 equirect check, originals at {user}/tours/{tourId}/{sceneId}.{ext}). This session: `components/tour-viewer.tsx` (effect-only marzipano import; EquirectGeometry + RectilinearView with traditional limiter; DOM-button hotspots switch scenes; stationary-click-vs-drag detection reports yaw/pitch for placement; forwardRef getYaw for "set start view"; full teardown/rebuild keyed on scene JSON). `app/listings/[id]/tour-panel.tsx` builder: create/select/delete tours, pano upload, editor (rename title/scenes, ↑↓ reorder → order_index reindexed on save, remove scene + strip hotspots targeting it, place-hotspot mode → click pano → target+label form, set start view, per-scene hotspot chips with ×), single Save via PATCH, share URL + iframe embed with copy buttons; editor keyed on tour.id+scene-id set so router.refresh() re-seeds local state after upload/save. `app/tour/[slug]/` public page: admin client (RLS blocks anon) tour-by-slug + server-signed pano URLs, full-viewport black TourView client wrapper with title overlay + scene pill nav; generateMetadata from tour title. Listing page: tours query joined into the Promise.all, scene paths signed alongside photos, TourPanel above JobPanel. middleware.ts matcher exempts `tour` (share page no longer 302s to /login). Build + lint clean.
 
@@ -68,4 +76,4 @@ Outstanding (Matt, manual):
 - Webhook signature verification still unexercised locally (needs deployed URL — phase 16).
 
 ## Next action
-Phase 13 — COPYWRITING (Claude API: photos + beds/baths/sqft/features + tone → headline, 100w, 250w MLS descriptions, editable with copy buttons). lib/anthropic.ts client + @anthropic-ai/sdk already exist from the interpreter.
+Matt: apply migration 0005 (see blocker above). Then Phase 14 — AERIAL annotation (Konva canvas: LOT_HIGHLIGHT/DROP_PIN/boundary lines, flattened PNG export) + PORTRAIT_RETOUCHING template + HDR_MERGE (3-9 brackets, exposure fusion in code, optional chain to IMAGE_ENHANCEMENT).

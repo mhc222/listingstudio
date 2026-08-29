@@ -499,6 +499,7 @@ Rules:
 - Comply with fair-housing rules: describe the property, never the ideal buyer's demographics (no "perfect for young families", religion, nationality, etc.).
 - Spell out the tone's voice throughout; facts stay identical across tones.`
 
+export function compilePrompt(
   step: EditStep,
   comment?: string | null,
   grounding?: Grounding
