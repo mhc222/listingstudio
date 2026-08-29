@@ -224,3 +224,16 @@ Conventions used throughout: all prompt templates in `lib/prompts.ts`; provider 
 
 **DoD:** Tier A reel generates end to end from a listing's photos in both formats and downloads; render survives a dev-server restart (state in DB, not memory); build clean. Tier B explicitly deferrable.
 **Manual test:** Pick 8 finished photos on a listing, generate a 9:16 reel with music, play it, download it; regenerate in 16:9.
+
+---
+
+## Phase 20 — Terms of Use acceptance modal
+
+**Goal:** Blocking Terms of Use dialog on first login (and again whenever the terms version bumps), matching the reference screenshot Matt supplied: centred dark modal, title + "Please review and accept our terms to start using [product]. Also available anytime at /terms.", scrollable terms body, "Decline & sign out" / "I Agree" footer buttons. Nothing in the app is usable until accepted.
+
+**Source text:** `docs/terms-of-use.md` (verbatim as supplied). Written for **ReStudio.ai** with **Dubai/UAE** governing law — swap operator name, jurisdiction, and the `restudio.ai/terms` URL for Listing Studio's before this ships. Not reviewed by counsel; Matt's call whether it needs to be.
+
+**Files:** `app/terms/page.tsx` (standalone always-available terms page rendering the markdown), a `<TermsGate>` client component in the root layout (shadcn Dialog, non-dismissable — no outside-click, no Esc, no X), migration adding `accepted_terms_version` + `accepted_terms_at` to the profile/user row, a `TERMS_VERSION` constant in config (bump = re-prompt everyone), a POST route recording acceptance, and "Decline & sign out" wired to Supabase sign-out.
+
+**DoD:** Fresh account sees the modal before any page content and cannot dismiss it by any means; I Agree writes version + timestamp and never shows again; bumping `TERMS_VERSION` re-prompts; Decline signs out; `/terms` readable while signed out; build clean.
+**Manual test:** Sign in with a fresh user — modal blocks, Esc/outside-click do nothing, accept, reload (no modal); bump the version constant, reload (modal returns); decline and confirm sign-out; open `/terms` in a logged-out window.

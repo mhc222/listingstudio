@@ -20,6 +20,7 @@
 - [ ] Phase 17 — Experimental 360 edits
 - [ ] Phase 18 — Darkroom visual identity
 - [ ] Phase 19 — Listing video reels
+- [ ] Phase 20 — Terms of Use acceptance modal (source text in docs/terms-of-use.md)
 
 ## Current state
 
