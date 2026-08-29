@@ -237,3 +237,16 @@ Conventions used throughout: all prompt templates in `lib/prompts.ts`; provider 
 
 **DoD:** Fresh account sees the modal before any page content and cannot dismiss it by any means; I Agree writes version + timestamp and never shows again; bumping `TERMS_VERSION` re-prompts; Decline signs out; `/terms` readable while signed out; build clean.
 **Manual test:** Sign in with a fresh user — modal blocks, Esc/outside-click do nothing, accept, reload (no modal); bump the version constant, reload (modal returns); decline and confirm sign-out; open `/terms` in a logged-out window.
+
+---
+
+## Phase 21 — MLS compliance checker (candidate, from 2026-08-30 market analysis)
+
+**Goal:** Extend the existing auto-QA vision pass into a named per-output compliance check, surfaced as a checklist on the output review UI. Idea from the market landscape review (DECISIONS.md 2026-08-30): compliance/QC automation is the least-crowded differentiator among AI-native competitors, and we already own the vision-pass plumbing.
+
+**Checks (vision pass + metadata, one ledgered QA-style call):** (a) staged/renovated output carries the "Virtually Staged" watermark when the toggle is ON and the edit chain includes VIRTUAL_STAGING or VIRTUAL_RENOVATION (metadata check, free); (b) no fabricated permanent features vs the original — geometry sentence violations, added/removed windows or built-ins (vision); (c) DAY_TO_DUSK's two named checks fold in here unchanged; (d) result flagged, never blocked — a compliance note on the OutputVersion, same pattern as the existing QA note.
+
+**Files:** prompts.ts (compliance prompt variant of the QA prompt), the QA step in the state machine gains a compliance mode for staging/renovation/dusk chains, OutputVersion gains a compliance jsonb note, review UI renders the checklist. Ledgered like any QA call, never double-counted.
+
+**DoD:** Staged output shows a pass/fail compliance checklist; watermark-off staging flags; reworks re-run the check; build clean.
+**Manual test:** Stage a photo with watermark ON (all green), re-download with watermark OFF (flag appears), run a DAY_TO_DUSK and confirm its two checks render in the same checklist.
