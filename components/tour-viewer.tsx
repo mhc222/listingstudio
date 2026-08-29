@@ -118,6 +118,8 @@ export const TourViewer = forwardRef<TourViewerHandle, Props>(function TourViewe
       const coords = scene
         .view()
         .screenToCoordinates({ x: e.clientX - rect.left, y: e.clientY - rect.top })
+      // NaN until the first rendered frame sets the view size — ignore, don't store junk.
+      if (!Number.isFinite(coords.yaw) || !Number.isFinite(coords.pitch)) return
       onPlaceHotspotRef.current(coords.yaw, coords.pitch)
     }
     el.addEventListener("pointerdown", onDown)

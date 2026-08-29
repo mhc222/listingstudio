@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { TourViewer, type TourViewerHandle, type TourScene } from "@/components/tour-viewer"
@@ -86,7 +86,9 @@ function TourEditor({ tour }: { tour: TourRow }) {
   const [copied, setCopied] = useState<string | null>(null)
 
   const active = scenes.find((s) => s.id === activeId) ?? null
-  const origin = typeof window !== "undefined" ? window.location.origin : ""
+  // Set after mount — window.location.origin in render breaks SSR hydration.
+  const [origin, setOrigin] = useState("")
+  useEffect(() => setOrigin(window.location.origin), [])
   const shareUrl = `${origin}/tour/${tour.slug}`
   const embed = `<iframe src="${shareUrl}" width="800" height="450" frameborder="0" allowfullscreen></iframe>`
 
