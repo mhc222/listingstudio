@@ -37,3 +37,7 @@
 - 2026-08-28: Ideas promotion is client-side only (tap expands the variant into the normal before/after + rework UI) — every ideas fg already carries full version/rework machinery, so no backend "promote" exists.
 - 2026-08-28: URL extraction parses HTML with regex (og:image + img tags, skip-list, 12-candidate cap), no parser dep; the min-size filter runs at import time via sharp (400px min) since candidate dimensions aren't knowable without fetching each image.
 - 2026-08-28: sample_images.use_count incremented read-then-write, no rpc — single-user, races don't matter.
+- 2026-08-28: Concurrency gate is a global running-count check before each claim plus kickQueued on freed slots + a cron sweep — best-effort ±1 under concurrent webhooks; it protects fal rate limits, not correctness, so no locking.
+- 2026-08-28: Batch jobs skip room-dimension grounding when >1 photo (per-photo dims don't fit the single jobs.grounding_used record); the floor-plan ref still attaches to every group.
+- 2026-08-28: Download `variant=original` means the untouched source photo; fg.size_preset "original" maps to variant "full" (full-res edited) — the name collision is resolved at the route, no schema change.
+- 2026-08-28: Zip entries named {fg-id-prefix}-v{n}[-virtually-staged].jpg with the group's size preset and the staging-default watermark applied — no per-file toggles in the zip; use the single download for custom variants.
