@@ -67,7 +67,11 @@ export function IMAGE_ENHANCEMENT(
   const parts = [
     // brightness cue inside the first ten words
     "Bright natural daylight enhancement of this exact real estate photo.",
-    "Correct white balance and color tone, sharpen details, straighten verticals, and correct lens distortion.",
+    // ponytail: no "straighten verticals / correct lens distortion" here — that is
+    // the same operation GEOMETRY_INTERIOR forbids ("do not alter ... camera
+    // perspective"), and the geometry sentence is verbatim-mandated by CLAUDE.md.
+    // Real straightening, if ever wanted, is a deterministic perspective transform.
+    "Correct white balance and color tone, and sharpen details.",
     "Remove dust spots, blemishes, camera flash hotspots, and any photographer reflections in mirrors or windows.",
     "Balance window exposure so the view outside stays visible without darkening the interior.",
     "If a TV screen is visible, replace its contents with a neutral scenic image. If a fireplace is present, show a warm lit fire in it.",

@@ -58,7 +58,17 @@ export async function POST(req: NextRequest) {
           contentType = "image/jpeg"
           ext = "jpg"
         }
-        const meta = await sharp(buf).metadata()
+        let meta = await sharp(buf).metadata()
+        // Phones tag rotation in EXIF instead of rotating pixels. fal fetches the
+        // stored bytes and image models do not read EXIF, so an untouched portrait
+        // shot reaches the model on its side (browsers hide this — they honour the
+        // tag). Bake the rotation in ONLY when the tag says it is needed, so
+        // correctly-oriented originals stay byte-identical (CLAUDE.md: originals
+        // preserved untouched).
+        if ((meta.orientation ?? 1) > 1) {
+          buf = await sharp(buf).rotate().toBuffer()
+          meta = await sharp(buf).metadata()
+        }
         width = meta.width ?? null
         height = meta.height ?? null
       } else {
