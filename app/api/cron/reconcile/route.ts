@@ -2,6 +2,9 @@ import { NextResponse } from "next/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { getStatus } from "@/lib/imaging"
 import { completeStep, handleGenerationError, kickQueued, type FileGroupRow } from "@/lib/orchestrator"
+import { renderReel } from "@/lib/reel"
+
+export const maxDuration = 300
 
 // Every-minute safety net: poll fal for steps stuck in running >3 min
 // (missed/failed webhooks) and complete or fail them. Also the primary
@@ -48,6 +51,19 @@ export async function GET(req: Request) {
   // concurrency-gate sweep: submit queued groups into any free slots (rescues
   // groups left queued when the gate was at capacity)
   await kickQueued(db)
+
+  // reel sweep: fail renders stuck >15 min, then render queued reels whose
+  // after() kick died (conditional claim makes duplicate kicks no-ops)
+  await db
+    .from("reels")
+    .update({ status: "failed", error: "render timed out — regenerate" })
+    .eq("status", "rendering")
+    .lt("started_at", new Date(Date.now() - 15 * 60_000).toISOString())
+  const { data: queuedReels } = await db.from("reels").select("id").eq("status", "queued")
+  for (const r of queuedReels ?? []) {
+    await renderReel(db, r.id)
+    results[`reel:${r.id}`] = "rendered"
+  }
 
   return NextResponse.json({ checked: stuck?.length ?? 0, results })
 }
