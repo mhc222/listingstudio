@@ -9,6 +9,7 @@ import { ROOM_TYPES } from "@/lib/roomTypes"
 import { FURNITURE_STYLES, LIGHT_PRESETS } from "@/lib/prompts"
 import { simulateCents } from "@/lib/simulate"
 import { BeforeAfter } from "@/components/before-after"
+import { TourViewer } from "@/components/tour-viewer"
 import type { PhotoRow } from "./photo-grid"
 
 export type SampleRow = {
@@ -77,7 +78,20 @@ const EDIT_TYPES: Record<string, { label: string; defaults: Record<string, unkno
     defaults: { sky_replacement: false, day_sky_style: "any", grass_repair: false },
   },
   PORTRAIT_RETOUCHING: { label: "Portrait retouch", defaults: {} },
+  // Experimental 360 edits (phase 17): equirect (2:1) input only, output
+  // flagged for manual seam/pole review
+  "360_IMAGE_ENHANCEMENT": {
+    label: "360 enhancement (experimental)",
+    defaults: { sky_replacement: false, day_sky_style: "any", grass_repair: false },
+  },
+  "360_ITEM_REMOVAL": { label: "360 item removal (experimental)", defaults: { tier: 1, items: "" } },
+  "360_VIRTUAL_STAGING": {
+    label: "360 virtual staging (experimental)",
+    defaults: { room_type: "living_room", furniture_style: "modern", furniture_required: "" },
+  },
 }
+
+const EDIT_360_TYPES = ["360_IMAGE_ENHANCEMENT", "360_ITEM_REMOVAL", "360_VIRTUAL_STAGING"]
 
 const RENOVATION_TIER_LABELS: Record<string, string> = {
   light: "Light touch",
@@ -176,6 +190,9 @@ export function JobPanel({
   // download menu (phase 10), keyed by file group id
   const [dlVariant, setDlVariant] = useState<Record<string, string>>({})
   const [dlWatermark, setDlWatermark] = useState<Record<string, boolean>>({})
+
+  // 360 output preview toggle (phase 17), keyed by file group id
+  const [preview360, setPreview360] = useState<Record<string, boolean>>({})
 
   function togglePhoto(id: string) {
     setPhotoIds((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]))
@@ -602,7 +619,7 @@ export function JobPanel({
                     Remove
                   </button>
                 </div>
-                {edit.edit_type === "ITEM_REMOVAL" && (
+                {["ITEM_REMOVAL", "360_ITEM_REMOVAL"].includes(edit.edit_type) && (
                   <div className="mt-2 flex flex-wrap items-center gap-2">
                     <select
                       value={Number(edit.options.tier)}
@@ -620,7 +637,9 @@ export function JobPanel({
                     />
                   </div>
                 )}
-                {["IMAGE_ENHANCEMENT", "AERIAL_EDITING"].includes(edit.edit_type) && (
+                {["IMAGE_ENHANCEMENT", "AERIAL_EDITING", "360_IMAGE_ENHANCEMENT"].includes(
+                  edit.edit_type
+                ) && (
                   <div className="mt-2 flex flex-wrap items-center gap-3 text-sm">
                     <label className="flex items-center gap-1.5">
                       <input
@@ -653,7 +672,7 @@ export function JobPanel({
                     </label>
                   </div>
                 )}
-                {edit.edit_type === "VIRTUAL_STAGING" && (
+                {["VIRTUAL_STAGING", "360_VIRTUAL_STAGING"].includes(edit.edit_type) && (
                   <div className="mt-2 flex flex-wrap items-center gap-2">
                     <select
                       value={String(edit.options.room_type)}
@@ -838,6 +857,12 @@ export function JobPanel({
                 </p>
               )
             })()}
+            {chain.some((e) => EDIT_360_TYPES.includes(e.edit_type)) && (
+              <p className="mt-2 text-xs text-amber-600">
+                Experimental 360 edit — needs an equirectangular (2:1) pano as input; the output
+                is flagged for manual seam and pole review.
+              </p>
+            )}
             {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
           </>
         )}
@@ -999,6 +1024,9 @@ export function JobPanel({
                       const staged = fg.edit_chain.some((s) =>
                         STAGED_TYPES.includes(s.edit_type)
                       )
+                      const is360 = fg.edit_chain.some((s) =>
+                        EDIT_360_TYPES.includes(s.edit_type)
+                      )
                       const wm = dlWatermark[fg.id] ?? staged
                       const variant = dlVariant[fg.id] ?? ""
                       const href =
@@ -1007,9 +1035,44 @@ export function JobPanel({
                         (variant ? `&variant=${variant}` : "")
                       return (
                         <div className="mt-2">
-                          <BeforeAfter beforeUrl={before?.url ?? null} afterUrl={latest.url} />
+                          {is360 && preview360[fg.id] ? (
+                            // Marzipano preview of the edited pano (phase 17) —
+                            // the fastest way to eyeball the seam and poles
+                            <div className="h-80 w-full overflow-hidden rounded-md bg-black">
+                              <TourViewer
+                                scenes={[
+                                  {
+                                    id: fg.id,
+                                    name: "360 preview",
+                                    url: latest.url,
+                                    width:
+                                      photoById.get(fg.primary_photo_id)?.width ?? 4096,
+                                    initial_yaw: 0,
+                                    hotspots: [],
+                                  },
+                                ]}
+                                activeSceneId={fg.id}
+                              />
+                            </div>
+                          ) : (
+                            <BeforeAfter
+                              beforeUrl={before?.url ?? null}
+                              afterUrl={latest.url}
+                            />
+                          )}
                           <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                             <span>v{latest.version_number}</span>
+                            {is360 && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setPreview360((s) => ({ ...s, [fg.id]: !s[fg.id] }))
+                                }
+                                className="underline hover:text-foreground"
+                              >
+                                {preview360[fg.id] ? "Before/after" : "Preview in 360"}
+                              </button>
+                            )}
                             <select
                               value={variant}
                               onChange={(e) =>

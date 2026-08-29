@@ -36,7 +36,10 @@ export async function submitGeneration(
   prompt: string,
   imageUrl: string,
   webhookUrl?: string,
-  refUrls: string[] = []
+  refUrls: string[] = [],
+  // provider-specific extras merged into the request body (e.g. image_size
+  // for full-res 360 outputs on qwen — phase 17)
+  extraInput?: Record<string, unknown>
 ): Promise<string> {
   const model = MODELS[provider]
   if (!model.falId) {
@@ -48,7 +51,7 @@ export async function submitGeneration(
   const res = await fetch(url, {
     method: "POST",
     headers: falHeaders(),
-    body: JSON.stringify(buildInput(provider, prompt, imageUrl, refUrls)),
+    body: JSON.stringify({ ...buildInput(provider, prompt, imageUrl, refUrls), ...extraInput }),
   })
   if (!res.ok) throw new Error(`fal submit failed (${res.status}): ${await res.text()}`)
   const data = await res.json()

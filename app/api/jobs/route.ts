@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { pickProvider, MODELS } from "@/config/models"
 import { submitStep } from "@/lib/orchestrator"
-import type { EditStep } from "@/lib/prompts"
+import { EDIT_360_BASE, type EditStep } from "@/lib/prompts"
 
 // Create a job (one file group per photo for a batch, or 4 for an ideas grid)
 // and submit each first step. Never awaits generation — fal queue +
@@ -48,7 +48,7 @@ export async function POST(req: Request) {
   // RLS-scoped read proves ownership of the photos/listing
   const { data: ownedPhotos } = await supabase
     .from("photos")
-    .select("id, listing_id, room_id, is_floor_plan, storage_path")
+    .select("id, listing_id, room_id, is_floor_plan, storage_path, width, height")
     .in("id", requestedPhotoIds)
     .eq("listing_id", listingId)
   if ((ownedPhotos ?? []).length !== requestedPhotoIds.length) {
@@ -81,6 +81,39 @@ export async function POST(req: Request) {
     }
   }
 
+  // Experimental 360 edits (phase 17): equirect input only, no mixing with
+  // flat edits, no reference images (refs force gemini, whose output aspect
+  // follows the REFERENCE image — DECISIONS.md 2026-08-29 — which would wreck
+  // the 2:1 equirect). Provider forced to qwen below.
+  const has360 = cells.some((c) => c.chain.some((s) => s.edit_type in EDIT_360_BASE))
+  if (has360) {
+    if (cells.some((c) => c.chain.some((s) => !(s.edit_type in EDIT_360_BASE)))) {
+      return NextResponse.json(
+        { error: "360 edits can only be chained with other 360 edits" },
+        { status: 400 }
+      )
+    }
+    if (sampleImageIds?.length) {
+      return NextResponse.json(
+        { error: "reference images aren't supported on 360 edits yet" },
+        { status: 400 }
+      )
+    }
+    const notPano = ownedPhotos!.find(
+      (p) =>
+        p.is_floor_plan ||
+        !p.width ||
+        !p.height ||
+        Math.abs(p.width / p.height - 2) > 0.1
+    )
+    if (notPano) {
+      return NextResponse.json(
+        { error: "360 edits need an equirectangular pano (2:1 aspect ratio) as input" },
+        { status: 400 }
+      )
+    }
+  }
+
   // RLS-scoped read proves ownership of any sample refs
   let sampleIds: string[] = []
   if (sampleImageIds?.length) {
@@ -96,7 +129,13 @@ export async function POST(req: Request) {
   // Context grounding (CLAUDE.md): room dimensions -> sentence for
   // staging/renovation/item-removal; floor plan -> extra ref on staging.
   const groundable = allSteps.some((s) =>
-    ["VIRTUAL_STAGING", "ITEM_REMOVAL", "VIRTUAL_RENOVATION"].includes(s.edit_type)
+    [
+      "VIRTUAL_STAGING",
+      "ITEM_REMOVAL",
+      "VIRTUAL_RENOVATION",
+      "360_VIRTUAL_STAGING",
+      "360_ITEM_REMOVAL",
+    ].includes(s.edit_type)
   )
   const grounding: { dimension_sentence?: string; floor_plan_photo_id?: string } = {}
   // batch jobs skip room-dimension grounding — per-photo dims don't fit the
@@ -177,8 +216,14 @@ export async function POST(req: Request) {
   let ideasCost = 0
   for (const cell of cells) {
     // plan redraws force gemini — the only wired provider that renders room
-    // labels and dimension text legibly (phase 11)
-    const provider = hasPlanRedraw ? "gemini" : pickProvider(cell.chain.length, hasRefs)
+    // labels and dimension text legibly (phase 11). 360 chains force qwen —
+    // it takes an explicit image_size (full-res path) and preserves the input
+    // aspect ratio (phase 17).
+    const provider = hasPlanRedraw
+      ? "gemini"
+      : has360
+        ? "qwen"
+        : pickProvider(cell.chain.length, hasRefs)
     ideasCost += MODELS[provider].costCents * cell.chain.length
     const { data: fg, error: fgError } = await supabase
       .from("file_groups")

@@ -2,8 +2,15 @@
 // of the edit_chain at a time. Every transition is a conditional update so
 // duplicate webhooks / concurrent cron runs are no-ops. Server-only.
 import type { SupabaseClient } from "@supabase/supabase-js"
+import sharp from "sharp"
 import { MODELS, INTERPRETER_MODEL, type ProviderKey } from "@/config/models"
-import { compilePrompt, type EditStep, type Grounding, type ReworkOptions } from "@/lib/prompts"
+import {
+  compilePrompt,
+  EDIT_360_BASE,
+  type EditStep,
+  type Grounding,
+  type ReworkOptions,
+} from "@/lib/prompts"
 import { submitGeneration, getResultImageUrl, extractImageUrl } from "@/lib/imaging"
 import { getUrl, list, upload } from "@/lib/storage"
 import { runQA } from "@/lib/qa"
@@ -23,6 +30,19 @@ export type FileGroupRow = {
 }
 
 const SUBMIT_RETRY_BACKOFF_MS = 1500
+
+// ---- Experimental 360 edits (phase 17) ----
+// A 360 chain (REWORK steps included — they ride the same chain) generates at
+// the largest safe 2:1 size qwen accepts, then the output is resized back to
+// the source pano's exact dimensions so the tour viewer gets a full-res
+// equirect. ponytail: lanczos upscale, not Real-ESRGAN — add the fal upscale
+// call if pano sharpness disappoints.
+export function is360Chain(chain: EditStep[]): boolean {
+  return chain.some((s) => s.edit_type in EDIT_360_BASE)
+}
+const PANO_GEN_SIZE = { width: 2048, height: 1024 }
+export const SEAM_REVIEW_NOTE =
+  "Experimental 360 output — manually review the seam (left/right edge join) and the zenith/nadir poles before delivering."
 
 // Concurrency gate (CLAUDE.md: batch = many machines behind a gate, max 3).
 // Best-effort ±1 under concurrent webhooks — it protects fal rate limits, not
@@ -169,13 +189,16 @@ export async function submitStep(db: SupabaseClient, fileGroupId: string): Promi
     const prompt = compilePrompt(step, fg.comment, await groundingFor(db, fg))
     const imageUrl = await inputUrlForStep(db, fg)
     const refUrls = await refUrlsFor(db, fg)
+    // 360 chains run on qwen (forced at the jobs route), which accepts an
+    // explicit output size — skip the default ~1MP downscale
+    const extra = is360Chain(fg.edit_chain) ? { image_size: PANO_GEN_SIZE } : undefined
     let requestId: string
     try {
-      requestId = await submitGeneration(fg.provider, prompt, imageUrl, webhookUrl(), refUrls)
+      requestId = await submitGeneration(fg.provider, prompt, imageUrl, webhookUrl(), refUrls, extra)
     } catch {
       // retry once with backoff (CLAUDE.md quality bar)
       await new Promise((r) => setTimeout(r, SUBMIT_RETRY_BACKOFF_MS))
-      requestId = await submitGeneration(fg.provider, prompt, imageUrl, webhookUrl(), refUrls)
+      requestId = await submitGeneration(fg.provider, prompt, imageUrl, webhookUrl(), refUrls, extra)
     }
     await db.from("file_groups").update({ fal_request_id: requestId }).eq("id", fg.id)
   } catch (e) {
@@ -212,7 +235,28 @@ export async function completeStep(
     await handleGenerationError(db, fg, `result download failed (${res.status})`)
     return
   }
-  await upload("outputs", outPath, Buffer.from(await res.arrayBuffer()), "image/jpeg", db)
+  let outBuf = Buffer.from(await res.arrayBuffer())
+  // full-res 360 path: resize the generation back to the source pano's exact
+  // dimensions so the equirect wraps the sphere at original resolution
+  if (is360Chain(fg.edit_chain)) {
+    const { data: pano } = await db
+      .from("photos")
+      .select("width, height")
+      .eq("id", fg.primary_photo_id)
+      .single<{ width: number | null; height: number | null }>()
+    if (pano?.width && pano?.height) {
+      const meta = await sharp(outBuf).metadata()
+      if (meta.width !== pano.width || meta.height !== pano.height) {
+        outBuf = Buffer.from(
+          await sharp(outBuf)
+            .resize(pano.width, pano.height, { fit: "fill" })
+            .jpeg({ quality: 92 })
+            .toBuffer()
+        )
+      }
+    }
+  }
+  await upload("outputs", outPath, outBuf, "image/jpeg", db)
 
   // the idempotency gate
   const { data: transitioned } = await db
@@ -277,6 +321,9 @@ export async function completeStep(
       file_group_id: fg.id,
       version_number: nextVersion,
       storage_path: outPath,
+      // 360 outputs ship pre-flagged for manual seam/pole review (auto-QA is
+      // skipped below, so nothing overwrites this)
+      qa_note: is360Chain(fg.edit_chain) ? SEAM_REVIEW_NOTE : null,
       parent_version_id: isRework
         ? ((step!.options as ReworkOptions).parent_version_id ?? null)
         : null,
@@ -291,9 +338,12 @@ export async function completeStep(
   // judges photo geometry, which a sketch->plan redraw legitimately "violates".
   // Portrait retouches skip QA for the same reason: the prompt judges real
   // estate photo geometry, not faces (phase 14).
-  const skipsQA = fg.edit_chain.some((s) =>
-    ["FLOOR_PLAN_REDRAW", "PORTRAIT_RETOUCHING"].includes(s.edit_type)
-  )
+  // 360 chains skip QA too: the QA prompt judges flat listing-photo geometry,
+  // which equirect distortion legitimately "violates" (phase 17) — the seam
+  // review note stands in as the verdict.
+  const skipsQA =
+    fg.edit_chain.some((s) => ["FLOOR_PLAN_REDRAW", "PORTRAIT_RETOUCHING"].includes(s.edit_type)) ||
+    is360Chain(fg.edit_chain)
   if ((isIdeasJob && !isRework) || skipsQA) {
     const { data: siblingsIdeas } = await db
       .from("file_groups")

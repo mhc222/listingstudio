@@ -15,6 +15,22 @@ export type EditStep = {
   options?: Record<string, unknown>
 }
 
+// ---- Experimental 360 edits (phase 17) ----
+// A 360_* edit is its base template plus this equirectangular constraint block;
+// outputs are flagged for manual seam/pole review, never auto-QA'd.
+export const EQUIRECT_360 =
+  "This image is a full 360-degree equirectangular panorama covering the entire sphere. " +
+  "Preserve the equirectangular projection exactly: keep the characteristic horizontal stretching near the top and bottom (zenith and nadir) intact, " +
+  "keep the horizon at its current height, and make sure the left and right edges of the image still join seamlessly with no visible seam in lighting, color, or content. " +
+  "Do not crop, rotate, or change the aspect ratio."
+
+// 360 edit type -> the base template it wraps. Only these three exist.
+export const EDIT_360_BASE: Record<string, string> = {
+  "360_IMAGE_ENHANCEMENT": "IMAGE_ENHANCEMENT",
+  "360_ITEM_REMOVAL": "ITEM_REMOVAL",
+  "360_VIRTUAL_STAGING": "VIRTUAL_STAGING",
+}
+
 // Context grounding injected by the compiler (CLAUDE.md): room dimensions as a
 // sentence for staging/renovation/item-removal prompts.
 export type Grounding = {
@@ -556,6 +572,12 @@ export function compilePrompt(
   comment?: string | null,
   grounding?: Grounding
 ): string {
+  // 360 variants compile the base template, then append the equirect block
+  // (the brightness cue stays in the first ten words of the base template).
+  const base360 = EDIT_360_BASE[step.edit_type]
+  if (base360) {
+    return compilePrompt({ ...step, edit_type: base360 }, comment, grounding) + " " + EQUIRECT_360
+  }
   switch (step.edit_type) {
     case "ITEM_REMOVAL":
       return ITEM_REMOVAL(

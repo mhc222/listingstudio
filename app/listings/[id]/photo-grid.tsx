@@ -8,6 +8,8 @@ export type PhotoRow = {
   room_id: string | null
   storage_path: string
   is_floor_plan: boolean
+  width: number | null
+  height: number | null
   url: string | null
 }
 

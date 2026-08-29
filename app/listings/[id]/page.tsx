@@ -26,7 +26,7 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
       supabase.from("rooms").select("*").eq("listing_id", id).order("name"),
       supabase
         .from("photos")
-        .select("id, room_id, storage_path, is_floor_plan")
+        .select("id, room_id, storage_path, is_floor_plan, width, height")
         .eq("listing_id", id)
         .order("created_at"),
       supabase

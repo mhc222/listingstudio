@@ -17,12 +17,18 @@
 - [x] Phase 14 — AERIAL annotation + PORTRAIT_RETOUCHING + HDR_MERGE
 - [x] Phase 15 — Dashboard + spend tracking
 - [x] Phase 16 — Vercel deploy
-- [ ] Phase 17 — Experimental 360 edits
+- [x] Phase 17 — Experimental 360 edits
 - [ ] Phase 18 — Darkroom visual identity
 - [ ] Phase 19 — Listing video reels
 - [ ] Phase 20 — Terms of Use acceptance modal (source text in docs/terms-of-use.md)
 
 ## Current state
+
+Phase 17 COMPLETE (code + agent-tested live 2026-08-29). Experimental 360 edits: 360_IMAGE_ENHANCEMENT / 360_ITEM_REMOVAL / 360_VIRTUAL_STAGING ride the existing state machine as prefix-wrapped base templates — `EDIT_360_BASE` map + `EQUIRECT_360` constraint block in prompts.ts, compiled by compilePrompt recursion (brightness cue stays in the base template's first ten words; geometry verbatim intact). **Full-res path:** 360 chains force qwen (only endpoint taking an explicit `image_size` — new `extraInput` param on submitGeneration) generating at 2048×1024, then completeStep sharp-resizes the output back to the source pano's exact dimensions (fit fill) before upload — lanczos, not Real-ESRGAN; upgrade if pano sharpness disappoints. **Review flag:** 360 fgs skip auto-QA (equirect distortion would trip the flat-photo QA prompt) and every version inserts with qa_note = seam/pole review note. **Jobs route:** 360 steps can't mix with flat edits, reject sample refs (gemini ref-aspect bug, DECISIONS 2026-08-29), and require a non-floor-plan photo with width/height within 2:1 ±0.1 (photos select now carries width/height; PhotoRow type extended). Room-dim grounding applies to 360 staging/removal. **UI:** three "(experimental)" picker entries reusing the existing option forms, amber experimental note under the chain builder, and a per-output "Preview in 360" toggle that mounts TourViewer with a single scene (width from photos.width) in place of the before/after slider. Interpreter deliberately unaware of 360 types (picker-only). Build + lint clean.
+
+Phase 17 TESTED live 2026-08-29 (agent-driven, minted session, `scripts/test-360.mjs`): non-pano input → 400 with the 2:1 message ✓; mixed 360+flat chain → 400 ✓; real job on a synthetic 3200×1600 pano (uploaded to 123 Smith Street) → provider qwen, complete in ~24s via reconcile, output resized back to exactly 3200×1600 ✓, qa_note = seam/pole review note ✓, ledger exactly one generation row 2.1¢ + NO qa row ✓; picker shows all three 360 entries, experimental note renders, Preview in 360 mounts Marzipano without console errors ✓. NOT verifiable headless (hidden pane → no rAF): actual pano rendering/drag. Matt's remaining eyeball test is in PLAN.md (enhance a real 360 pano, load in the viewer, inspect seam + poles); two synthetic test panos now sit on 123 Smith Street.
+
+---
 
 Phase 16 COMPLETE (2026-08-29). **Production: https://listing-studio-three.vercel.app** (Vercel project `listing-studio`, scope mhc222s-projects). 7 prod env vars (`scripts/vercel-env-push.sh` for the 5 secrets from .env.local; CRON_SECRET freshly generated; NEXT_PUBLIC_APP_URL set to the prod domain post-first-deploy). Deploys are Matt-run (`vercel deploy --prod --yes`) — the classifier blocks Claude from prod-deploy commands; README runbook covers it.
 
@@ -97,4 +103,4 @@ Outstanding (Matt, manual):
 - Webhook signature verification still unexercised locally (needs deployed URL — phase 16).
 
 ## Next action
-Phase 17 — Experimental 360 edits (360_IMAGE_ENHANCEMENT / 360_ITEM_REMOVAL / 360_VIRTUAL_STAGING at full equirect resolution, experimental badge + seam/pole review flag, optional Marzipano preview).
+Phase 18 — Darkroom visual identity (re-read the spec artifact via the Artifact tool at phase start — https://claude.ai/code/artifact/c59ca593-118c-4584-9364-a80994a20b62; ride-along: 4 enhancement style presets).
