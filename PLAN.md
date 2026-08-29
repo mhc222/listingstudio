@@ -207,12 +207,12 @@ Conventions used throughout: all prompt templates in `lib/prompts.ts`; provider 
 
 ## Phase 18 — Darkroom visual identity
 
-**Goal:** Apply the chosen "Darkroom" identity system to the app. Spec is the published artifact https://claude.ai/code/artifact/c59ca593-118c-4584-9364-a80994a20b62 (re-read it via the Artifact tool at phase start — the local source file is gone); decisions summarized in project memory `listing-studio-brand`.
+**Goal:** Apply the chosen "Darkroom" identity system to the app. Spec is the published artifact https://claude.ai/code/artifact/c59ca593-118c-4584-9364-a80994a20b62 (re-read it via the Artifact tool at phase start — the local source file is gone); decisions summarized in project memory `listing-studio-brand`. Ride-along: enhancement style presets (from the restudio.ai competitor analysis, DECISIONS.md 2026-08-29) — four named looks for IMAGE_ENHANCEMENT (Bright & Airy / Warm / Natural / Crisp) as prompt variants in prompts.ts plus a preset chip row on the job panel; user comments still append, geometry sentence verbatim, default = Natural.
 
 **Files:** `app/globals.css` (drop-in tokens from the spec: cyan-biased greys ~hue 220, signal teal `#3FBFB9` dark mode / `#147F7A` light mode — teal means *the system is acting*, never decorative; separate state colours for queued/running/complete/failed/QA; radius 0.625→0.375rem). `app/layout.tsx` (next/font: JetBrains Mono + Public Sans; semantic split — mono = machine truth: state, cost, dimensions, filenames; sans = human intent). `public/`: three hand-tuned mark SVGs (104/40/16px — at 16px stroke doubles and the inner room goes solid fill; never one scaled file) + favicon. Header wordmark (JetBrains Mono Bold uppercase .2em, LISTING full weight / STUDIO regular secondary grey). Restyle state pills + file-group progress stripe. LAST (touches shipped output): watermark mark in `lib/deliver.ts`; `lib/plan.ts` address/disclaimer bands stay pure black on white, never teal (plans get printed and photocopied).
 
-**DoD:** Tokens, fonts, mark, and state styling applied across dashboard/listings/job cards; both light and dark modes pass contrast (light-mode teal is `#147F7A`); watermark + plan band pixel-checked; build clean.
-**Manual test:** Eyeball dashboard, a listing page, and running job cards in light and dark; download a staged photo (new watermark pill); export a plan PNG (bands still plain black on white).
+**DoD:** Tokens, fonts, mark, and state styling applied across dashboard/listings/job cards; both light and dark modes pass contrast (light-mode teal is `#147F7A`); watermark + plan band pixel-checked; style presets selectable on an IMAGE_ENHANCEMENT job and recorded on the job record; build clean.
+**Manual test:** Eyeball dashboard, a listing page, and running job cards in light and dark; download a staged photo (new watermark pill); export a plan PNG (bands still plain black on white); run the same photo through two different style presets and confirm visibly different looks.
 
 ---
 
