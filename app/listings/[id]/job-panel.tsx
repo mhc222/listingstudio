@@ -7,6 +7,8 @@ import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { ROOM_TYPES } from "@/lib/roomTypes"
 import { FURNITURE_STYLES, LIGHT_PRESETS } from "@/lib/prompts"
+import { simulateCents } from "@/lib/simulate"
+import { BeforeAfter } from "@/components/before-after"
 import type { PhotoRow } from "./photo-grid"
 
 export type SampleRow = {
@@ -97,6 +99,26 @@ const SIZE_PRESETS: Record<string, string> = {
   under_5mb: "Under 5MB",
 }
 
+// download menu variants ("" = the group's size preset, decided server-side)
+const DOWNLOAD_VARIANTS: [string, string][] = [
+  ["", "Preset default"],
+  ["original", "Original photo"],
+  ["full", "Full-res edited"],
+  ["web1920", "Web 1920px"],
+  ["under_10mb", "MLS under 10MB"],
+  ["under_5mb", "MLS under 5MB"],
+]
+
+const STAGED_TYPES = ["VIRTUAL_STAGING", "VIRTUAL_RENOVATION"]
+
+function centsLabel(cents: number): string {
+  return (cents / 100).toLocaleString("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 2,
+  })
+}
+
 export function JobPanel({
   listingId,
   photos,
@@ -109,7 +131,8 @@ export function JobPanel({
   samples: SampleRow[]
 }) {
   const router = useRouter()
-  const [photoId, setPhotoId] = useState<string | null>(null)
+  // batch (phase 10): multi-select; the chat path requires exactly one photo
+  const [photoIds, setPhotoIds] = useState<string[]>([])
   const [chain, setChain] = useState<ChainEdit[]>([])
   const [comment, setComment] = useState("")
   const [sizePreset, setSizePreset] = useState("original")
@@ -140,6 +163,14 @@ export function JobPanel({
   const [importedUrls, setImportedUrls] = useState<Record<string, boolean>>({})
   const [promoted, setPromoted] = useState<Record<string, string>>({})
   const [uploadingRef, setUploadingRef] = useState(false)
+
+  // download menu (phase 10), keyed by file group id
+  const [dlVariant, setDlVariant] = useState<Record<string, string>>({})
+  const [dlWatermark, setDlWatermark] = useState<Record<string, boolean>>({})
+
+  function togglePhoto(id: string) {
+    setPhotoIds((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]))
+  }
 
   function toggleSample(id: string) {
     setSampleIds((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]))
@@ -182,7 +213,7 @@ export function JobPanel({
   }, [listingId, router])
 
   async function run() {
-    if (!photoId || chain.length === 0) return
+    if (photoIds.length === 0 || chain.length === 0) return
     setRunning(true)
     setError(null)
     const res = await fetch("/api/jobs", {
@@ -190,7 +221,7 @@ export function JobPanel({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         listingId,
-        photoId,
+        photoIds,
         editChain: chain,
         comment: comment.trim() || undefined,
         sizePreset,
@@ -205,14 +236,15 @@ export function JobPanel({
     }
     setChain([])
     setComment("")
-    setPhotoId(null)
+    setPhotoIds([])
     setSampleIds([])
     router.refresh()
   }
 
   async function sendChat() {
     const text = chatText.trim()
-    if (!text || !photoId || interpreting) return
+    // interpreter path works one photo at a time
+    if (!text || photoIds.length !== 1 || interpreting) return
     const msgs = [...chatMessages, { role: "user" as const, content: text }]
     setChatMessages(msgs)
     setChatText("")
@@ -260,7 +292,7 @@ export function JobPanel({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         listingId,
-        photoId,
+        photoId: photoIds[0],
         ...(data.kind === "ideas"
           ? {
               kind: "ideas",
@@ -285,7 +317,7 @@ export function JobPanel({
     setChipEdit("")
     setChipRoom("")
     setChipStyle("")
-    setPhotoId(null)
+    setPhotoIds([])
     setSampleIds([])
     router.refresh()
   }
@@ -363,9 +395,23 @@ export function JobPanel({
     router.refresh()
   }
 
+  const hasFinals = jobs.some((j) =>
+    j.file_groups.some((fg) => fg.step_status === "complete" && fg.output_versions.length > 0)
+  )
+
   return (
     <section>
-      <h2 className="mb-3 text-lg font-medium">Jobs</h2>
+      <div className="mb-3 flex items-center justify-between">
+        <h2 className="text-lg font-medium">Jobs</h2>
+        {hasFinals && (
+          <a
+            href={`/api/listings/${listingId}/download-all`}
+            className="text-sm underline hover:text-foreground"
+          >
+            Download all finals (zip)
+          </a>
+        )}
+      </div>
 
       <div className="rounded-lg border p-4">
         <p className="mb-2 text-sm font-medium">New job</p>
@@ -378,9 +424,9 @@ export function JobPanel({
                 <button
                   key={p.id}
                   type="button"
-                  onClick={() => setPhotoId(p.id === photoId ? null : p.id)}
+                  onClick={() => togglePhoto(p.id)}
                   className={`shrink-0 overflow-hidden rounded-md border-2 ${
-                    p.id === photoId ? "border-blue-500" : "border-transparent"
+                    photoIds.includes(p.id) ? "border-blue-500" : "border-transparent"
                   }`}
                 >
                   {p.url && (
@@ -494,13 +540,19 @@ export function JobPanel({
                   onChange={(e) => setChatText(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && sendChat()}
                   placeholder={
-                    photoId
+                    photoIds.length === 1
                       ? "e.g. this empty living room needs to feel warm modern farmhouse and it's way too dark"
-                      : "Select a photo first, then describe what you want"
+                      : photoIds.length > 1
+                        ? "Chat works one photo at a time — keep exactly one selected"
+                        : "Select a photo first, then describe what you want"
                   }
                   className="min-w-0 flex-1 rounded-md border bg-transparent px-2 py-1.5 text-sm"
                 />
-                <Button size="sm" onClick={sendChat} disabled={!photoId || !chatText.trim() || interpreting}>
+                <Button
+                  size="sm"
+                  onClick={sendChat}
+                  disabled={photoIds.length !== 1 || !chatText.trim() || interpreting}
+                >
                   {interpreting ? "Thinking…" : "Send"}
                 </Button>
               </div>
@@ -737,10 +789,26 @@ export function JobPanel({
                 placeholder="Optional notes for all steps"
                 className="min-w-0 flex-1 rounded-md border bg-transparent px-2 py-1.5 text-sm"
               />
-              <Button size="sm" onClick={run} disabled={!photoId || chain.length === 0 || running}>
-                {running ? "Submitting…" : "Run"}
+              <Button
+                size="sm"
+                onClick={run}
+                disabled={photoIds.length === 0 || chain.length === 0 || running}
+              >
+                {running ? "Submitting…" : photoIds.length > 1 ? `Run ×${photoIds.length}` : "Run"}
               </Button>
             </div>
+            {chain.length > 0 && photoIds.length > 0 && (() => {
+              // dry-run estimate (CLAUDE.md cost simulation) — refs force gemini
+              const sim = simulateCents(chain.length, photoIds.length, sampleIds.length > 0)
+              return (
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Estimate: {centsLabel(sim.firstRunCents)} first run · ~
+                  {centsLabel(sim.expectedCents)} with reworks ({sim.providerLabel},{" "}
+                  {photoIds.length} photo{photoIds.length > 1 ? "s" : ""} × {chain.length} step
+                  {chain.length > 1 ? "s" : ""})
+                </p>
+              )
+            })()}
             {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
           </>
         )}
@@ -866,32 +934,53 @@ export function JobPanel({
                         </Button>
                       </div>
                     )}
-                    {latest?.url && (
-                      <div className="mt-2 grid grid-cols-2 gap-2">
-                        <figure>
-                          {before?.url && (
-                            // eslint-disable-next-line @next/next/no-img-element -- signed URLs expire; next/image caching fights that
-                            <img src={before.url} alt="" className="w-full rounded-md" />
-                          )}
-                          <figcaption className="mt-1 text-xs text-muted-foreground">
-                            Before
-                          </figcaption>
-                        </figure>
-                        <figure>
-                          {/* eslint-disable-next-line @next/next/no-img-element -- signed URLs expire; next/image caching fights that */}
-                          <img src={latest.url} alt="" className="w-full rounded-md" />
-                          <figcaption className="mt-1 text-xs text-muted-foreground">
-                            After (v{latest.version_number}) ·{" "}
-                            <a
-                              href={`/api/file-groups/${fg.id}/download`}
-                              className="underline hover:text-foreground"
+                    {latest?.url && (() => {
+                      const staged = fg.edit_chain.some((s) =>
+                        STAGED_TYPES.includes(s.edit_type)
+                      )
+                      const wm = dlWatermark[fg.id] ?? staged
+                      const variant = dlVariant[fg.id] ?? ""
+                      const href =
+                        `/api/file-groups/${fg.id}/download?version=${latest.id}` +
+                        `&watermark=${wm ? 1 : 0}` +
+                        (variant ? `&variant=${variant}` : "")
+                      return (
+                        <div className="mt-2">
+                          <BeforeAfter beforeUrl={before?.url ?? null} afterUrl={latest.url} />
+                          <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                            <span>v{latest.version_number}</span>
+                            <select
+                              value={variant}
+                              onChange={(e) =>
+                                setDlVariant((s) => ({ ...s, [fg.id]: e.target.value }))
+                              }
+                              className="rounded-md border bg-transparent px-1.5 py-0.5 text-xs"
                             >
+                              {DOWNLOAD_VARIANTS.map(([k, label]) => (
+                                <option key={k} value={k}>
+                                  {label}
+                                </option>
+                              ))}
+                            </select>
+                            {variant !== "original" && (
+                              <label className="flex items-center gap-1">
+                                <input
+                                  type="checkbox"
+                                  checked={wm}
+                                  onChange={(e) =>
+                                    setDlWatermark((s) => ({ ...s, [fg.id]: e.target.checked }))
+                                  }
+                                />
+                                “Virtually Staged” label
+                              </label>
+                            )}
+                            <a href={href} className="underline hover:text-foreground">
                               Download
                             </a>
-                          </figcaption>
-                        </figure>
-                      </div>
-                    )}
+                          </div>
+                        </div>
+                      )
+                    })()}
                     {latest?.qa_note && (
                       <p className="mt-1 text-xs text-muted-foreground">QA: {latest.qa_note}</p>
                     )}
