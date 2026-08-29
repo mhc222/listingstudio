@@ -594,6 +594,42 @@ Rules:
 - Comply with fair-housing rules: describe the property, never the ideal buyer's demographics (no "perfect for young families", religion, nationality, etc.).
 - Spell out the tone's voice throughout; facts stay identical across tones.`
 
+// Qwen-only negative prompts (fal's qwen-image-edit accepts negative_prompt;
+// the gemini and kontext endpoints don't). 3-6 terms targeting each edit's
+// known failure mode — 2026-08-30 prompting-guide audit, DECISIONS.md.
+const NEGATIVES: Record<string, string> = {
+  IMAGE_ENHANCEMENT: "oversaturated colors, HDR halos, blown highlights, plastic textures",
+  AERIAL_EDITING: "oversaturated colors, HDR halos, blown highlights, warped buildings",
+  TURN_ON_LIGHTS: "new light fixtures, blown highlights, orange color cast",
+  ITEM_REMOVAL: "leftover smudges, warped surfaces, duplicated objects, patchy floors",
+  VIRTUAL_STAGING: "warped walls, distorted perspective, floating furniture, altered room dimensions",
+  VIRTUAL_RENOVATION: "warped walls, distorted perspective, moved fixtures, altered room dimensions",
+  VIRTUAL_LANDSCAPING: "altered house structure, warped rooflines, plants blocking windows or doors",
+  COLOUR_CHANGE: "color bleeding onto other objects, altered materials, changed textures",
+  SHADOW_REMOVAL: "flat lifeless lighting, lost surface texture, artifacts",
+  PORTRAIT_RETOUCHING: "distorted face, different person, altered skin tone, plastic smooth skin",
+  FLOOR_PLAN_REDRAW: "misspelled letters, garbled text, blurred typography, wavy lines",
+  REWORK: "warped geometry, duplicated objects, artifacts",
+}
+
+export function compileNegative(step: EditStep): string | null {
+  // 360 variants: base edit's negatives plus the pano failure modes.
+  const base360 = EDIT_360_BASE[step.edit_type]
+  if (base360) {
+    const base = NEGATIVES[base360]
+    return base ? `${base}, visible seam, cropped panorama` : "visible seam, cropped panorama"
+  }
+  if (step.edit_type === "DAY_TO_DUSK") {
+    // dusk fights leftover daylight; the interior relight presets WANT daylight
+    // ("bright_daylight") so their failure mode is object drift, not sky.
+    const preset = (step.options?.preset as string) ?? "dusk"
+    return preset === "dusk"
+      ? "daytime sky, harsh midday shadows, oversaturated orange"
+      : "moved or changed objects, altered furniture, artifacts"
+  }
+  return NEGATIVES[step.edit_type] ?? null
+}
+
 export function compilePrompt(
   step: EditStep,
   comment?: string | null,

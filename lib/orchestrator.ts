@@ -5,6 +5,7 @@ import type { SupabaseClient } from "@supabase/supabase-js"
 import sharp from "sharp"
 import { MODELS, INTERPRETER_MODEL, type ProviderKey } from "@/config/models"
 import {
+  compileNegative,
   compilePrompt,
   EDIT_360_BASE,
   type EditStep,
@@ -191,7 +192,11 @@ export async function submitStep(db: SupabaseClient, fileGroupId: string): Promi
     const refUrls = await refUrlsFor(db, fg)
     // 360 chains run on qwen (forced at the jobs route), which accepts an
     // explicit output size — skip the default ~1MP downscale
-    const extra = is360Chain(fg.edit_chain) ? { image_size: PANO_GEN_SIZE } : undefined
+    const extra: Record<string, unknown> = {}
+    if (is360Chain(fg.edit_chain)) extra.image_size = PANO_GEN_SIZE
+    // negative_prompt is a qwen-only input; gemini/kontext don't take one
+    const negative = fg.provider === "qwen" ? compileNegative(step) : null
+    if (negative) extra.negative_prompt = negative
     let requestId: string
     try {
       requestId = await submitGeneration(fg.provider, prompt, imageUrl, webhookUrl(), refUrls, extra)

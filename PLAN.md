@@ -250,3 +250,38 @@ Conventions used throughout: all prompt templates in `lib/prompts.ts`; provider 
 
 **DoD:** Staged output shows a pass/fail compliance checklist; watermark-off staging flags; reworks re-run the check; build clean.
 **Manual test:** Stage a photo with watermark ON (all green), re-download with watermark OFF (flag appears), run a DAY_TO_DUSK and confirm its two checks render in the same checklist.
+
+---
+
+## Phase 22 — Qwen negative prompts (prompt-moat hardening, small)
+
+**Goal:** Send targeted `negative_prompt` values on every qwen generation — the cheapest win from the 2026-08-30 prompting-guide audit (DECISIONS.md). fal's qwen-image-edit accepts negative_prompt; gemini/kontext don't, so it's provider-gated.
+
+**Files:** `lib/prompts.ts` — `NEGATIVES` map (3–6 terms per edit type targeting its known failure mode; DAY_TO_DUSK special-cased per preset since the interior relights *want* daylight) + `compileNegative(step)` export (resolves 360 wrappers, appends pano failure terms). `lib/orchestrator.ts` — submit path builds `extra.negative_prompt` when provider is qwen; single call site covers chains, reworks, and QA retries.
+
+**DoD:** compileNegative returns the right string for a flat edit, a 360 edit, and both DAY_TO_DUSK branches; qwen submits carry negative_prompt (visible in fal request logs); typecheck clean.
+**Manual test:** Run an IMAGE_ENHANCEMENT job on qwen and confirm in the fal dashboard request log that negative_prompt arrived; run a VIRTUAL_STAGING and eyeball for the usual warped-wall failure.
+
+---
+
+## Phase 23 — Markup-to-edit (candidate)
+
+**Goal:** Click/drag/circle annotation on the primary photo drives the edit ("remove the item circled in blue, replace the item in the red rectangle with a leather recliner"). Externally validated: Google shipped this exact interaction ("draw-to-edit") in the Gemini app Dec 2025 on the same model family. Full shape in DECISIONS.md 2026-08-30.
+
+**Gate:** ONE live experiment first (~$0.06): send a marked-up photo to qwen and gemini with a markup-instruction prompt; verify marks don't leak into output. If qwen leaks, markup jobs force gemini (marks ride the PRIMARY, so the ref-aspect bug doesn't apply).
+
+**Files:** Reuse the phase-14 Konva annotation canvas on the FileGroup composer (new mark tools: circle = remove, rectangle = replace, color-keyed); flatten annotated PNG as the model input, clean original stays the stored source; interpreter maps marks to instruction clauses; prompt clause ends "Do not render any of the markings in the output."
+
+**DoD:** Annotated job runs end to end, output has the edit and no visible marks, original photo untouched in storage; build clean.
+**Manual test:** Circle a lamp in blue + rectangle a sofa in red, type "blue = remove, red = swap for a recliner", run, inspect output.
+
+---
+
+## Phase 24 — Provider-aware prompt compilation (the moat move)
+
+**Goal:** compilePrompt renders the same semantic job spec in each provider's native dialect (2026-08-30 audit, finding 4): qwen = terse imperatives + negatives; gemini = natural-language scene description using Google's own template shape ("change only X… keep everything else exactly the same, preserving the original style, lighting, and composition"); kontext = direct naming, no pronouns, "while maintaining the same…" clauses. Ride-alongs from the same audit: interpreter emits an imperative-normalized comment (`comment_imperative`) used in compilation while the user's verbatim words stay on the record; preservation-first ordering A/B on qwen (geometry sentence as sentence 2) measured before adoption; LISTING_SUFFIX kept unless the A/B says otherwise (CLAUDE.md rule 4 stands until measured).
+
+**Files:** `lib/prompts.ts` (compilePrompt gains a provider param; per-provider template renderers share the option/slot logic), `lib/orchestrator.ts` (passes fg.provider), `lib/interpreter.ts` + INTERPRETER_SYSTEM (comment_imperative field), jobs route stores both comment fields.
+
+**DoD:** Same job spec produces three distinct provider-shaped prompts (unit-checkable string assertions); geometry sentences still verbatim in all three; interpreter round-trips comment_imperative; build clean.
+**Manual test:** Run one staging job on qwen and one with a ref (gemini) and compare the logged prompts; type a vague comment ("cozy vibes") and confirm the compiled prompt carries an imperative version while the job card still shows the user's words.
