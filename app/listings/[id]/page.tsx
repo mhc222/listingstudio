@@ -6,6 +6,7 @@ import { UploadPanel } from "./upload-panel"
 import { PhotoGrid, type PhotoRow } from "./photo-grid"
 import { RoomPanel, type RoomRow } from "./room-panel"
 import { JobPanel, type JobRow, type SampleRow } from "./job-panel"
+import { PlanPanel } from "./plan-panel"
 
 export default async function ListingPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -92,9 +93,19 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
             <section>
               <h2 className="mb-3 text-lg font-medium">Floor plans ({floorPlans.length})</h2>
               <PhotoGrid photos={floorPlans} rooms={rooms ?? []} listingId={id} />
+              <PlanPanel
+                listingId={id}
+                plans={floorPlans.filter((p) => !p.storage_path.endsWith(".pdf"))}
+              />
             </section>
           )}
-          <JobPanel listingId={id} photos={regular} jobs={jobRows} samples={sampleRows} />
+          <JobPanel
+            listingId={id}
+            photos={regular}
+            floorPlans={floorPlans}
+            jobs={jobRows}
+            samples={sampleRows}
+          />
         </div>
         <aside>
           <h2 className="mb-3 text-lg font-medium">Rooms</h2>

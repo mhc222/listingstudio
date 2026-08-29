@@ -1,0 +1,152 @@
+"use client"
+
+import { useState } from "react"
+import { useRouter } from "next/navigation"
+import { Button } from "@/components/ui/button"
+import { PLAN_STYLES, PLAN_DISCLAIMER } from "@/lib/prompts"
+import { MODELS, AVG_GENERATIONS_PER_FILE_GROUP } from "@/config/models"
+import type { PhotoRow } from "./photo-grid"
+
+// Floor plan redraw controls (phase 11). Input is always an image floor
+// plan/sketch — room photos never appear here (CLAUDE.md). For the 3D
+// variant: attach a finished 2D plan, then redraw it in 3D Isometric.
+export function PlanPanel({ listingId, plans }: { listingId: string; plans: PhotoRow[] }) {
+  const router = useRouter()
+  const [planId, setPlanId] = useState<string | null>(null)
+  const [style, setStyle] = useState("2d_colour")
+  const [units, setUnits] = useState("sqft")
+  const [furniture, setFurniture] = useState(true)
+  const [northArrow, setNorthArrow] = useState(true)
+  const [addressLabel, setAddressLabel] = useState(true)
+  const [disclaimer, setDisclaimer] = useState(PLAN_DISCLAIMER)
+  const [running, setRunning] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  if (plans.length === 0) return null
+
+  async function run() {
+    if (!planId || running) return
+    setRunning(true)
+    setError(null)
+    const res = await fetch("/api/jobs", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        listingId,
+        photoId: planId,
+        editChain: [
+          {
+            edit_type: "FLOOR_PLAN_REDRAW",
+            options: {
+              style,
+              units,
+              furniture,
+              north_arrow: northArrow,
+              address_label: addressLabel,
+              disclaimer: disclaimer.trim(),
+            },
+          },
+        ],
+      }),
+    })
+    setRunning(false)
+    if (!res.ok) {
+      const data = await res.json().catch(() => null)
+      setError(data?.error ?? `request failed (${res.status})`)
+      return
+    }
+    setPlanId(null)
+    router.refresh()
+  }
+
+  const rate = MODELS.gemini.costCents
+  return (
+    <div className="mt-3 rounded-lg border p-4">
+      <p className="text-sm font-medium">Redraw a floor plan</p>
+      <div className="mt-2 flex gap-2 overflow-x-auto pb-2">
+        {plans.map((p) => (
+          <button
+            key={p.id}
+            type="button"
+            onClick={() => setPlanId((cur) => (cur === p.id ? null : p.id))}
+            className={`shrink-0 overflow-hidden rounded-md border-2 ${
+              planId === p.id ? "border-blue-500" : "border-transparent"
+            }`}
+          >
+            {p.url && (
+              // eslint-disable-next-line @next/next/no-img-element -- signed URLs expire; next/image caching fights that
+              <img src={p.url} alt="" className="h-16 w-24 object-cover" />
+            )}
+          </button>
+        ))}
+      </div>
+      <div className="mt-2 flex flex-wrap items-center gap-2">
+        <select
+          value={style}
+          onChange={(e) => setStyle(e.target.value)}
+          className="rounded-md border bg-transparent px-2 py-1.5 text-sm"
+        >
+          {Object.entries(PLAN_STYLES).map(([k, { label }]) => (
+            <option key={k} value={k}>
+              {label}
+            </option>
+          ))}
+        </select>
+        <select
+          value={units}
+          onChange={(e) => setUnits(e.target.value)}
+          className="rounded-md border bg-transparent px-2 py-1.5 text-sm"
+        >
+          <option value="sqft">sq ft</option>
+          <option value="sqm">sq m</option>
+        </select>
+        <label className="flex items-center gap-1.5 text-sm">
+          <input
+            type="checkbox"
+            checked={furniture}
+            onChange={(e) => setFurniture(e.target.checked)}
+          />
+          Furniture
+        </label>
+        <label className="flex items-center gap-1.5 text-sm">
+          <input
+            type="checkbox"
+            checked={northArrow}
+            onChange={(e) => setNorthArrow(e.target.checked)}
+          />
+          North arrow
+        </label>
+        <label className="flex items-center gap-1.5 text-sm">
+          <input
+            type="checkbox"
+            checked={addressLabel}
+            onChange={(e) => setAddressLabel(e.target.checked)}
+          />
+          Address label
+        </label>
+      </div>
+      <div className="mt-2 flex items-center gap-2">
+        <input
+          value={disclaimer}
+          onChange={(e) => setDisclaimer(e.target.value)}
+          placeholder="Disclaimer text (blank for none)"
+          className="min-w-0 flex-1 rounded-md border bg-transparent px-2 py-1.5 text-sm"
+        />
+        <Button size="sm" onClick={run} disabled={!planId || running}>
+          {running ? "Submitting…" : "Redraw"}
+        </Button>
+      </div>
+      <p className="mt-2 text-xs text-muted-foreground">
+        Estimate: {(rate / 100).toLocaleString("en-US", { style: "currency", currency: "USD" })}{" "}
+        first run · ~
+        {((rate * AVG_GENERATIONS_PER_FILE_GROUP) / 100).toLocaleString("en-US", {
+          style: "currency",
+          currency: "USD",
+        })}{" "}
+        with reworks ({MODELS.gemini.label}). For 3D: redraw in 2D first, attach the result as a
+        floor plan, then redraw the attached plan in 3D Isometric.
+      </p>
+      {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+    </div>
+  )
+}

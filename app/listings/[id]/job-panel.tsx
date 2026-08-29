@@ -122,11 +122,15 @@ function centsLabel(cents: number): string {
 export function JobPanel({
   listingId,
   photos,
+  floorPlans = [],
   jobs,
   samples,
 }: {
   listingId: string
   photos: PhotoRow[]
+  // plan redraw jobs (phase 11) have a floor plan as their primary photo —
+  // included here only for before-image lookup, never in the picker strip
+  floorPlans?: PhotoRow[]
   jobs: JobRow[]
   samples: SampleRow[]
 }) {
@@ -190,7 +194,27 @@ export function JobPanel({
     )
   }
 
-  const photoById = useMemo(() => new Map(photos.map((p) => [p.id, p])), [photos])
+  const photoById = useMemo(
+    () => new Map([...photos, ...floorPlans].map((p) => [p.id, p])),
+    [photos, floorPlans]
+  )
+
+  // plan attach state (phase 11), keyed by file group id
+  const [attaching, setAttaching] = useState<Record<string, boolean>>({})
+  const [attached, setAttached] = useState<Record<string, boolean>>({})
+
+  async function attachPlan(fileGroupId: string, versionId: string | undefined) {
+    if (attaching[fileGroupId]) return
+    setAttaching((a) => ({ ...a, [fileGroupId]: true }))
+    const res = await fetch(`/api/file-groups/${fileGroupId}/attach-plan`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ versionId }),
+    })
+    setAttaching((a) => ({ ...a, [fileGroupId]: false }))
+    if (res.ok) setAttached((a) => ({ ...a, [fileGroupId]: true }))
+    router.refresh()
+  }
 
   // live status: refetch server data whenever job state changes
   useEffect(() => {
@@ -895,6 +919,7 @@ export function JobPanel({
                 const latest =
                   versionsDesc.find((v) => v.id === selectedVersion[fg.id]) ?? versionsDesc[0]
                 const settled = ["complete", "failed"].includes(fg.step_status)
+                const isPlan = fg.edit_chain.some((s) => s.edit_type === "FLOOR_PLAN_REDRAW")
                 const isDusk = fg.edit_chain.some(
                   (s) =>
                     s.edit_type === "DAY_TO_DUSK" &&
@@ -934,7 +959,38 @@ export function JobPanel({
                         </Button>
                       </div>
                     )}
-                    {latest?.url && (() => {
+                    {isPlan && latest?.url && (
+                      // plan exports (phase 11): SVG/PNG/PDF, then attach the
+                      // plan back to the listing to feed grounding / a 3D redraw
+                      <div className="mt-2">
+                        <BeforeAfter beforeUrl={before?.url ?? null} afterUrl={latest.url} />
+                        <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                          <span>v{latest.version_number}</span>
+                          {(["png", "svg", "pdf"] as const).map((f) => (
+                            <a
+                              key={f}
+                              href={`/api/file-groups/${fg.id}/plan-export?format=${f}&version=${latest.id}`}
+                              className="uppercase underline hover:text-foreground"
+                            >
+                              {f}
+                            </a>
+                          ))}
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => attachPlan(fg.id, latest.id)}
+                            disabled={attaching[fg.id] || attached[fg.id]}
+                          >
+                            {attached[fg.id]
+                              ? "Attached ✓"
+                              : attaching[fg.id]
+                                ? "Attaching…"
+                                : "Attach as floor plan"}
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                    {!isPlan && latest?.url && (() => {
                       const staged = fg.edit_chain.some((s) =>
                         STAGED_TYPES.includes(s.edit_type)
                       )

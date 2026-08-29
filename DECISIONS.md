@@ -41,3 +41,9 @@
 - 2026-08-28: Batch jobs skip room-dimension grounding when >1 photo (per-photo dims don't fit the single jobs.grounding_used record); the floor-plan ref still attaches to every group.
 - 2026-08-28: Download `variant=original` means the untouched source photo; fg.size_preset "original" maps to variant "full" (full-res edited) — the name collision is resolved at the route, no schema change.
 - 2026-08-28: Zip entries named {fg-id-prefix}-v{n}[-virtually-staged].jpg with the group's size preset and the staging-default watermark applied — no per-file toggles in the zip; use the single download for custom variants.
+- 2026-08-28: FLOOR_PLAN_REDRAW runs as its own single-step chain on an is_floor_plan image (room photos, chained plan edits, and PDF inputs rejected at the jobs route); provider forced to gemini — the only wired endpoint rendering label/dimension text legibly.
+- 2026-08-28: 3D plan variant = attach the finished 2D output as a listing floor plan, then redraw the attached plan with style=3d — no chained 2D→3D job (chains only version the final step, and attach is needed anyway for grounding).
+- 2026-08-28: Address label + disclaimer are composited in code as white canvas bands (sharp SVG) at export/attach time, never prompted — AI-rendered fine print garbles; the flags still live on the redraw step's options so exports know what to apply.
+- 2026-08-28: Plan SVG export wraps the raster PNG as an embedded image (no vectorization dep); PDF is letter-landscape fit-and-centered via pdf-lib.
+- 2026-08-28: Plan redraws skip auto-QA — the QA prompt judges photo geometry, which a sketch→clean-plan redraw legitimately "violates"; reworks still ride the normal REWORK path.
+- 2026-08-28: Plan-label grounding lists EVERY listing room with dims in one sentence (unlike the single-room staging sentence) since a plan spans the storey; stored in the same jobs.grounding_used field.
