@@ -31,6 +31,13 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 
 ## Deploy on Vercel
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+The repo is linked to the Vercel project `listing-studio` (scope `mhc222s-projects`, `.vercel/` gitignored).
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1. **Env vars** (once, or when a key rotates): `bash scripts/vercel-env-push.sh` — pushes the production env from `.env.local` (Supabase URL/keys, `FAL_KEY`, `ANTHROPIC_API_KEY` + `ANTHROPIC_WORKSPACE_ID`, `CRON_SECRET`). `LOCAL_IMAGING_BASE_URL` stays local-only.
+2. **Deploy**: `vercel deploy --prod --yes`.
+3. **`NEXT_PUBLIC_APP_URL`** must be the prod origin (e.g. `https://listing-studio.vercel.app`) — it's what the orchestrator hands fal as the webhook URL. Set it after the first deploy reveals the domain, then redeploy (env changes only apply to new deployments). While it's unset/localhost, no webhook is sent and the reconcile cron is the completion path.
+4. **Cron**: `vercel.json` registers `/api/cron/reconcile` every minute. Vercel invokes it with `Authorization: Bearer $CRON_SECRET` automatically because the `CRON_SECRET` env var is set — the route already checks that. (Hobby plans only allow daily crons; this schedule needs a Pro team.)
+5. **Supabase**: same project serves dev and prod — RLS, buckets, and migrations 0001–0005 are already live, nothing to reconfigure. Password login works as-is; only if magic links are ever used, add the prod URL under Auth → URL Configuration.
+6. **Verify**: log in on prod, run a cheap job (ITEM_REMOVAL), confirm it completes via webhook (job completes without hitting `/api/cron/reconcile?all=1`) — that exercises the fal ED25519 signature verification for the first time.
+
+No keys are committed: `.env*` is gitignored (`.env.example` documents the names).

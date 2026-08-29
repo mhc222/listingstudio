@@ -23,6 +23,14 @@
 
 ## Current state
 
+Phase 16 IN PROGRESS (blocked on one manual step). Done this session: repo linked to Vercel project `listing-studio` (scope mhc222s-projects, `.vercel/` gitignored, `VERCEL_OIDC_TOKEN` appended to .env.local by the CLI — harmless); `scripts/vercel-env-push.sh` written (pushes the 7 prod env vars from .env.local; NEXT_PUBLIC_APP_URL deliberately excluded — needs the prod domain first; LOCAL_IMAGING_BASE_URL local-only); README "Deploy on Vercel" section rewritten with the real 6-step runbook. NOT done: env vars not pushed (Claude's permission classifier blocks piping secrets from .env.local — same class of block as the 0005 keychain issue), therefore no deploy yet (NEXT_PUBLIC_* inline into the client bundle at build, so deploying pre-env would ship a broken login page).
+
+**BLOCKER — Matt runs one command:** `bash scripts/vercel-env-push.sh` (from the repo root). Then tell Claude to continue phase 16.
+
+Resume steps after the script runs: (1) `vercel deploy --prod --yes`; (2) read the prod domain from the output, `printf 'https://<domain>' | vercel env add NEXT_PUBLIC_APP_URL production --force` (literal value, not from .env.local — should pass the classifier); (3) redeploy so the webhook URL is live; (4) verify: login page loads, run a cheap ITEM_REMOVAL job in prod, confirm completion WITHOUT hitting reconcile (webhook + ED25519 signature verification finally exercised), cron visible in Vercel dashboard (needs Pro — every-minute crons are not allowed on Hobby; if the deploy rejects the cron, that's why); (5) check off phase 16, final commit.
+
+---
+
 Phase 15 complete (code + live-verified 2026-08-29). Dashboard at `app/page.tsx` (server component): Jobs-in-progress card (pending/processing jobs, listing address, N/M outputs done), Failed-jobs card (failed file_groups with chain summary, truncated last_error, Re-run button hitting the existing /api/file-groups/[id]/rerun), MTD-spend card (admin-client ledger aggregation — RLS hides null-job interpreter rows — grouped by edit_type ?? kind, sorted desc, month-total in the header), Recent-listings list (6 newest, photo count, per-listing "our cost vs ~$X at BoxBrownie" from completed fgs' edit chains priced via BOXBROWNIE_CENTS/BOXBROWNIE_DEFAULT_CENTS in config/models.ts — REWORK steps excluded, BB redoes free). `app/dashboard-live.tsx`: DashboardLive (jobs+file_groups realtime → router.refresh(), same proven pattern as job-panel) + RerunButton. Live-verified in the browser: all four sections render real data; spend math reconciled to the ledger by admin probe (MTD 5.216¢ → $0.05 shown; item removal 4.2¢, copywriting 1.02¢; BB line $0.04 vs $8.00 = 2 completed ITEM_REMOVAL fgs × $4.00) ✓. Build + lint clean. Live-update not re-proven headless (identical subscription mechanism as job-panel, proven in phase 3); Matt's manual test covers it.
 
 ---
