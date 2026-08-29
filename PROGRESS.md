@@ -20,6 +20,27 @@
 - [ ] Phase 17 — Experimental 360 edits
 
 ## Current state
+
+### PHASE 12 IN PROGRESS (checkpoint 2026-08-28) — backend done, all UI still to build
+`npx tsc --noEmit` clean at checkpoint. `npm run build` NOT yet run this phase.
+
+**Done and committed:**
+- `supabase/migrations/0004_tours.sql` — **already applied live** (project gczmpmjaqgtkxqdopknx, via Supabase MCP apply_migration). Do NOT re-apply. Tables: `tours` (listing_id, title default 'Virtual tour', `slug` unique default `replace(gen_random_uuid()::text,'-','')`, created_at) and `tour_scenes` (tour_id, name, storage_path, width, order_index, initial_yaw, `hotspots` jsonb default `[]` = `[{yaw, pitch, target(scene id), label}]`). RLS "own tours"/"own tour_scenes" follow the existing listing-ownership exists() pattern.
+- `marzipano@^0.10.2` installed; `types/marzipano.d.ts` is a `Record<string, any>` default-export shim (marzipano ships no types).
+- `app/api/tours/route.ts` — POST `{listingId, title?}` → creates tour, returns `{tour:{id,title,slug}}` (RLS validates ownership).
+- `app/api/tours/[id]/route.ts` — PATCH `{title?, scenes:[{id, name?, order_index?, initial_yaw?, hotspots?}], deleteSceneIds?:[]}` (per-scene update loop, hotspots sanitized by `cleanHotspots`: numeric yaw/pitch, target required, label ≤80 chars) + DELETE tour.
+- `app/api/tours/[id]/scenes/route.ts` — POST multipart `files[]`, jpg/png/webp only, **rejects anything not 2:1 within ±0.1** (equirectangular check), uploads to originals at `{user}/tours/{tourId}/{sceneId}.{ext}`, inserts scene row with `order_index` continuing from the existing count. maxDuration 120.
+
+**Next action — build in this order:**
+1. `components/tour-viewer.tsx` (client, `"use client"`) — shared by builder + public page. Props: `scenes: {id,name,url,width,initial_yaw,hotspots}[]`, optional `onPlaceHotspot?(yaw,pitch)` and `editing` flag. Marzipano: `new Marzipano.Viewer(el)`, source `Marzipano.ImageUrlSource.fromString(url)`, geometry `new Marzipano.EquirectGeometry([{ width }])`, `new Marzipano.RectilinearView({yaw: initial_yaw, fov: Math.PI/2}, Marzipano.RectilinearView.limit.traditional(width, 100*Math.PI/180))`, `viewer.createScene({source, geometry, view})`, `scene.switchTo()`. Hotspots via `scene.hotspotContainer().createHotspot(domEl, {yaw, pitch})`; click → switch to `target` scene. Import must be dynamic/effect-only (marzipano touches `window`).
+2. `app/listings/[id]/tour-panel.tsx` — create tour, upload panos, reorder (order_index up/down), rename scene, "set start view" (read current yaw off the viewer), click-in-viewer to place a hotspot then pick target scene + label, save via PATCH, share URL + **iframe embed snippet with a copy button** (`<iframe src="{origin}/tour/{slug}" …>`).
+3. Wire into `app/listings/[id]/page.tsx` — add a `tours` + nested `tour_scenes` query to the existing `Promise.all` block (line ~15), sign scene paths with `getUrls("originals", …)` like photos do (line ~42), render `<TourPanel …>` in the left column beside JobPanel.
+4. `app/tour/[slug]/page.tsx` — public unauthenticated share page. **Must use `createAdminClient()`** (RLS blocks anon reads) to look up the tour by slug + scenes, and sign pano URLs server-side with the admin client passed into `getUrls`.
+5. **CRITICAL — `middleware.ts` matcher currently redirects every unauthenticated path to /login.** Add `tour` to the negative lookahead alongside `api/webhook|api/cron` or the share link 302s to login. Without this the phase DoD fails.
+6. DoD: `npm run build` + `npm run lint`, check phase 12 off above, update Current state + Next action, final commit.
+
+---
+
 Phase 11 complete (code; manual test pending — needs fal spend). FLOOR_PLAN_REDRAW rides the existing state machine as a single-step chain whose primary photo is an is_floor_plan image (jobs route rejects room photos, chained plan edits, and PDF inputs; never infers plans from photos). `lib/prompts.ts`: PLAN_STYLES (2d_bw / 2d_colour / 2d_textured / 3d isometric-per-storey) + FLOOR_PLAN_REDRAW template (layout-fidelity sentence, units sqft/sqm, furniture y/n, north arrow y/n; no brightness cue / listing suffix — it's a drawing) + PLAN_DISCLAIMER; address_label/disclaimer ride the step options but are composited in code, never prompted. Provider forced to gemini (text legibility). Grounding: all listing rooms with dims → one "Use these known room dimensions on the plan labels: …" sentence in jobs.grounding_used. Auto-QA skipped for plan fgs (photo-geometry prompt would flag legit sketch→plan changes). `lib/plan.ts`: composePlanPng (white address band top / disclaimer band bottom via sharp SVG), planSvg (raster embedded in an SVG wrapper), planPdf (pdf-lib, letter landscape, fit + centered). Routes: `/api/file-groups/[id]/plan-export?format=png|svg|pdf&version=` and `/api/file-groups/[id]/attach-plan` (composites bands, uploads PNG to originals, inserts photos row is_floor_plan=true → feeds staging grounding and enables the 3D redraw). UI: `plan-panel.tsx` under the Floor plans section (non-PDF plan picker, style/units/furniture/north-arrow/address-label/disclaimer controls, gemini estimate line, 3D how-to hint); job-panel takes a floorPlans prop for before-image lookup and renders plan fgs with PNG/SVG/PDF links + "Attach as floor plan" instead of the photo download menu. 3D variant flow: redraw 2D → attach → redraw the attached plan with style=3d (no chained 2D→3D job). Build + lint + tsx self-check (template slots per style, band compositing pixels, SVG data URI, %PDF header) clean.
 
 Phase 11 manual test (Matt): upload a hand sketch as a floor plan → "Redraw a floor plan" panel appears → 2D Full Colour, sq ft, disclaimer left as default → Redraw → before/after shows sketch vs clean plan, job grounding line lists room dims if rooms have them. Download PNG (address band top, disclaimer bottom), SVG, PDF (letter landscape). Attach as floor plan → new floor-plan photo appears; run a staging job on a room photo → "floor plan attached as reference" grounding. Select the attached plan in the panel, style 3D Isometric → Redraw → 3D cutaway.
@@ -61,4 +82,4 @@ Outstanding (Matt, manual):
 - Webhook signature verification still unexercised locally (needs deployed URL — phase 16).
 
 ## Next action
-Phase 12 — VIRTUAL_TOUR builder (see PLAN.md): upload equirectangular panos, order scenes, place hotspots + room labels, Marzipano viewer page, unauthenticated share URL at app/tour/[slug]/page.tsx, embeddable iframe snippet with copy button.
+Phase 12 mid-flight — resume at "Next action — build in this order" under PHASE 12 IN PROGRESS above (step 1: `components/tour-viewer.tsx`). Migration 0004 is already applied live; do not re-run it.

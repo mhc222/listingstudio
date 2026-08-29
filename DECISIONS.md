@@ -46,4 +46,8 @@
 - 2026-08-28: Address label + disclaimer are composited in code as white canvas bands (sharp SVG) at export/attach time, never prompted — AI-rendered fine print garbles; the flags still live on the redraw step's options so exports know what to apply.
 - 2026-08-28: Plan SVG export wraps the raster PNG as an embedded image (no vectorization dep); PDF is letter-landscape fit-and-centered via pdf-lib.
 - 2026-08-28: Plan redraws skip auto-QA — the QA prompt judges photo geometry, which a sketch→clean-plan redraw legitimately "violates"; reworks still ride the normal REWORK path.
+- 2026-08-28: Tour panos live in the immutable originals bucket at {user}/tours/{tourId}/{sceneId}.{ext}; deleting a scene drops the row and deliberately orphans the object (storage policy forbids deleting originals) — single-user tool, storage is cheap.
+- 2026-08-28: Scene upload rejects anything outside 2:1 ±0.1 — Marzipano equirect geometry assumes it, and a non-pano silently renders as a warped mess.
+- 2026-08-28: Hotspots stored as jsonb on tour_scenes ({yaw, pitch, target, label}) rather than a hotspots table — they are only ever read as a whole scene, like edit_chain on file_groups.
+- 2026-08-28: Public tour share page must read via the admin client (RLS blocks anon) and sign pano URLs server-side per request; middleware matcher must exempt /tour or the share link redirects to /login.
 - 2026-08-28: Plan-label grounding lists EVERY listing room with dims in one sentence (unlike the single-room staging sentence) since a plan spans the storey; stored in the same jobs.grounding_used field.

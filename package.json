@@ -17,6 +17,7 @@
     "heic-convert": "^2.1.0",
     "jszip": "^3.10.1",
     "lucide-react": "^1.35.0",
+    "marzipano": "^0.10.2",
     "next": "15.5.24",
     "pdf-lib": "^1.17.1",
     "radix-ui": "^1.6.7",
