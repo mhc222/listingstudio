@@ -105,7 +105,12 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
       <Link href="/listings" className="text-sm text-muted-foreground hover:underline">
         ← Listings
       </Link>
-      <h1 className="mt-2 text-2xl font-semibold">{listing.address}</h1>
+      <div className="mt-2 flex items-baseline justify-between gap-4">
+        <h1 className="text-2xl font-semibold">{listing.address}</h1>
+        <Link href={`/listings/${id}/copy`} className="text-sm text-primary hover:underline">
+          Listing copy →
+        </Link>
+      </div>
       {listing.mls_number && (
         <p className="text-sm text-muted-foreground">MLS {listing.mls_number}</p>
       )}

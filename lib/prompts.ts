@@ -468,7 +468,37 @@ Rules:
 - Exploratory intent — the user wants to browse rather than specify ("show me some ideas", "what could this look like", "not sure what style", "give me options") — is shape 3: exactly FOUR deliberately DIVERSE directions (e.g. four contrasting furniture styles, or staging vs renovation takes). Each direction has a short evocative label (2-4 words, e.g. "Warm Farmhouse") and its own edit_chain from the catalog. Diversity beats safety: no two directions may share the same furniture_style or read alike.
 - Never output an edit_type or option key outside the catalog.`
 
-export function compilePrompt(
+// COPYWRITING (phase 13): listing photos + facts -> headline + 100w + 250w
+// MLS descriptions. Tone shapes voice, never facts.
+export const COPY_TONES: Record<string, { label: string; voice: string }> = {
+  luxury: {
+    label: "Luxury",
+    voice:
+      "Refined and aspirational. Lead with craftsmanship, materials, light, and lifestyle. Understated confidence — never gushing, no exclamation marks.",
+  },
+  family: {
+    label: "Family",
+    voice:
+      "Warm and practical. Lead with livability: space to gather, storage, yard, nearby everyday life. Friendly plain language a busy parent skims.",
+  },
+  investor: {
+    label: "Investor",
+    voice:
+      "Direct and numbers-forward. Lead with fundamentals: square footage, layout efficiency, condition, rentability, upside. No lifestyle fluff.",
+  },
+}
+
+export const COPYWRITING_SYSTEM = `You write MLS real estate listing copy from the property photos and facts provided. Respond with a single JSON object and nothing else — no prose, no markdown, no code fences:
+{"headline":"...","desc_100":"...","desc_250":"..."}
+
+Rules:
+- headline: one line, under 12 words, no address, no ALL CAPS.
+- desc_100: approximately 100 words, one paragraph.
+- desc_250: approximately 250 words, MLS-ready, 2-3 paragraphs separated by \\n\\n.
+- Describe only what the photos and facts support. Never invent rooms, finishes, renovations, or neighborhood claims you cannot see or weren't told.
+- Comply with fair-housing rules: describe the property, never the ideal buyer's demographics (no "perfect for young families", religion, nationality, etc.).
+- Spell out the tone's voice throughout; facts stay identical across tones.`
+
   step: EditStep,
   comment?: string | null,
   grounding?: Grounding
