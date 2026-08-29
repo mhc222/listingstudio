@@ -50,6 +50,8 @@ export function ITEM_REMOVAL(
     items
       ? `Remove the following items completely: ${items}.`
       : "Remove clutter from the room.",
+    // a removed lamp must take its glow with it (found live, 2026-08-29)
+    "Removed items take their light with them: erase any glow, cast light, shadows, and reflections they produced, and relight the affected surfaces consistently with the remaining light sources.",
     tier === 2
       ? "Fully declutter the space: also remove all loose clutter, personal items, cords, papers, and small objects from floors, counters, and surfaces, leaving furniture and fixed decor in place."
       : "Remove only these specific items; leave all other furniture and decor exactly as it is.",
@@ -89,7 +91,7 @@ export function MARKUP_EDIT(
   ]
   if (removes > 0)
     parts.push(
-      `Each blue circle (${removes} total) marks an item to remove entirely; realistically reconstruct the floors, walls, and surfaces revealed behind it, matching the existing materials, lighting, and shadows.`
+      `Each blue circle (${removes} total) marks an item to remove entirely, together with any glow, cast light, shadows, and reflections it produced; realistically reconstruct the floors, walls, and surfaces revealed behind it, relit consistently with the remaining light sources.`
     )
   if (replaces > 0)
     parts.push(
@@ -686,7 +688,8 @@ const NEGATIVES: Record<string, string> = {
   IMAGE_ENHANCEMENT: "oversaturated colors, HDR halos, blown highlights, plastic textures",
   AERIAL_EDITING: "oversaturated colors, HDR halos, blown highlights, warped buildings",
   TURN_ON_LIGHTS: "new light fixtures, blown highlights, orange color cast",
-  ITEM_REMOVAL: "leftover smudges, warped surfaces, duplicated objects, patchy floors",
+  ITEM_REMOVAL:
+    "leftover smudges, leftover glow from removed lights, warped surfaces, duplicated objects, patchy floors",
   VIRTUAL_STAGING: "warped walls, distorted perspective, floating furniture, altered room dimensions",
   VIRTUAL_RENOVATION: "warped walls, distorted perspective, moved fixtures, altered room dimensions",
   VIRTUAL_LANDSCAPING: "altered house structure, warped rooflines, plants blocking windows or doors",
