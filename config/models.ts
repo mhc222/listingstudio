@@ -30,6 +30,26 @@ export function pickProvider(chainLength: number, hasRefs = false): ProviderKey 
 // Cost simulation assumption (phase 10)
 export const AVG_GENERATIONS_PER_FILE_GROUP = 2.5
 
+// Approximate BoxBrownie list prices in USD cents, for the dashboard
+// comparison line. Edit freely — data, not code. Edit types not listed fall
+// back to BOXBROWNIE_DEFAULT_CENTS; REWORK is excluded (BB redoes for free).
+export const BOXBROWNIE_CENTS: Record<string, number> = {
+  IMAGE_ENHANCEMENT: 160,
+  TURN_ON_LIGHTS: 160,
+  ITEM_REMOVAL: 400,
+  VIRTUAL_STAGING: 2400,
+  DAY_TO_DUSK: 400,
+  VIRTUAL_RENOVATION: 17600,
+  VIRTUAL_LANDSCAPING: 17600, // BB sells exterior work as virtual renovation
+  COLOUR_CHANGE: 400,
+  SHADOW_REMOVAL: 160,
+  FLOOR_PLAN_REDRAW: 2000,
+  AERIAL_EDITING: 400,
+  PORTRAIT_RETOUCHING: 500,
+  COPYWRITING: 4000,
+}
+export const BOXBROWNIE_DEFAULT_CENTS = 400
+
 // Interpreter (CLAUDE.md: cheapest adequate model, Haiku-tier). Rates are
 // cents per million tokens ($1 in / $5 out).
 export const INTERPRETER_MODEL = {
