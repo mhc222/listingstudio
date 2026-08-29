@@ -7,13 +7,20 @@ import { PhotoGrid, type PhotoRow } from "./photo-grid"
 import { RoomPanel, type RoomRow } from "./room-panel"
 import { JobPanel, type JobRow, type SampleRow } from "./job-panel"
 import { PlanPanel } from "./plan-panel"
+import { TourPanel, type TourRow } from "./tour-panel"
 
 export default async function ListingPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const supabase = await createClient()
 
-  const [{ data: listing }, { data: rooms }, { data: photos }, { data: jobs }, { data: samples }] =
-    await Promise.all([
+  const [
+    { data: listing },
+    { data: rooms },
+    { data: photos },
+    { data: jobs },
+    { data: samples },
+    { data: tours },
+  ] = await Promise.all([
       supabase.from("listings").select("id, address, mls_number").eq("id", id).single(),
       supabase.from("rooms").select("*").eq("listing_id", id).order("name"),
       supabase
@@ -36,6 +43,13 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
         .select("id, label, storage_path, use_count")
         .order("use_count", { ascending: false })
         .order("created_at", { ascending: false }),
+      supabase
+        .from("tours")
+        .select(
+          "id, title, slug, tour_scenes (id, name, storage_path, width, order_index, initial_yaw, hotspots)"
+        )
+        .eq("listing_id", id)
+        .order("created_at"),
     ])
   if (!listing) notFound()
 
@@ -49,6 +63,23 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
   )
   const outputUrls = await getUrls("outputs", outputPaths)
   const sampleUrls = await getUrls("references", (samples ?? []).map((s) => s.storage_path))
+  const scenePaths = (tours ?? []).flatMap((t) => t.tour_scenes.map((s) => s.storage_path))
+  const sceneUrls = await getUrls("originals", scenePaths)
+  const tourRows: TourRow[] = (tours ?? []).map((t) => ({
+    id: t.id,
+    title: t.title,
+    slug: t.slug,
+    scenes: [...t.tour_scenes]
+      .sort((a, b) => a.order_index - b.order_index)
+      .map((s) => ({
+        id: s.id,
+        name: s.name,
+        url: sceneUrls[s.storage_path] ?? null,
+        width: s.width,
+        initial_yaw: s.initial_yaw,
+        hotspots: s.hotspots ?? [],
+      })),
+  }))
   const sampleRows: SampleRow[] = (samples ?? []).map((s) => ({
     id: s.id,
     label: s.label,
@@ -99,6 +130,7 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
               />
             </section>
           )}
+          <TourPanel listingId={id} tours={tourRows} />
           <JobPanel
             listingId={id}
             photos={regular}

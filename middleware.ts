@@ -45,8 +45,7 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   // everything except static assets, the fal webhook (verified by signature, not
-  // session) and the reconcile cron (verified by CRON_SECRET bearer)
-  // TODO(resume) phase 12: add `tour` to this lookahead — the public share page
-  // at /tour/[slug] is unauthenticated and currently 302s to /login.
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|api/webhook|api/cron).*)"],
+  // session), the reconcile cron (verified by CRON_SECRET bearer) and the public
+  // tour share page (unlisted slug, admin-client reads)
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|api/webhook|api/cron|tour).*)"],
 }
