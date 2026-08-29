@@ -5,6 +5,7 @@ import { BOXBROWNIE_CENTS, BOXBROWNIE_DEFAULT_CENTS } from "@/config/models"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { DashboardLive, RerunButton } from "./dashboard-live"
+import { StatePill, Wordmark } from "@/components/brand"
 
 type ChainStep = { edit_type: string }
 
@@ -100,7 +101,9 @@ export default async function Dashboard() {
     <main className="mx-auto max-w-5xl p-6">
       <DashboardLive />
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Listing Studio</h1>
+        <h1>
+          <Wordmark />
+        </h1>
         <div className="flex items-center gap-4">
           <Link href="/listings" className="text-sm text-muted-foreground hover:underline">
             Listings
@@ -132,9 +135,16 @@ export default async function Dashboard() {
               const listing = j.listings as unknown as { address: string } | null
               return (
                 <div key={j.id} className="text-sm">
-                  <div className="font-medium">{j.title}</div>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-medium">{j.title}</span>
+                    <StatePill status={j.status} />
+                  </div>
                   <div className="text-muted-foreground">
-                    {listing?.address} · {j.status} · {done}/{fgs.length} outputs done
+                    {listing?.address} ·{" "}
+                    <span className="font-mono tabular-nums">
+                      {done}/{fgs.length}
+                    </span>{" "}
+                    outputs done
                   </div>
                 </div>
               )
@@ -177,7 +187,9 @@ export default async function Dashboard() {
       <Card className="mt-4">
         <CardHeader>
           <CardTitle className="text-base">
-            Spend this month · {centsLabel(mtdTotal)}
+            Spend this month ·{" "}
+            {/* the one number worth colouring — the argument against a $220 invoice */}
+            <span className="font-mono tabular-nums text-primary">{centsLabel(mtdTotal)}</span>
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -190,7 +202,7 @@ export default async function Dashboard() {
                   <span className="text-muted-foreground">
                     {type.replaceAll("_", " ").toLowerCase()}
                   </span>
-                  <span className="tabular-nums">{centsLabel(cents)}</span>
+                  <span className="font-mono tabular-nums">{centsLabel(cents)}</span>
                 </div>
               ))}
             </div>
@@ -226,7 +238,7 @@ export default async function Dashboard() {
                       {(l.photos as unknown as { count: number }[])[0]?.count ?? 0} photos
                     </div>
                   </div>
-                  <div className="text-right text-sm">
+                  <div className="text-right font-mono text-sm tabular-nums">
                     {costs && costs.bb > 0 ? (
                       <>
                         <div className="font-medium">{centsLabel(costs.our)}</div>

@@ -1,49 +1,59 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
-@custom-variant dark (&:is(.dark *));
+/* Darkroom identity (phase 18, spec artifact c59ca593). Dark is the designed
+   state; light is the same system inverted. dark: variant follows the OS
+   (Tailwind default media strategy — no theme toggle to build). */
 
 :root {
-  --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
+  --radius: 0.375rem; /* tightened from 0.625 — instrument, not brochure */
+  --background: oklch(0.977 0.002 220); /* #F7F8F8 */
+  --foreground: oklch(0.205 0.007 220); /* #14181B */
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
+  --card-foreground: oklch(0.205 0.007 220);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.205 0.007 220);
+  --primary: oklch(0.505 0.078 187); /* #147F7A — teal darkened for contrast on white */
+  --primary-foreground: oklch(0.985 0.002 220);
+  --secondary: oklch(0.95 0.003 220); /* #EEF1F2 */
+  --secondary-foreground: oklch(0.505 0.078 187);
+  --muted: oklch(0.95 0.003 220);
+  --muted-foreground: oklch(0.47 0.012 225); /* #5A676E */
+  --accent: oklch(0.935 0.014 187);
+  --accent-foreground: oklch(0.505 0.078 187);
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
+  --border: oklch(0.888 0.005 220); /* #DCE1E3 */
+  --input: oklch(0.888 0.005 220);
+  --ring: oklch(0.505 0.078 187);
+  /* Semantic — job/step state only. Not part of the accent system; never decorative. */
+  --state-queued: oklch(0.545 0.014 225); /* #6B7981 */
+  --state-running: oklch(0.725 0.105 187); /* #3FBFB9 */
+  --state-complete: oklch(0.675 0.118 155); /* #4FB477 */
+  --state-failed: oklch(0.63 0.155 22); /* #D9635F */
+  --state-qa: oklch(0.75 0.128 78); /* #D9A441 */
 }
 
-.dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: oklch(0.155 0.006 220); /* #0B0E10 */
+    --foreground: oklch(0.925 0.004 220); /* #E4E9EB */
+    --card: oklch(0.205 0.007 220); /* #14181B */
+    --card-foreground: oklch(0.925 0.004 220);
+    --popover: oklch(0.238 0.008 220); /* #1C2226 */
+    --popover-foreground: oklch(0.925 0.004 220);
+    --primary: oklch(0.725 0.105 187); /* #3FBFB9 signal teal */
+    --primary-foreground: oklch(0.135 0.012 187); /* #07100F */
+    --secondary: oklch(0.238 0.008 220);
+    --secondary-foreground: oklch(0.925 0.004 220);
+    --muted: oklch(0.238 0.008 220);
+    --muted-foreground: oklch(0.695 0.014 225); /* #97A5AD */
+    --accent: oklch(0.33 0.038 191); /* #1E3B3C teal dim */
+    --accent-foreground: oklch(0.845 0.081 187); /* #7FD9D4 */
+    --destructive: oklch(0.63 0.155 22); /* #D9635F */
+    --border: oklch(0.28 0.01 225); /* #2A3238 */
+    --input: oklch(0.325 0.011 225); /* #384249 */
+    --ring: oklch(0.725 0.105 187);
+  }
 }
 
 @theme inline {
@@ -69,8 +79,13 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-state-queued: var(--state-queued);
+  --color-state-running: var(--state-running);
+  --color-state-complete: var(--state-complete);
+  --color-state-failed: var(--state-failed);
+  --color-state-qa: var(--state-qa);
+  --font-sans: var(--font-public-sans);
+  --font-mono: var(--font-jetbrains-mono);
 }
 
 @layer base {
@@ -79,5 +94,11 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+  /* Mono is structural: headings, labels, states, numbers = machine truth.
+     Sans (Public Sans) is what a human reads in sentences. */
+  h1,
+  h2 {
+    @apply font-mono tracking-tight;
   }
 }
