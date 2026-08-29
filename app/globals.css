@@ -93,7 +93,8 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground;
+    /* font-sans here, not preflight: the next/font variable is body-scoped */
+    @apply bg-background font-sans text-foreground;
   }
   /* Mono is structural: headings, labels, states, numbers = machine truth.
      Sans (Public Sans) is what a human reads in sentences. */
