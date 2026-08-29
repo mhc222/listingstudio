@@ -24,12 +24,20 @@ export function isStaged(chain: { edit_type: string }[]): boolean {
 }
 
 // Corner disclosure pill, bottom-right with a 16px margin baked into the SVG.
-// Applied BEFORE the quality ladder so the ladder compresses the final pixels.
+// Darkroom identity (phase 18): mark + compliance text in teal-light on an
+// 82%-opacity dark scrim so it survives any photograph beneath it. The mark
+// drops the floor rule at this size — three elements is one too many under
+// 12px (spec §06). Applied BEFORE the quality ladder so the ladder compresses
+// the final pixels.
 export async function applyWatermark(buf: Buffer): Promise<Buffer> {
   const svg = Buffer.from(
-    `<svg width="236" height="60" xmlns="http://www.w3.org/2000/svg">
-       <rect x="0" y="0" width="220" height="44" rx="22" fill="black" fill-opacity="0.55"/>
-       <text x="110" y="29" font-family="Helvetica, Arial, sans-serif" font-size="15" font-weight="bold" fill="white" text-anchor="middle" letter-spacing="1.5">VIRTUALLY STAGED</text>
+    `<svg width="262" height="60" xmlns="http://www.w3.org/2000/svg">
+       <rect x="0" y="0" width="246" height="44" rx="22" fill="#0B0E10" fill-opacity="0.82"/>
+       <svg x="17" y="13" width="18" height="18" viewBox="0 0 48 48">
+         <path d="M7 15V7h8M41 15V7h-8M7 25v8h8M41 25v8h-8" fill="none" stroke="#7FD9D4" stroke-width="4.4"/>
+         <rect x="16" y="15" width="16" height="18" fill="#7FD9D4"/>
+       </svg>
+       <text x="43" y="28" font-family="'JetBrains Mono', 'Courier New', monospace" font-size="13" font-weight="bold" fill="#7FD9D4" letter-spacing="2">VIRTUALLY STAGED</text>
      </svg>`
   )
   return sharp(buf).composite([{ input: svg, gravity: "southeast" }]).jpeg({ quality: 92 }).toBuffer()

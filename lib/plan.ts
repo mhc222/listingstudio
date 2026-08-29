@@ -29,16 +29,18 @@ export async function composePlanPng(
   const bottom = disclaimer ? Math.max(44, Math.round(h * 0.055)) : 0
   const totalH = h + top + bottom
   // ponytail: single-line text, font scaled to fit width; wrap when a real
-  // disclaimer ever overflows
+  // disclaimer ever overflows. Darkroom (phase 18): address in tracked mono
+  // uppercase, disclaimer in small sans — both stay pure black/grey on white,
+  // NEVER teal: plans get printed, faxed and photocopied (spec §06).
   const addressSize = address
-    ? Math.min(Math.round(top * 0.45), Math.floor((w * 0.94) / (address.length * 0.6)))
+    ? Math.min(Math.round(top * 0.45), Math.floor((w * 0.94) / (address.length * 0.78)))
     : 0
   const disclaimerSize = disclaimer
     ? Math.min(Math.round(bottom * 0.38), Math.floor((w * 0.96) / (disclaimer.length * 0.52)))
     : 0
   const svg = Buffer.from(
     `<svg width="${w}" height="${totalH}" xmlns="http://www.w3.org/2000/svg">
-       ${address ? `<text x="${w / 2}" y="${Math.round(top * 0.62)}" font-family="Helvetica, Arial, sans-serif" font-size="${addressSize}" font-weight="bold" fill="#1a1a1a" text-anchor="middle">${esc(address)}</text>` : ""}
+       ${address ? `<text x="${w / 2}" y="${Math.round(top * 0.62)}" font-family="'JetBrains Mono', 'Courier New', monospace" font-size="${addressSize}" font-weight="bold" fill="#000000" text-anchor="middle" letter-spacing="${Math.round(addressSize * 0.15)}">${esc(address.toUpperCase())}</text>` : ""}
        ${disclaimer ? `<text x="${w / 2}" y="${h + top + Math.round(bottom * 0.6)}" font-family="Helvetica, Arial, sans-serif" font-size="${disclaimerSize}" fill="#555555" text-anchor="middle">${esc(disclaimer)}</text>` : ""}
      </svg>`
   )
