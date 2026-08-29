@@ -5,7 +5,13 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
 import Anthropic from "@anthropic-ai/sdk"
 import { anthropicClient } from "@/lib/anthropic"
-import { QA_SYSTEM, DUSK_QA_CHECKS, type EditStep } from "@/lib/prompts"
+import {
+  QA_SYSTEM,
+  COMPLIANCE_QA_SYSTEM,
+  complianceVisionChecks,
+  type ComplianceCheck,
+  type EditStep,
+} from "@/lib/prompts"
 import { INTERPRETER_MODEL, interpreterCostCents } from "@/config/models"
 import { getUrl } from "@/lib/storage"
 
@@ -14,6 +20,9 @@ export type QaVerdict = {
   note: string
   corrective: string | null
   costCents: number
+  // MLS compliance checks (phase 21) — null on non-compliance chains and
+  // whenever the verdict couldn't be parsed (fail open, flags only).
+  checks: ComplianceCheck[] | null
 }
 
 function describeRequest(chain: EditStep[], comment: string | null): string {
@@ -38,6 +47,7 @@ export async function runQA(
     note: `QA skipped: ${why}`,
     corrective: null,
     costCents: 0,
+    checks: null,
   })
 
   let originalUrl: string
@@ -55,18 +65,22 @@ export async function runQA(
     return skipped(e instanceof Error ? e.message : "could not sign image URLs")
   }
 
-  const isDusk = fg.edit_chain.some(
-    (s) => s.edit_type === "DAY_TO_DUSK" && ((s.options?.preset as string) ?? "dusk") === "dusk"
-  )
+  // Compliance mode (phase 21): staging/renovation/dusk chains get named
+  // per-check verdicts in the SAME call (dusk's two named checks fold in here
+  // as compliance checks — they were previously a plain request appendix).
+  const wantedChecks = complianceVisionChecks(fg.edit_chain)
   const request =
-    describeRequest(fg.edit_chain, fg.comment) + (isDusk ? `\n${DUSK_QA_CHECKS}` : "")
+    describeRequest(fg.edit_chain, fg.comment) +
+    (wantedChecks.length
+      ? `\nCompliance checks to evaluate:\n${wantedChecks.map((c) => `- id=${c.id}: ${c.label}`).join("\n")}`
+      : "")
 
   let response: Anthropic.Message
   try {
     response = await anthropicClient().messages.create({
       model: INTERPRETER_MODEL.id,
-      max_tokens: 512,
-      system: QA_SYSTEM,
+      max_tokens: wantedChecks.length ? 768 : 512,
+      system: wantedChecks.length ? COMPLIANCE_QA_SYSTEM : QA_SYSTEM,
       messages: [
         {
           role: "user",
@@ -97,7 +111,25 @@ export async function runQA(
       pass?: unknown
       note?: unknown
       corrective_instruction?: unknown
+      checks?: unknown
     }
+    // Map returned check verdicts back onto OUR ids/labels; a check the model
+    // dropped or garbled ships as pass=true "not evaluated" (fail open).
+    const returned = Array.isArray(parsed.checks)
+      ? (parsed.checks as { id?: unknown; pass?: unknown; note?: unknown }[])
+      : []
+    const checks: ComplianceCheck[] | null = wantedChecks.length
+      ? wantedChecks.map((w) => {
+          const r = returned.find((c) => c.id === w.id)
+          if (!r || typeof r.pass !== "boolean")
+            return { ...w, pass: true, note: "not evaluated" }
+          return {
+            ...w,
+            pass: r.pass,
+            note: typeof r.note === "string" && r.note.trim() ? r.note.trim() : undefined,
+          }
+        })
+      : null
     return {
       pass: Boolean(parsed.pass),
       note: typeof parsed.note === "string" && parsed.note.trim() ? parsed.note.trim() : "QA ran",
@@ -106,8 +138,15 @@ export async function runQA(
           ? parsed.corrective_instruction.trim()
           : null,
       costCents,
+      checks,
     }
   } catch {
-    return { pass: true, note: "QA skipped: unparseable verdict", corrective: null, costCents }
+    return {
+      pass: true,
+      note: "QA skipped: unparseable verdict",
+      corrective: null,
+      costCents,
+      checks: null,
+    }
   }
 }

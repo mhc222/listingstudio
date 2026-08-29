@@ -530,6 +530,45 @@ Extra named checks may be appended to the request — apply them strictly.
 export const DUSK_QA_CHECKS =
   "Named checks for the dusk conversion: (a) no windows may glow in rooms that were dark in the original photo; (b) the dusk sky must be consistent with the direction of remaining shadows."
 
+// MLS compliance checker (phase 21): the same QA vision call, extended to
+// also return named per-check verdicts for staging/renovation/dusk chains.
+// One call, ledgered as qa — never a second vision pass. Flags, never blocks.
+export type ComplianceCheck = { id: string; label: string; pass: boolean; note?: string }
+
+export const COMPLIANCE_QA_SYSTEM = `${QA_SYSTEM}
+
+MLS compliance mode: the request also lists named compliance checks, each with an id. Evaluate every listed check strictly against the two images and extend your JSON with "checks":[{"id":"<id>","pass":true|false,"note":"one short clause"}] — one entry per listed id, no extras. A failed compliance check does NOT by itself force pass=false on the overall verdict; the checks are surfaced to the client as flags.`
+
+// Vision checks per chain. The "Virtually Staged" label check is metadata
+// (applied at download time), added in code by the orchestrator — not here.
+export function complianceVisionChecks(
+  chain: { edit_type: string; options?: Record<string, unknown> }[]
+): { id: string; label: string }[] {
+  const checks: { id: string; label: string }[] = []
+  if (chain.some((s) => ["VIRTUAL_STAGING", "VIRTUAL_RENOVATION"].includes(s.edit_type)))
+    checks.push({
+      id: "no_fabricated_features",
+      label:
+        "No fabricated permanent features: windows, doors, walls, built-ins, and fixtures match the original photo",
+    })
+  const isDusk = chain.some(
+    (s) => s.edit_type === "DAY_TO_DUSK" && ((s.options?.preset as string) ?? "dusk") === "dusk"
+  )
+  if (isDusk) {
+    checks.push(
+      {
+        id: "dusk_no_new_window_glow",
+        label: "No windows glow that were dark in the original photo",
+      },
+      {
+        id: "dusk_sky_shadow_consistent",
+        label: "The dusk sky is consistent with the direction of remaining shadows",
+      }
+    )
+  }
+  return checks
+}
+
 // Interpreter loop part 1 (CLAUDE.md): free text -> strict JSON job spec
 // validated against the edit catalog. User language is preserved as comment
 // and fills slots — it never replaces the hardened templates above.

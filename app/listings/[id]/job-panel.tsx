@@ -20,6 +20,13 @@ export type SampleRow = {
   url: string | null
 }
 
+// MLS compliance checklist stored on an output version (phase 21, migration
+// 0008); null pre-migration and on non-compliance chains.
+export type ComplianceNote = {
+  checked_at?: string
+  checks?: { id: string; label: string; pass: boolean; note?: string }[]
+} | null
+
 export type JobRow = {
   id: string
   title: string
@@ -40,6 +47,7 @@ export type JobRow = {
       version_number: number
       parent_version_id: string | null
       qa_note: string | null
+      compliance: ComplianceNote
       url: string | null
     }[]
     chat_messages: { role: string; content: string; created_at: string }[]
@@ -1147,6 +1155,31 @@ export function JobPanel({
                     {latest?.qa_note && (
                       <p className="mt-1 text-xs text-muted-foreground">QA: {latest.qa_note}</p>
                     )}
+                    {(latest?.compliance?.checks?.length ?? 0) > 0 && (
+                      <div className="mt-2 rounded-md border p-2">
+                        <p className="text-xs font-medium uppercase tracking-wide">
+                          MLS compliance
+                        </p>
+                        {latest!.compliance!.checks!.map((c) => (
+                          <p
+                            key={c.id}
+                            className="mt-1 flex items-start gap-1.5 text-xs text-muted-foreground"
+                          >
+                            <span
+                              className={
+                                c.pass ? "text-state-complete" : "font-bold text-state-failed"
+                              }
+                            >
+                              {c.pass ? "✓" : "✕"}
+                            </span>
+                            <span>
+                              {c.label}
+                              {c.note ? ` — ${c.note}` : ""}
+                            </span>
+                          </p>
+                        ))}
+                      </div>
+                    )}
                     {versionsDesc.length > 1 && (
                       <div className="mt-2 flex flex-wrap items-center gap-1">
                         <span className="text-xs text-muted-foreground">Versions:</span>
@@ -1190,7 +1223,9 @@ export function JobPanel({
                         </Button>
                       </div>
                     )}
-                    {isDusk && latest?.url && (
+                    {/* manual dusk checkboxes (phase 6) stand in only until the
+                        automated compliance checklist exists for the version */}
+                    {isDusk && latest?.url && !latest?.compliance?.checks?.length && (
                       <div className="mt-2 rounded-md border p-2">
                         <p className="text-xs font-medium">Dusk checks (manual)</p>
                         {DUSK_CHECKS.map((check) => (

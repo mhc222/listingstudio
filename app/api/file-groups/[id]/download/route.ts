@@ -75,6 +75,27 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   const wmParam = search.get("watermark")
   const watermark = wmParam === null ? stagedDefault : wmParam === "1"
 
+  // MLS compliance (phase 21): a staged output downloaded WITHOUT the
+  // "Virtually Staged" label flips its label check to fail. Sticky — once an
+  // unlabeled copy is out, a later labeled download doesn't un-flag it.
+  // Best-effort flag only; errors (incl. pre-migration-0008) never block.
+  if (stagedDefault && !watermark) {
+    const { data: row } = await supabase
+      .from("output_versions")
+      .select("compliance")
+      .eq("id", version.id)
+      .single()
+    const compliance = row?.compliance as
+      | { checked_at?: string; checks?: { id: string; pass: boolean; note?: string }[] }
+      | null
+    const check = compliance?.checks?.find((c) => c.id === "virtually_staged_label")
+    if (check && check.pass) {
+      check.pass = false
+      check.note = "downloaded without the Virtually Staged label"
+      await supabase.from("output_versions").update({ compliance }).eq("id", version.id)
+    }
+  }
+
   const blob = await download("outputs", version.storage_path)
   let buf: Buffer = Buffer.from(await blob.arrayBuffer())
   if (watermark) buf = await applyWatermark(buf) // before the quality ladder

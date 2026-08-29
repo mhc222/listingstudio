@@ -15,6 +15,7 @@ import {
 import { submitGeneration, getResultImageUrl, extractImageUrl } from "@/lib/imaging"
 import { getUrl, list, upload } from "@/lib/storage"
 import { runQA } from "@/lib/qa"
+import { isStaged } from "@/lib/deliver"
 
 export type FileGroupRow = {
   id: string
@@ -381,7 +382,30 @@ export async function completeStep(
     await db.rpc("increment_job_cost", { p_job_id: fg.job_id, p_cents: verdict.costCents })
   }
   if (inserted) {
-    await db.from("output_versions").update({ qa_note: verdict.note }).eq("id", inserted.id)
+    // MLS compliance checklist (phase 21): vision checks from the same QA call
+    // plus the metadata "Virtually Staged" label check for staged chains (the
+    // label defaults ON at download; a label-off download flips it to fail).
+    // Flags only — nothing here blocks delivery.
+    const complianceChecks = [
+      ...(isStaged(fg.edit_chain)
+        ? [
+            {
+              id: "virtually_staged_label",
+              label: '"Virtually Staged" label on download',
+              pass: true,
+              note: "label defaults ON at download",
+            },
+          ]
+        : []),
+      ...(verdict.checks ?? []),
+    ]
+    const patch: Record<string, unknown> = { qa_note: verdict.note }
+    if (complianceChecks.length)
+      patch.compliance = { checked_at: new Date().toISOString(), checks: complianceChecks }
+    const { error: cErr } = await db.from("output_versions").update(patch).eq("id", inserted.id)
+    // pre-migration-0008 the compliance column doesn't exist — keep the qa_note
+    if (cErr && patch.compliance)
+      await db.from("output_versions").update({ qa_note: verdict.note }).eq("id", inserted.id)
   }
 
   // QA failure: one auto-retry as a system rework, cap enforced as a state

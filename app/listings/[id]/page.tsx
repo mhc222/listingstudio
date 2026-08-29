@@ -5,7 +5,7 @@ import { getUrls } from "@/lib/storage"
 import { UploadPanel } from "./upload-panel"
 import { PhotoGrid, type PhotoRow } from "./photo-grid"
 import { RoomPanel, type RoomRow } from "./room-panel"
-import { JobPanel, type JobRow, type SampleRow } from "./job-panel"
+import { JobPanel, type JobRow, type SampleRow, type ComplianceNote } from "./job-panel"
 import { PlanPanel } from "./plan-panel"
 import { TourPanel, type TourRow } from "./tour-panel"
 import { AerialPanel } from "./aerial-panel"
@@ -72,6 +72,22 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
     j.file_groups.flatMap((fg) => fg.output_versions.map((v) => v.storage_path))
   )
   const outputUrls = await getUrls("outputs", outputPaths)
+
+  // MLS compliance checklists (phase 21) fetched separately: the column lands
+  // in migration 0008, and putting it in the nested select above would error
+  // the whole jobs query pre-migration. This one fails open (all null).
+  const versionIds = (jobs ?? []).flatMap((j) =>
+    j.file_groups.flatMap((fg) => fg.output_versions.map((v) => v.id))
+  )
+  const complianceById = new Map<string, ComplianceNote>()
+  if (versionIds.length > 0) {
+    const { data: complianceRows } = await supabase
+      .from("output_versions")
+      .select("id, compliance")
+      .in("id", versionIds)
+    for (const r of complianceRows ?? [])
+      complianceById.set(r.id, (r.compliance as ComplianceNote) ?? null)
+  }
   const sampleUrls = await getUrls("references", (samples ?? []).map((s) => s.storage_path))
   const scenePaths = (tours ?? []).flatMap((t) => t.tour_scenes.map((s) => s.storage_path))
   const sceneUrls = await getUrls("originals", scenePaths)
@@ -105,6 +121,7 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
         version_number: v.version_number,
         parent_version_id: v.parent_version_id,
         qa_note: v.qa_note,
+        compliance: complianceById.get(v.id) ?? null,
         url: outputUrls[v.storage_path] ?? null,
       })),
     })),
