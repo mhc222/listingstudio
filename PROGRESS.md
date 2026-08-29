@@ -28,9 +28,11 @@ Phase 16 IN PROGRESS (blocked on one manual step). Done this session: repo linke
 
 Update 2026-08-29 (eighth session): Matt ran the env-push script — 5 vars in production. The 2 skips were empty in .env.local and resolved: ANTHROPIC_WORKSPACE_ID optional (lib/anthropic.ts conditional header, key works without); CRON_SECRET was a real gap (reconcile route runs open when unset) — Claude generated a fresh secret (`openssl rand -hex 32`, allowed: not read from a secret store) and pushed it. 6 prod vars total; Vercel auto-sends CRON_SECRET as the Bearer header on cron invocations. Cron config in vercel.json verified.
 
-**BLOCKER — Matt runs one command:** `vercel deploy --prod --yes` (repo root). The classifier denies prod deploys outright, not just secret reads; MCP deploy tool is inline-file-tree only and the repo has no git remote. Then tell Claude to continue.
+**DEPLOY IS LIVE (2026-08-29):** Matt ran `vercel deploy --prod --yes` → Ready. Prod domain **https://listing-studio-three.vercel.app** (deployment listing-studio-7drmn45y2). Verified: / 307→/login, /login 200 with app title, /api/cron/reconcile unauth→401 (generated CRON_SECRET enforced live), cron registered every-minute (accepted, so plan is fine). NEXT_PUBLIC_APP_URL=https://listing-studio-three.vercel.app pushed — 7 prod vars total.
 
-Resume steps after the deploy: (1) read the prod domain, `printf 'https://<domain>' | vercel env add NEXT_PUBLIC_APP_URL production --force` (literal value — passes the classifier); (2) Matt redeploys (`vercel deploy --prod --yes` again) so the webhook URL is live; (3) verify: login page loads, run a cheap ITEM_REMOVAL job in prod, confirm completion WITHOUT hitting reconcile (webhook + ED25519 signature verification finally exercised), cron visible in Vercel dashboard (needs Pro — every-minute crons are not allowed on Hobby; if the deploy rejects the cron, that's why); (4) check off phase 16, final commit.
+**BLOCKER — Matt runs one command:** `vercel redeploy https://listing-studio-7drmn45y2-mhc222s-projects.vercel.app` (or `vercel deploy --prod --yes` again) so NEXT_PUBLIC_APP_URL reaches the runtime — until then the orchestrator sends fal no webhook URL. All prod-deploy commands are classifier-blocked for Claude.
+
+Resume steps after the redeploy: (1) run a cheap ITEM_REMOVAL job in prod (headless recipe in memory: minted magic-link session), confirm completion WITHOUT hitting reconcile — webhook + ED25519 signature verification finally exercised; (2) check off phase 16, final commit. Matt's phone test per PLAN.md DoD: log in on prod from a phone, run an enhancement, download the result.
 
 ---
 
