@@ -188,7 +188,9 @@ export function TURN_ON_LIGHTS(comment?: string | null): string {
     // fixture list read as a shopping list to ADD (invented chandeliers/sconces
     // in testing, DECISIONS 2026-08-29) — this clause suppressed it completely
     "Turn on only the light fixtures that already exist in the image, and add no new fixtures of any kind; every existing fixture emits a warm inviting glow.",
-    "Render realistic warm illumination and soft light falloff from each fixture onto nearby surfaces, leaving everything else in the scene unchanged.",
+    // light must obey the fixture's physics (Matt, 2026-08-29): a shade glows,
+    // a downlight pools below, a sconce washes the wall — never a generic halo
+    "Render realistic warm illumination and soft falloff from each fixture exactly as that fixture type would emit it: shaded lamps glow through their shades, ceiling downlights pool light on surfaces below, sconces wash the wall — light lands only where each fixture would actually cast it, blended naturally with the existing window light, leaving everything else in the scene unchanged.",
     GEOMETRY_INTERIOR,
   ]
   if (comment?.trim()) parts.push(comment.trim())
@@ -333,6 +335,7 @@ export function VIRTUAL_STAGING(
     `Add ${ROOM_FURNITURE[roomType] ?? ROOM_FURNITURE.other}.`,
     // spatial anchoring (prompt engineering rule 1): light entry, furniture vs walls/windows, surfaces
     "Anchor every piece to the room as photographed: orient seating toward the room's natural focal point, place large furniture against walls, leave every window, doorway, and walkway unobstructed, and light the furniture consistently with the natural light entering through the existing windows.",
+    "If any added lamp is shown lit, its light must match that fixture's type, shade, and position — glowing and casting light only where that lamp would physically cast it, never contradicting the window light.",
     "Keep the existing flooring, wall finishes, and ceiling exactly as they appear in the photo.",
   ]
   if (grounding?.dimensions) parts.push(grounding.dimensions)
