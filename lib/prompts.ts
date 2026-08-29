@@ -113,7 +113,9 @@ export function TURN_ON_LIGHTS(comment?: string | null): string {
   const parts = [
     // brightness cue inside the first ten words
     "Bright, warmly lit real estate photo of this exact room.",
-    "Turn on every light fixture: ceiling lights, chandeliers, pendant lights, lamps, and sconces all emit a warm inviting glow.",
+    // fixture list read as a shopping list to ADD (invented chandeliers/sconces
+    // in testing, DECISIONS 2026-08-29) — this clause suppressed it completely
+    "Turn on only the light fixtures that already exist in the image, and add no new fixtures of any kind; every existing fixture emits a warm inviting glow.",
     "Render realistic warm illumination and soft light falloff from each fixture onto nearby surfaces, leaving everything else in the scene unchanged.",
     GEOMETRY_INTERIOR,
   ]
