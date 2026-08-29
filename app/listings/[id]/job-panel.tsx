@@ -982,7 +982,7 @@ export function JobPanel({
               {job.kind === "ideas" && (
                 // labeled 2x2 grid; tap promotes a variant into the normal
                 // before/after + refinement chat below (phase 9)
-                <div className="mt-3 grid grid-cols-2 gap-2">
+                <div className="stagger mt-3 grid grid-cols-2 gap-2">
                   {job.file_groups.map((fg) => {
                     const v = [...fg.output_versions].sort(
                       (a, b) => b.version_number - a.version_number
@@ -997,7 +997,7 @@ export function JobPanel({
                             [job.id]: p[job.id] === fg.id ? "" : fg.id,
                           }))
                         }
-                        className={`overflow-hidden rounded-md border-2 text-left ${
+                        className={`develop-in overflow-hidden rounded-md border-2 text-left transition-colors ${
                           promoted[job.id] === fg.id ? "border-primary" : "border-transparent hover:border-primary/50"
                         }`}
                       >
@@ -1005,7 +1005,11 @@ export function JobPanel({
                           // eslint-disable-next-line @next/next/no-img-element -- signed URLs expire; next/image caching fights that
                           <img src={v.url} alt="" className="aspect-video w-full object-cover" />
                         ) : (
-                          <div className="flex aspect-video w-full items-center justify-center bg-muted text-xs text-muted-foreground">
+                          <div
+                            className={`flex aspect-video w-full items-center justify-center bg-muted text-xs text-muted-foreground ${
+                              fg.step_status === "failed" ? "" : "sweep"
+                            }`}
+                          >
                             {fg.step_status === "failed" ? "failed" : "generating…"}
                           </div>
                         )}

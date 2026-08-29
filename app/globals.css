@@ -103,3 +103,102 @@
     @apply font-mono tracking-tight;
   }
 }
+
+/* ---- Motion --------------------------------------------------------------
+   Darkroom idiom: an output does not "appear", it develops. Every move here
+   reports something true about the state machine — a frame coming up, a step
+   still running, variants landing in order. Nothing is decorative, same rule
+   as the teal. CSS-only (no library, no state), and disabled wholesale under
+   prefers-reduced-motion. */
+
+@layer utilities {
+  /* The signature move: a print coming up in the tray. Fires on mount via
+     @starting-style — no JS, no effect hook, no mount flag. */
+  .develop-in {
+    opacity: 1;
+    filter: none;
+    transform: none;
+    transition:
+      opacity 620ms cubic-bezier(0.22, 0.61, 0.36, 1),
+      filter 620ms cubic-bezier(0.22, 0.61, 0.36, 1),
+      transform 620ms cubic-bezier(0.22, 0.61, 0.36, 1);
+  }
+  @starting-style {
+    .develop-in {
+      opacity: 0;
+      filter: brightness(1.55) contrast(0.5) saturate(0.35);
+      transform: translateY(4px);
+    }
+  }
+
+  /* Liveness while a fal step is queued or running — these waits are long
+     enough that a static pill reads as a hung UI. Running state only. */
+  .pulse-live {
+    animation: pulse-live 1.8s ease-in-out infinite;
+  }
+
+  /* An enlarger pass over a frame that has not resolved yet. Replaces a
+     dead "generating…" label with something that says work is happening. */
+  .sweep {
+    position: relative;
+    overflow: hidden;
+  }
+  .sweep::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: linear-gradient(
+      100deg,
+      transparent 0%,
+      color-mix(in oklch, var(--state-running) 16%, transparent) 44%,
+      color-mix(in oklch, var(--state-running) 32%, transparent) 50%,
+      color-mix(in oklch, var(--state-running) 16%, transparent) 56%,
+      transparent 100%
+    );
+    animation: sweep 2.2s linear infinite;
+  }
+
+  /* The 2x2 ideas grid lands in sequence rather than popping as one block —
+     four simultaneous variants read as a glitch. */
+  .stagger > *:nth-child(2) {
+    transition-delay: 90ms;
+  }
+  .stagger > *:nth-child(3) {
+    transition-delay: 180ms;
+  }
+  .stagger > *:nth-child(4) {
+    transition-delay: 270ms;
+  }
+}
+
+@keyframes pulse-live {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
+
+@keyframes sweep {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .develop-in {
+    transition: none;
+  }
+  .pulse-live {
+    animation: none;
+  }
+  .sweep::after {
+    display: none;
+  }
+}

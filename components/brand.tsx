@@ -54,13 +54,16 @@ const PILL_STATES: Record<string, string> = {
 }
 
 export function StatePill({ status, label }: { status: string; label?: string }) {
+  // The dot breathes only while the system is actually acting — same rule as
+  // the teal. A pulsing "complete" would make the signal meaningless.
+  const live = status === "running" || status === "processing"
   return (
     <span
       className={`inline-flex items-center gap-1.5 rounded-sm border-l-2 border-current px-2 py-0.5 font-mono text-[0.66rem] font-bold uppercase tracking-[0.13em] ${
         PILL_STATES[status] ?? PILL_STATES.queued
       }`}
     >
-      <span className="size-[5px] shrink-0 rounded-full bg-current" />
+      <span className={`size-[5px] shrink-0 rounded-full bg-current ${live ? "pulse-live" : ""}`} />
       {label ?? status}
     </span>
   )
