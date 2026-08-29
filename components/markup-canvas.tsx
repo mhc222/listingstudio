@@ -41,6 +41,7 @@ export function MarkupCanvas({
   }) => void
 }) {
   const stageRef = useRef<Konva.Stage>(null)
+  const draftRef = useRef<Mark | null>(null)
   const [img, setImg] = useState<HTMLImageElement | null>(null)
   const [tool, setTool] = useState<Tool>("remove")
   const [marks, setMarks] = useState<Mark[]>([])
@@ -66,25 +67,34 @@ export function MarkupCanvas({
   const stageW = Math.round(img.naturalWidth * scale)
   const stageH = Math.round(img.naturalHeight * scale)
 
+  // the ref is the source of truth for the in-progress drag: mousemove state
+  // updates flush at continuous-event priority, so the mouseup closure can
+  // still see a stale draft — and committing inside a setDraft updater is a
+  // side effect StrictMode double-invokes (duplicated marks)
   function pointerDown() {
     const pos = stageRef.current?.getPointerPosition()
     if (!pos || busy) return
-    setDraft({ t: tool, x: pos.x, y: pos.y, w: 0, h: 0 })
+    const d = { t: tool, x: pos.x, y: pos.y, w: 0, h: 0 }
+    draftRef.current = d
+    setDraft(d)
   }
 
   function pointerMove() {
     const pos = stageRef.current?.getPointerPosition()
-    if (!pos) return
-    setDraft((d) => (d ? { ...d, w: pos.x - d.x, h: pos.y - d.y } : d))
+    const d = draftRef.current
+    if (!pos || !d) return
+    const next = { ...d, w: pos.x - d.x, h: pos.y - d.y }
+    draftRef.current = next
+    setDraft(next)
   }
 
   function pointerUp() {
-    setDraft((d) => {
-      if (d && Math.abs(d.w) >= MIN_MARK_PX && Math.abs(d.h) >= MIN_MARK_PX) {
-        setMarks((m) => [...m, norm(d)])
-      }
-      return null
-    })
+    const d = draftRef.current
+    draftRef.current = null
+    if (d && Math.abs(d.w) >= MIN_MARK_PX && Math.abs(d.h) >= MIN_MARK_PX) {
+      setMarks((m) => [...m, norm(d)])
+    }
+    setDraft(null)
   }
 
   async function attach() {
