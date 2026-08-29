@@ -24,6 +24,37 @@ export type FileGroupRow = {
 
 const SUBMIT_RETRY_BACKOFF_MS = 1500
 
+// Concurrency gate (CLAUDE.md: batch = many machines behind a gate, max 3).
+// Best-effort ±1 under concurrent webhooks — it protects fal rate limits, not
+// correctness; the reconcile cron sweeps queued groups every minute.
+const MAX_CONCURRENT_RUNNING = 3
+
+async function runningCount(db: SupabaseClient): Promise<number> {
+  const { count } = await db
+    .from("file_groups")
+    .select("id", { count: "exact", head: true })
+    .eq("step_status", "running")
+  return count ?? 0
+}
+
+/**
+ * Submit queued groups up to the free slots under the gate. Queued groups with
+ * a null fal_request_id are the un-submitted ones (a claimed step gets its
+ * request id right after submit; requeues null it out).
+ */
+export async function kickQueued(db: SupabaseClient): Promise<void> {
+  const free = MAX_CONCURRENT_RUNNING - (await runningCount(db))
+  if (free <= 0) return
+  const { data: queued } = await db
+    .from("file_groups")
+    .select("id")
+    .eq("step_status", "queued")
+    .is("fal_request_id", null)
+    .order("created_at")
+    .limit(free)
+  for (const fg of queued ?? []) await submitStep(db, fg.id)
+}
+
 function webhookUrl(): string | undefined {
   const base = process.env.NEXT_PUBLIC_APP_URL
   // fal can't reach localhost — local dev relies on the reconcile poller instead
@@ -109,6 +140,9 @@ export async function submitStep(db: SupabaseClient, fileGroupId: string): Promi
     .eq("id", fileGroupId)
     .single<FileGroupRow>()
   if (!fg) return
+
+  // gate: at capacity, leave the step queued for kickQueued / the cron sweep
+  if ((await runningCount(db)) >= MAX_CONCURRENT_RUNNING) return
 
   // claim: only one caller wins
   const { data: claimed } = await db
@@ -270,6 +304,7 @@ export async function completeStep(
         .update({ status: "complete", completed_at: new Date().toISOString() })
         .eq("id", fg.job_id)
     }
+    await kickQueued(db) // this group's slot is free
     return
   }
   const verdict = await runQA(db, fg, outPath)
@@ -334,6 +369,7 @@ export async function completeStep(
       .update({ status: "complete", completed_at: new Date().toISOString() })
       .eq("id", fg.job_id)
   }
+  await kickQueued(db) // this group's slot is free
 }
 
 /**
@@ -376,4 +412,5 @@ async function failGroup(db: SupabaseClient, fg: FileGroupRow, message: string) 
     .select("id")
   if (!failed?.length) return
   await db.from("jobs").update({ status: "failed" }).eq("id", fg.job_id)
+  await kickQueued(db) // this group's slot is free
 }

@@ -5,9 +5,9 @@ import { pickProvider, MODELS } from "@/config/models"
 import { submitStep } from "@/lib/orchestrator"
 import type { EditStep } from "@/lib/prompts"
 
-// Create a job (one file group, or 4 for an ideas grid) and submit each first
-// step. Never awaits generation — fal queue + webhook/reconcile advance the
-// state machine.
+// Create a job (one file group per photo for a batch, or 4 for an ideas grid)
+// and submit each first step. Never awaits generation — fal queue +
+// webhook/reconcile advance the state machine behind the concurrency gate.
 export async function POST(req: Request) {
   const supabase = await createClient()
   const {
@@ -16,10 +16,11 @@ export async function POST(req: Request) {
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 })
 
   const body = await req.json()
-  const { listingId, photoId, editChain, comment, sizePreset, sampleImageIds, chat, kind, variants } =
+  const { listingId, photoId, photoIds, editChain, comment, sizePreset, sampleImageIds, chat, kind, variants } =
     body as {
       listingId: string
-      photoId: string
+      photoId?: string // back-compat single-photo form
+      photoIds?: string[] // batch (phase 10): one file group per photo
       editChain?: EditStep[]
       comment?: string
       sizePreset?: string
@@ -31,26 +32,29 @@ export async function POST(req: Request) {
       variants?: { label: string; editChain: EditStep[] }[]
     }
 
+  const requestedPhotoIds = photoIds?.length ? [...new Set(photoIds)] : photoId ? [photoId] : []
   const isIdeas = kind === "ideas"
-  // each grid cell is (label, chain); a normal job is a single unlabeled cell
-  const cells: { label: string | null; chain: EditStep[] }[] = isIdeas
-    ? (variants ?? []).map((v) => ({ label: v.label, chain: v.editChain }))
-    : [{ label: null, chain: editChain ?? [] }]
-  if (!listingId || !photoId || cells.length === 0 || cells.some((c) => !c.chain?.length)) {
-    return NextResponse.json({ error: "listingId, photoId, editChain required" }, { status: 400 })
+  // each cell becomes one file group: (photo, label, chain)
+  const cells: { photoId: string; label: string | null; chain: EditStep[] }[] = isIdeas
+    ? (variants ?? []).map((v) => ({ photoId: requestedPhotoIds[0], label: v.label, chain: v.editChain }))
+    : requestedPhotoIds.map((pid) => ({ photoId: pid, label: null, chain: editChain ?? [] }))
+  if (!listingId || requestedPhotoIds.length === 0 || cells.length === 0 || cells.some((c) => !c.chain?.length)) {
+    return NextResponse.json({ error: "listingId, photoId(s), editChain required" }, { status: 400 })
   }
-  if (isIdeas && cells.length !== 4) {
-    return NextResponse.json({ error: "ideas jobs need exactly 4 variants" }, { status: 400 })
+  if (isIdeas && (cells.length !== 4 || requestedPhotoIds.length !== 1)) {
+    return NextResponse.json({ error: "ideas jobs need exactly 4 variants on one photo" }, { status: 400 })
   }
 
-  // RLS-scoped read proves ownership of the photo/listing
-  const { data: photo } = await supabase
+  // RLS-scoped read proves ownership of the photos/listing
+  const { data: ownedPhotos } = await supabase
     .from("photos")
     .select("id, listing_id, room_id")
-    .eq("id", photoId)
+    .in("id", requestedPhotoIds)
     .eq("listing_id", listingId)
-    .single()
-  if (!photo) return NextResponse.json({ error: "photo not found" }, { status: 404 })
+  if ((ownedPhotos ?? []).length !== requestedPhotoIds.length) {
+    return NextResponse.json({ error: "photo not found" }, { status: 404 })
+  }
+  const photo = ownedPhotos![0]
 
   // RLS-scoped read proves ownership of any sample refs
   let sampleIds: string[] = []
@@ -70,7 +74,9 @@ export async function POST(req: Request) {
     ["VIRTUAL_STAGING", "ITEM_REMOVAL", "VIRTUAL_RENOVATION"].includes(s.edit_type)
   )
   const grounding: { dimension_sentence?: string; floor_plan_photo_id?: string } = {}
-  if (groundable && photo.room_id) {
+  // batch jobs skip room-dimension grounding — per-photo dims don't fit the
+  // single jobs.grounding_used record; the floor-plan ref still attaches
+  if (groundable && requestedPhotoIds.length === 1 && photo.room_id) {
     const { data: room } = await supabase
       .from("rooms")
       .select("length, width, ceiling_height, units")
@@ -98,11 +104,14 @@ export async function POST(req: Request) {
     if (plan) grounding.floor_plan_photo_id = plan.id
   }
 
+  const chainTitle =
+    cells[0].chain.map((s) => s.edit_type.replaceAll("_", " ").toLowerCase()).join(" → ") +
+    (comment ? ` — ${comment.slice(0, 60)}` : "")
   const title = isIdeas
     ? `Ideas: ${cells.map((c) => c.label).join(" / ")}`
-    : cells[0].chain
-        .map((s) => s.edit_type.replaceAll("_", " ").toLowerCase())
-        .join(" → ") + (comment ? ` — ${comment.slice(0, 60)}` : "")
+    : requestedPhotoIds.length > 1
+      ? `Batch ×${requestedPhotoIds.length} — ${chainTitle}`
+      : chainTitle
 
   const { data: job, error: jobError } = await supabase
     .from("jobs")
@@ -130,7 +139,7 @@ export async function POST(req: Request) {
       .from("file_groups")
       .insert({
         job_id: job.id,
-        primary_photo_id: photoId,
+        primary_photo_id: cell.photoId,
         edit_chain: cell.chain,
         // ideas labels double as style language in the prompt
         comment: cell.label ?? comment ?? null,

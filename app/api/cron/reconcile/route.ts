@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { getStatus } from "@/lib/imaging"
-import { completeStep, handleGenerationError, type FileGroupRow } from "@/lib/orchestrator"
+import { completeStep, handleGenerationError, kickQueued, type FileGroupRow } from "@/lib/orchestrator"
 
 // Every-minute safety net: poll fal for steps stuck in running >3 min
 // (missed/failed webhooks) and complete or fail them. Also the primary
@@ -44,5 +44,10 @@ export async function GET(req: Request) {
       results[fg.id] = `reconcile-error: ${e instanceof Error ? e.message : "unknown"}`
     }
   }
+
+  // concurrency-gate sweep: submit queued groups into any free slots (rescues
+  // groups left queued when the gate was at capacity)
+  await kickQueued(db)
+
   return NextResponse.json({ checked: stuck?.length ?? 0, results })
 }
