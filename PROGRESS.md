@@ -15,11 +15,15 @@
 - [x] Phase 12 — VIRTUAL_TOUR builder
 - [x] Phase 13 — COPYWRITING
 - [x] Phase 14 — AERIAL annotation + PORTRAIT_RETOUCHING + HDR_MERGE
-- [ ] Phase 15 — Dashboard + spend tracking
+- [x] Phase 15 — Dashboard + spend tracking
 - [ ] Phase 16 — Vercel deploy
 - [ ] Phase 17 — Experimental 360 edits
 
 ## Current state
+
+Phase 15 complete (code + live-verified 2026-08-29). Dashboard at `app/page.tsx` (server component): Jobs-in-progress card (pending/processing jobs, listing address, N/M outputs done), Failed-jobs card (failed file_groups with chain summary, truncated last_error, Re-run button hitting the existing /api/file-groups/[id]/rerun), MTD-spend card (admin-client ledger aggregation — RLS hides null-job interpreter rows — grouped by edit_type ?? kind, sorted desc, month-total in the header), Recent-listings list (6 newest, photo count, per-listing "our cost vs ~$X at BoxBrownie" from completed fgs' edit chains priced via BOXBROWNIE_CENTS/BOXBROWNIE_DEFAULT_CENTS in config/models.ts — REWORK steps excluded, BB redoes free). `app/dashboard-live.tsx`: DashboardLive (jobs+file_groups realtime → router.refresh(), same proven pattern as job-panel) + RerunButton. Live-verified in the browser: all four sections render real data; spend math reconciled to the ledger by admin probe (MTD 5.216¢ → $0.05 shown; item removal 4.2¢, copywriting 1.02¢; BB line $0.04 vs $8.00 = 2 completed ITEM_REMOVAL fgs × $4.00) ✓. Build + lint clean. Live-update not re-proven headless (identical subscription mechanism as job-panel, proven in phase 3); Matt's manual test covers it.
+
+---
 
 Phase 14 complete (code + agent-tested live 2026-08-29). Three specialty tools, no migration needed. **Prompts:** AERIAL_EDITING (drone-tuned: haze/clarity/dust/prop-shadow, shares sky_replacement/day_sky_style/grass_repair option shape with IMAGE_ENHANCEMENT, exterior geometry verbatim + no-move-buildings sentence, listing suffix) and PORTRAIT_RETOUCHING (no options, conservative flaw-only cleanup, identity-preserved-exactly sentence, deliberately NO listing suffix/geometry) in prompts.ts + compilePrompt + INTERPRETER_SYSTEM catalog + interpreter sanitizers; job panel picker entries (aerial reuses the enhancement option form); portrait fgs skip auto-QA alongside plan redraws (QA prompt judges photo geometry, not faces). **HDR_MERGE:** `lib/hdr.ts` fuseExposures — single-scale well-exposedness (Mertens-lite) weighted average over 3-9 brackets, raw-pixel loop, jpeg out; `/api/hdr-merge` (multipart, heic ok, count-validated, RLS listing check, merged photo → originals + photos row, NO ledger row — pure code, no AI); upload panel "HDR merge brackets" button + "enhance after merge" checkbox that fires a normal /api/jobs IMAGE_ENHANCEMENT on the returned photoId. **AERIAL annotation:** konva + react-konva@19.0.7 (19.2.x needs react ≥19.2; project is 19.1); `components/aerial-annotator.tsx` — ops-list undo model (point/close/end/pin ops, shapes derived by fold), lot polygons (yellow translucent fill), dashed red boundary lines, labeled pins (Label/Tag), dblclick-or-button closes shapes, tool switch auto-closes, Export PNG downloads at ORIGINAL resolution (toDataURL pixelRatio 1/scale), Save to listing posts the flattened PNG to the existing /api/upload; `aerial-panel.tsx` (dynamic ssr:false — konva touches window) with photo-thumb picker, wired into the listing page above TourPanel. Build + lint clean.
 
@@ -82,4 +86,4 @@ Outstanding (Matt, manual):
 - Webhook signature verification still unexercised locally (needs deployed URL — phase 16).
 
 ## Next action
-Phase 15 — Dashboard + spend tracking (app/page.tsx: recent listings, jobs in progress live, failed jobs with re-run, MTD spend by edit type via admin-client ledger aggregation, BoxBrownie comparison from config prices).
+Phase 16 — Vercel deploy (cron registered in vercel config, env vars via `vercel env`, Supabase prod config check — RLS/bucket policies/webhook URL at prod, README deploy notes; DoD: real job end to end in prod with webhook signature verification finally exercised).

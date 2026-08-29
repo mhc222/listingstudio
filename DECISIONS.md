@@ -64,3 +64,6 @@
 - 2026-08-29: react-konva pinned to 19.0.7 — 19.2.x requires react ^19.2.0, project is on 19.1.0; bump both together when upgrading React.
 - 2026-08-29: Aerial annotation is fully client-side (ops-list undo, shapes derived by folding ops); export = Konva toDataURL at pixelRatio 1/scale for original-resolution PNG, and "Save to listing" reuses /api/upload verbatim — no new storage path or table.
 - 2026-08-29: AERIAL_EDITING shares IMAGE_ENHANCEMENT's option shape (sky/grass) so the job panel reuses one option form; PORTRAIT_RETOUCHING has zero options — the conservatism is the template, and it skips auto-QA (the QA prompt judges listing-photo geometry, not faces).
+- 2026-08-29: MTD spend aggregates via the admin client — the ledger RLS policy scopes through job_id, which hides pre-job interpreter rows (job_id null); the dashboard must count every call.
+- 2026-08-29: BoxBrownie comparison prices live in config/models.ts (BOXBROWNIE_CENTS + default fallback, approximate list prices, data not code); estimate = Σ BB price per non-REWORK step over COMPLETED file groups only (failed runs delivered nothing; BB reworks are free).
+- 2026-08-29: Ledger spend rows with null edit_type are labeled by kind (interpreter/qa/…) in the MTD breakdown — no schema change, every cent lands in exactly one row.
