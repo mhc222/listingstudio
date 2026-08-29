@@ -51,3 +51,6 @@
 - 2026-08-28: Hotspots stored as jsonb on tour_scenes ({yaw, pitch, target, label}) rather than a hotspots table — they are only ever read as a whole scene, like edit_chain on file_groups.
 - 2026-08-28: Public tour share page must read via the admin client (RLS blocks anon) and sign pano URLs server-side per request; middleware matcher must exempt /tour or the share link redirects to /login.
 - 2026-08-28: Plan-label grounding lists EVERY listing room with dims in one sentence (unlike the single-room staging sentence) since a plan spans the storey; stored in the same jobs.grounding_used field.
+- 2026-08-28: Tour viewer tears down and rebuilds all Marzipano scenes whenever scene data changes (no incremental diffing) — single-user tool, panos are browser-cached, and it keeps hotspot DOM in sync for free.
+- 2026-08-28: Tour editor state is remounted via a React key of tour.id + scene-id set — server-confirmed scene changes (upload/save) re-seed local edits instead of merging; unsaved renames are lost on upload, acceptable for one user.
+- 2026-08-28: Hotspot placement = stationary click (<5px pointer travel) in the viewer, distinguishing it from Marzipano's drag-to-pan; removing a scene client-side also strips hotspots targeting it so saves never point at deleted scenes.

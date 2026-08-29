@@ -12,7 +12,7 @@
 - [x] Phase 9 — Inspiration: ideas grid + URL extraction + attachments + style memory
 - [x] Phase 10 — Batch mode + cost simulator + before/after polish + MLS presets
 - [x] Phase 11 — FLOOR_PLAN_REDRAW
-- [ ] Phase 12 — VIRTUAL_TOUR builder
+- [x] Phase 12 — VIRTUAL_TOUR builder
 - [ ] Phase 13 — COPYWRITING
 - [ ] Phase 14 — AERIAL annotation + PORTRAIT_RETOUCHING + HDR_MERGE
 - [ ] Phase 15 — Dashboard + spend tracking
@@ -21,23 +21,9 @@
 
 ## Current state
 
-### PHASE 12 IN PROGRESS (checkpoint 2026-08-28) — backend done, all UI still to build
-`npx tsc --noEmit` clean at checkpoint. `npm run build` NOT yet run this phase.
+Phase 12 complete (code; manual test pending — needs 360 panos). Backend (prior session): migration 0004 applied live (tours + tour_scenes, hotspots jsonb, RLS via listing ownership), POST /api/tours, PATCH/DELETE /api/tours/[id] (scene updates + hotspot sanitize + deleteSceneIds), POST /api/tours/[id]/scenes (multipart, jpg/png/webp, 2:1 ±0.1 equirect check, originals at {user}/tours/{tourId}/{sceneId}.{ext}). This session: `components/tour-viewer.tsx` (effect-only marzipano import; EquirectGeometry + RectilinearView with traditional limiter; DOM-button hotspots switch scenes; stationary-click-vs-drag detection reports yaw/pitch for placement; forwardRef getYaw for "set start view"; full teardown/rebuild keyed on scene JSON). `app/listings/[id]/tour-panel.tsx` builder: create/select/delete tours, pano upload, editor (rename title/scenes, ↑↓ reorder → order_index reindexed on save, remove scene + strip hotspots targeting it, place-hotspot mode → click pano → target+label form, set start view, per-scene hotspot chips with ×), single Save via PATCH, share URL + iframe embed with copy buttons; editor keyed on tour.id+scene-id set so router.refresh() re-seeds local state after upload/save. `app/tour/[slug]/` public page: admin client (RLS blocks anon) tour-by-slug + server-signed pano URLs, full-viewport black TourView client wrapper with title overlay + scene pill nav; generateMetadata from tour title. Listing page: tours query joined into the Promise.all, scene paths signed alongside photos, TourPanel above JobPanel. middleware.ts matcher exempts `tour` (share page no longer 302s to /login). Build + lint clean.
 
-**Done and committed:**
-- `supabase/migrations/0004_tours.sql` — **already applied live** (project gczmpmjaqgtkxqdopknx, via Supabase MCP apply_migration). Do NOT re-apply. Tables: `tours` (listing_id, title default 'Virtual tour', `slug` unique default `replace(gen_random_uuid()::text,'-','')`, created_at) and `tour_scenes` (tour_id, name, storage_path, width, order_index, initial_yaw, `hotspots` jsonb default `[]` = `[{yaw, pitch, target(scene id), label}]`). RLS "own tours"/"own tour_scenes" follow the existing listing-ownership exists() pattern.
-- `marzipano@^0.10.2` installed; `types/marzipano.d.ts` is a `Record<string, any>` default-export shim (marzipano ships no types).
-- `app/api/tours/route.ts` — POST `{listingId, title?}` → creates tour, returns `{tour:{id,title,slug}}` (RLS validates ownership).
-- `app/api/tours/[id]/route.ts` — PATCH `{title?, scenes:[{id, name?, order_index?, initial_yaw?, hotspots?}], deleteSceneIds?:[]}` (per-scene update loop, hotspots sanitized by `cleanHotspots`: numeric yaw/pitch, target required, label ≤80 chars) + DELETE tour.
-- `app/api/tours/[id]/scenes/route.ts` — POST multipart `files[]`, jpg/png/webp only, **rejects anything not 2:1 within ±0.1** (equirectangular check), uploads to originals at `{user}/tours/{tourId}/{sceneId}.{ext}`, inserts scene row with `order_index` continuing from the existing count. maxDuration 120.
-
-**Next action — build in this order:**
-1. `components/tour-viewer.tsx` (client, `"use client"`) — shared by builder + public page. Props: `scenes: {id,name,url,width,initial_yaw,hotspots}[]`, optional `onPlaceHotspot?(yaw,pitch)` and `editing` flag. Marzipano: `new Marzipano.Viewer(el)`, source `Marzipano.ImageUrlSource.fromString(url)`, geometry `new Marzipano.EquirectGeometry([{ width }])`, `new Marzipano.RectilinearView({yaw: initial_yaw, fov: Math.PI/2}, Marzipano.RectilinearView.limit.traditional(width, 100*Math.PI/180))`, `viewer.createScene({source, geometry, view})`, `scene.switchTo()`. Hotspots via `scene.hotspotContainer().createHotspot(domEl, {yaw, pitch})`; click → switch to `target` scene. Import must be dynamic/effect-only (marzipano touches `window`).
-2. `app/listings/[id]/tour-panel.tsx` — create tour, upload panos, reorder (order_index up/down), rename scene, "set start view" (read current yaw off the viewer), click-in-viewer to place a hotspot then pick target scene + label, save via PATCH, share URL + **iframe embed snippet with a copy button** (`<iframe src="{origin}/tour/{slug}" …>`).
-3. Wire into `app/listings/[id]/page.tsx` — add a `tours` + nested `tour_scenes` query to the existing `Promise.all` block (line ~15), sign scene paths with `getUrls("originals", …)` like photos do (line ~42), render `<TourPanel …>` in the left column beside JobPanel.
-4. `app/tour/[slug]/page.tsx` — public unauthenticated share page. **Must use `createAdminClient()`** (RLS blocks anon reads) to look up the tour by slug + scenes, and sign pano URLs server-side with the admin client passed into `getUrls`.
-5. **CRITICAL — `middleware.ts` matcher currently redirects every unauthenticated path to /login.** Add `tour` to the negative lookahead alongside `api/webhook|api/cron` or the share link 302s to login. Without this the phase DoD fails.
-6. DoD: `npm run build` + `npm run lint`, check phase 12 off above, update Current state + Next action, final commit.
+Phase 12 manual test (Matt): shoot/download 2+ equirectangular 2:1 panos → listing page → Create tour → upload them (a non-2:1 image should be rejected by name with the dimension message) → drag to look around, rename scenes, reorder, Set start view mid-drag-position, Place hotspot → click a doorway → pick the other scene + label → Save changes → hotspot pill navigates between scenes. Copy the share URL → open in an incognito window (no login redirect, black full-screen viewer, scene pills + hotspots work). Paste the iframe embed into any HTML file and confirm it renders.
 
 ---
 
@@ -82,4 +68,4 @@ Outstanding (Matt, manual):
 - Webhook signature verification still unexercised locally (needs deployed URL — phase 16).
 
 ## Next action
-Phase 12 mid-flight — resume at "Next action — build in this order" under PHASE 12 IN PROGRESS above (step 1: `components/tour-viewer.tsx`). Migration 0004 is already applied live; do not re-run it.
+Phase 13 — COPYWRITING (Claude API: photos + beds/baths/sqft/features + tone → headline, 100w, 250w MLS descriptions, editable with copy buttons). lib/anthropic.ts client + @anthropic-ai/sdk already exist from the interpreter.
