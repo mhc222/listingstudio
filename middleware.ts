@@ -45,7 +45,7 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   // everything except static assets, the fal webhook (verified by signature, not
-  // session), the reconcile cron (verified by CRON_SECRET bearer) and the public
-  // tour share page (unlisted slug, admin-client reads)
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|api/webhook|api/cron|tour).*)"],
+  // session), the reconcile cron (verified by CRON_SECRET bearer), the public
+  // tour share page (unlisted slug, admin-client reads) and the public terms page
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|api/webhook|api/cron|tour|terms).*)"],
 }
