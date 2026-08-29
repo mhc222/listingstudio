@@ -70,7 +70,7 @@ export function PlanPanel({ listingId, plans }: { listingId: string; plans: Phot
             type="button"
             onClick={() => setPlanId((cur) => (cur === p.id ? null : p.id))}
             className={`shrink-0 overflow-hidden rounded-md border-2 ${
-              planId === p.id ? "border-blue-500" : "border-transparent"
+              planId === p.id ? "border-primary" : "border-transparent"
             }`}
           >
             {p.url && (
@@ -146,7 +146,7 @@ export function PlanPanel({ listingId, plans }: { listingId: string; plans: Phot
         with reworks ({MODELS.gemini.label}). For 3D: redraw in 2D first, attach the result as a
         floor plan, then redraw the attached plan in 3D Isometric.
       </p>
-      {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+      {error && <p className="mt-2 text-sm text-destructive">{error}</p>}
     </div>
   )
 }

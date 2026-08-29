@@ -6,7 +6,8 @@ import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { ROOM_TYPES } from "@/lib/roomTypes"
-import { FURNITURE_STYLES, LIGHT_PRESETS } from "@/lib/prompts"
+import { ENHANCEMENT_STYLES, FURNITURE_STYLES, LIGHT_PRESETS } from "@/lib/prompts"
+import { StatePill } from "@/components/brand"
 import { simulateCents } from "@/lib/simulate"
 import { BeforeAfter } from "@/components/before-after"
 import { TourViewer } from "@/components/tour-viewer"
@@ -45,20 +46,18 @@ export type JobRow = {
   }[]
 }
 
-const STATUS_STYLES: Record<string, string> = {
-  pending: "bg-muted text-muted-foreground",
-  processing: "bg-blue-100 text-blue-800",
-  complete: "bg-green-100 text-green-800",
-  failed: "bg-red-100 text-red-800",
-}
-
 type ChainEdit = { edit_type: string; options: Record<string, unknown> }
 
 const EDIT_TYPES: Record<string, { label: string; defaults: Record<string, unknown> }> = {
   ITEM_REMOVAL: { label: "Item removal", defaults: { tier: 1, items: "" } },
   IMAGE_ENHANCEMENT: {
     label: "Image enhancement",
-    defaults: { sky_replacement: false, day_sky_style: "any", grass_repair: false },
+    defaults: {
+      sky_replacement: false,
+      day_sky_style: "any",
+      grass_repair: false,
+      style_preset: "natural",
+    },
   },
   TURN_ON_LIGHTS: { label: "Turn on lights", defaults: {} },
   VIRTUAL_STAGING: {
@@ -472,7 +471,7 @@ export function JobPanel({
                   type="button"
                   onClick={() => togglePhoto(p.id)}
                   className={`shrink-0 overflow-hidden rounded-md border-2 ${
-                    photoIds.includes(p.id) ? "border-blue-500" : "border-transparent"
+                    photoIds.includes(p.id) ? "border-primary" : "border-transparent"
                   }`}
                 >
                   {p.url && (
@@ -492,7 +491,7 @@ export function JobPanel({
                       key={i}
                       className={`max-w-[85%] rounded-md px-2 py-1 text-sm ${
                         m.role === "user"
-                          ? "justify-self-end bg-blue-50 text-blue-900"
+                          ? "justify-self-end bg-accent text-accent-foreground"
                           : "justify-self-start bg-muted"
                       }`}
                     >
@@ -561,7 +560,7 @@ export function JobPanel({
                   {urlBusy ? "Reading…" : "Fetch"}
                 </Button>
               </div>
-              {urlError && <p className="mt-1 text-xs text-red-600">{urlError}</p>}
+              {urlError && <p className="mt-1 text-xs text-destructive">{urlError}</p>}
               {urlImages.length > 0 && (
                 <div className="mt-2 flex gap-2 overflow-x-auto pb-1">
                   {urlImages.map((img) => (
@@ -571,7 +570,7 @@ export function JobPanel({
                       title={importedUrls[img] ? "added to library" : "add as reference"}
                       onClick={() => importUrlImage(img)}
                       className={`shrink-0 overflow-hidden rounded-md border-2 ${
-                        importedUrls[img] ? "border-green-500" : "border-transparent hover:border-blue-300"
+                        importedUrls[img] ? "border-state-complete" : "border-transparent hover:border-primary/50"
                       }`}
                     >
                       {/* eslint-disable-next-line @next/next/no-img-element -- external candidate images */}
@@ -602,7 +601,7 @@ export function JobPanel({
                   {interpreting ? "Thinking…" : "Send"}
                 </Button>
               </div>
-              {chatError && <p className="mt-2 text-sm text-red-600">{chatError}</p>}
+              {chatError && <p className="mt-2 text-sm text-destructive">{chatError}</p>}
             </div>
 
             {chain.map((edit, i) => (
@@ -614,7 +613,7 @@ export function JobPanel({
                   <button
                     type="button"
                     onClick={() => removeEdit(i)}
-                    className="text-xs text-muted-foreground hover:text-red-600"
+                    className="text-xs text-muted-foreground hover:text-destructive"
                   >
                     Remove
                   </button>
@@ -635,6 +634,29 @@ export function JobPanel({
                       placeholder="What should be removed? e.g. the boxes and the cat tree"
                       className="min-w-0 flex-1 rounded-md border bg-transparent px-2 py-1.5 text-sm"
                     />
+                  </div>
+                )}
+                {edit.edit_type === "IMAGE_ENHANCEMENT" && (
+                  // style preset chips (phase 18 ride-along) — recorded on the
+                  // job record via the step options, default Natural
+                  <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                    {Object.entries(ENHANCEMENT_STYLES).map(([k, { label }]) => {
+                      const on = (edit.options.style_preset ?? "natural") === k
+                      return (
+                        <button
+                          key={k}
+                          type="button"
+                          onClick={() => setOption(i, "style_preset", k)}
+                          className={`rounded-full border px-2.5 py-0.5 text-xs ${
+                            on
+                              ? "border-primary bg-accent text-accent-foreground"
+                              : "text-muted-foreground hover:bg-muted"
+                          }`}
+                        >
+                          {label}
+                        </button>
+                      )
+                    })}
                   </div>
                 )}
                 {["IMAGE_ENHANCEMENT", "AERIAL_EDITING", "360_IMAGE_ENHANCEMENT"].includes(
@@ -789,7 +811,7 @@ export function JobPanel({
                       title={`${s.label ?? ""}${s.use_count >= 2 ? ` — used ${s.use_count}×` : ""}`}
                       onClick={() => toggleSample(s.id)}
                       className={`relative shrink-0 overflow-hidden rounded-md border-2 ${
-                        sampleIds.includes(s.id) ? "border-blue-500" : "border-transparent"
+                        sampleIds.includes(s.id) ? "border-primary" : "border-transparent"
                       }`}
                     >
                       {s.url && (
@@ -858,12 +880,12 @@ export function JobPanel({
               )
             })()}
             {chain.some((e) => EDIT_360_TYPES.includes(e.edit_type)) && (
-              <p className="mt-2 text-xs text-amber-600">
+              <p className="mt-2 text-xs text-state-qa">
                 Experimental 360 edit — needs an equirectangular (2:1) pano as input; the output
                 is flagged for manual seam and pole review.
               </p>
             )}
-            {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+            {error && <p className="mt-2 text-sm text-destructive">{error}</p>}
           </>
         )}
       </div>
@@ -874,13 +896,7 @@ export function JobPanel({
             <div key={job.id} className="rounded-lg border p-4">
               <div className="flex items-center justify-between gap-2">
                 <p className="text-sm font-medium">{job.title}</p>
-                <span
-                  className={`rounded-full px-2 py-0.5 text-xs ${
-                    STATUS_STYLES[job.status] ?? "bg-muted"
-                  }`}
-                >
-                  {job.status}
-                </span>
+                <StatePill status={job.status} />
               </div>
               {(() => {
                 // job cards show the latest user message as description (CLAUDE.md)
@@ -923,7 +939,7 @@ export function JobPanel({
                           }))
                         }
                         className={`overflow-hidden rounded-md border-2 text-left ${
-                          promoted[job.id] === fg.id ? "border-blue-500" : "border-transparent hover:border-blue-300"
+                          promoted[job.id] === fg.id ? "border-primary" : "border-transparent hover:border-primary/50"
                         }`}
                       >
                         {v?.url ? (
@@ -958,8 +974,25 @@ export function JobPanel({
                 const thread = [...(fg.chat_messages ?? [])].sort((a, b) =>
                   a.created_at.localeCompare(b.created_at)
                 )
+                // progress stripe: fills as chain steps complete — the card
+                // reports its own progress without a number (spec §05)
+                const doneSteps = fg.current_step + (fg.step_status === "complete" ? 1 : 0)
+                const stripeColor =
+                  fg.step_status === "failed"
+                    ? "bg-state-failed"
+                    : fg.step_status === "complete"
+                      ? "bg-state-complete"
+                      : "bg-state-running"
                 return (
                   <div key={fg.id} className="mt-3">
+                    <div className="mb-2 h-1 overflow-hidden rounded-full bg-muted">
+                      <div
+                        className={`h-full ${stripeColor}`}
+                        style={{
+                          width: `${Math.round((doneSteps / Math.max(fg.edit_chain.length, 1)) * 100)}%`,
+                        }}
+                      />
+                    </div>
                     {thread.length > 0 && (
                       <div className="mb-2 grid gap-1 rounded-md bg-muted/40 p-2">
                         {thread.map((m, mi) => (
@@ -972,18 +1005,24 @@ export function JobPanel({
                         ))}
                       </div>
                     )}
-                    <p className="text-xs text-muted-foreground">
-                      Step {fg.current_step + 1}/{fg.edit_chain.length} — {fg.step_status}
-                      {job.total_cost_cents > 0 &&
-                        ` · ${(Number(job.total_cost_cents) / 100).toLocaleString("en-US", {
-                          style: "currency",
-                          currency: "USD",
-                          maximumFractionDigits: 3,
-                        })}`}
-                    </p>
+                    <div className="flex items-center gap-2">
+                      <StatePill
+                        status={fg.step_status}
+                        label={`Step ${fg.current_step + 1}/${fg.edit_chain.length} · ${fg.step_status}`}
+                      />
+                      {job.total_cost_cents > 0 && (
+                        <span className="font-mono text-xs tabular-nums text-muted-foreground">
+                          {(Number(job.total_cost_cents) / 100).toLocaleString("en-US", {
+                            style: "currency",
+                            currency: "USD",
+                            maximumFractionDigits: 3,
+                          })}
+                        </span>
+                      )}
+                    </div>
                     {fg.step_status === "failed" && (
                       <div className="mt-1 flex items-center gap-2">
-                        <p className="text-xs text-red-600">{fg.last_error}</p>
+                        <p className="text-xs text-destructive">{fg.last_error}</p>
                         <Button size="sm" variant="outline" onClick={() => rerun(fg.id)}>
                           Re-run
                         </Button>
@@ -1121,7 +1160,7 @@ export function JobPanel({
                             }
                             className={`rounded-full border px-2 py-0.5 text-xs ${
                               latest?.id === v.id
-                                ? "border-blue-500 font-medium"
+                                ? "border-primary font-medium"
                                 : "hover:bg-muted"
                             }`}
                           >

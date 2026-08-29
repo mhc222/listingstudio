@@ -144,7 +144,7 @@ export function CopyPanel({
                 type="button"
                 onClick={() => togglePhoto(p.id)}
                 className={`h-20 w-28 overflow-hidden rounded border-2 ${
-                  selected.has(p.id) ? "border-green-600" : "border-transparent"
+                  selected.has(p.id) ? "border-state-complete" : "border-transparent"
                 }`}
               >
                 {p.url ? (
@@ -224,7 +224,7 @@ export function CopyPanel({
         {selected.size === 0 && (
           <span className="text-sm text-muted-foreground">Select at least one photo</span>
         )}
-        {error && <span className="text-sm text-red-600">{error}</span>}
+        {error && <span className="text-sm text-destructive">{error}</span>}
       </div>
 
       {hasCopy && (
@@ -277,7 +277,7 @@ export function CopyPanel({
             <Button type="button" variant="outline" onClick={save} disabled={busy !== null}>
               {busy === "save" ? "Saving…" : "Save edits"}
             </Button>
-            {savedAt && <span className="text-sm text-green-700">Saved ✓</span>}
+            {savedAt && <span className="text-sm text-state-complete">Saved ✓</span>}
           </div>
         </section>
       )}

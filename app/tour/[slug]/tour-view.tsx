@@ -22,7 +22,7 @@ export function TourView({ title, scenes }: { title: string; scenes: TourScene[]
             type="button"
             onClick={() => setActiveId(s.id)}
             className={`rounded-full px-3 py-1.5 text-sm text-white ${
-              s.id === activeId ? "bg-blue-600" : "bg-black/60 hover:bg-black/80"
+              s.id === activeId ? "bg-primary text-primary-foreground" : "bg-black/60 hover:bg-black/80"
             }`}
           >
             {s.name}

@@ -60,7 +60,7 @@ export function TourPanel({ listingId, tours }: { listingId: string; tours: Tour
           {tours.length ? "New tour" : "Create tour"}
         </Button>
       </div>
-      {error && <p className="mb-2 text-sm text-red-600">{error}</p>}
+      {error && <p className="mb-2 text-sm text-destructive">{error}</p>}
       {/* Remount when the server-confirmed scene set changes (upload/save/refresh)
           so local edit state re-seeds from fresh props. */}
       {tour && (
@@ -215,7 +215,7 @@ function TourEditor({ tour }: { tour: TourRow }) {
           Delete
         </Button>
       </div>
-      {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+      {error && <p className="mt-2 text-sm text-destructive">{error}</p>}
 
       {scenes.length === 0 ? (
         <p className="mt-3 text-sm text-muted-foreground">
@@ -242,7 +242,7 @@ function TourEditor({ tour }: { tour: TourRow }) {
             )}
           </div>
           {placing && (
-            <p className="mt-2 text-sm text-blue-600">
+            <p className="mt-2 text-sm text-primary">
               Click a spot in the pano to place the hotspot…
             </p>
           )}
@@ -307,7 +307,7 @@ function TourEditor({ tour }: { tour: TourRow }) {
                   type="button"
                   onClick={() => setActiveId(s.id)}
                   className={`rounded px-1.5 py-0.5 ${
-                    s.id === activeId ? "bg-blue-600 text-white" : "hover:bg-accent"
+                    s.id === activeId ? "bg-primary text-primary-foreground" : "hover:bg-accent"
                   }`}
                 >
                   {i + 1}
@@ -343,7 +343,7 @@ function TourEditor({ tour }: { tour: TourRow }) {
                     if (activeId === s.id) setActiveId(scenes.find((x) => x.id !== s.id)?.id ?? null)
                     setDirty(true)
                   }}
-                  className="text-red-600 hover:underline"
+                  className="text-destructive hover:underline"
                 >
                   remove
                 </button>
@@ -352,7 +352,7 @@ function TourEditor({ tour }: { tour: TourRow }) {
                     → {h.label || byId.get(h.target)?.name || "?"}{" "}
                     <button
                       type="button"
-                      className="text-red-600"
+                      className="text-destructive"
                       onClick={() =>
                         patchScene(s.id, { hotspots: s.hotspots.filter((_, x) => x !== hi) })
                       }
@@ -368,7 +368,7 @@ function TourEditor({ tour }: { tour: TourRow }) {
           <div className="mt-3 grid gap-1.5 text-sm">
             <div className="flex items-center gap-2">
               <span className="text-muted-foreground">Share:</span>
-              <a href={shareUrl} target="_blank" className="truncate text-blue-600 hover:underline">
+              <a href={shareUrl} target="_blank" className="truncate text-primary hover:underline">
                 {shareUrl}
               </a>
               <Button size="sm" variant="outline" onClick={() => copy(shareUrl, "url")}>

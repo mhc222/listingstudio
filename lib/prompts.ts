@@ -70,10 +70,33 @@ const SKY_STYLES: Record<string, string> = {
   orange_sunrise: "a warm orange sunrise sky",
 }
 
+// Enhancement style presets (phase 18 ride-along, restudio.ai teardown).
+// One aesthetic per prompt; "natural" is the default and adds no clause —
+// the base template already is the true-to-life look.
+export const ENHANCEMENT_STYLES: Record<string, { label: string; clause: string }> = {
+  natural: { label: "Natural", clause: "" },
+  bright_airy: {
+    label: "Bright & Airy",
+    clause:
+      "Grade the photo with a bright and airy look: lifted shadows, soft even light, clean gentle whites, and a fresh open feel.",
+  },
+  warm: {
+    label: "Warm",
+    clause:
+      "Grade the photo with a warm inviting look: golden-toned white balance, cozy warm highlights, and rich amber undertones.",
+  },
+  crisp: {
+    label: "Crisp",
+    clause:
+      "Grade the photo with a crisp editorial look: high clarity, deep contrast, and cool neutral whites.",
+  },
+}
+
 export type ImageEnhancementOptions = {
   sky_replacement?: boolean
   day_sky_style?: string
   grass_repair?: boolean
+  style_preset?: string
 }
 
 export function IMAGE_ENHANCEMENT(
@@ -92,6 +115,8 @@ export function IMAGE_ENHANCEMENT(
     "Balance window exposure so the view outside stays visible without darkening the interior.",
     "If a TV screen is visible, replace its contents with a neutral scenic image. If a fireplace is present, show a warm lit fire in it.",
   ]
+  const style = ENHANCEMENT_STYLES[options.style_preset ?? "natural"]
+  if (style?.clause) parts.push(style.clause)
   if (options.sky_replacement) {
     parts.push(
       `Replace the sky with ${SKY_STYLES[options.day_sky_style ?? "any"] ?? SKY_STYLES.any}, keeping lighting on the scene consistent with it.`
