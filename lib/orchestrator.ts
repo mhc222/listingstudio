@@ -10,6 +10,7 @@ import {
   EDIT_360_BASE,
   type EditStep,
   type Grounding,
+  type MarkupEditOptions,
   type ReworkOptions,
 } from "@/lib/prompts"
 import { submitGeneration, getResultImageUrl, extractImageUrl } from "@/lib/imaging"
@@ -91,6 +92,13 @@ async function inputUrlForStep(db: SupabaseClient, fg: FileGroupRow): Promise<st
     const source = (step.options as ReworkOptions)?.source_path
     if (!source) throw new Error("rework step has no source_path")
     return getUrl("outputs", source, 6 * 3600, db)
+  }
+  // markup-to-edit (phase 23): the model sees the flattened annotated copy;
+  // the clean original stays the stored source
+  if (step?.edit_type === "MARKUP_EDIT") {
+    const markup = (step.options as MarkupEditOptions)?.markup_path
+    if (!markup) throw new Error("markup step has no markup_path")
+    return getUrl("originals", markup, 6 * 3600, db)
   }
   if (fg.current_step === 0) {
     const { data: photo, error } = await db

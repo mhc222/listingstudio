@@ -63,6 +63,51 @@ export function ITEM_REMOVAL(
   return parts.join(" ")
 }
 
+// ---- Markup-to-edit (phase 23) ----
+// The model input is a flattened copy of the primary photo with marks drawn on
+// it (options.markup_path in the originals bucket); the clean original stays
+// the stored source. Mark semantics are fixed by color: blue circle = remove,
+// red rectangle = replace. Gemini-only — the gate experiment showed qwen
+// follows replace marks but ignores remove marks.
+export type MarkupEditOptions = {
+  markup_path?: string
+  remove_count?: number
+  replace_count?: number
+}
+
+export function MARKUP_EDIT(
+  options: MarkupEditOptions = {},
+  comment?: string | null,
+  grounding?: Grounding
+): string {
+  const removes = options.remove_count ?? 0
+  const replaces = options.replace_count ?? 0
+  const parts = [
+    // brightness cue inside the first ten words
+    "Bright natural daylight real estate photo of this exact room.",
+    "The colored markings drawn on this image are editing instructions only, not part of the scene.",
+  ]
+  if (removes > 0)
+    parts.push(
+      `Each blue circle (${removes} total) marks an item to remove entirely; realistically reconstruct the floors, walls, and surfaces revealed behind it, matching the existing materials, lighting, and shadows.`
+    )
+  if (replaces > 0)
+    parts.push(
+      `Each red rectangle (${replaces} total) marks an item to replace` +
+        (comment?.trim()
+          ? " as the client notes at the end of this prompt describe; match the replacement's scale, lighting, and perspective to the room."
+          : " with a similar item in better condition that matches the room's style; match its scale, lighting, and perspective to the room.")
+    )
+  parts.push(
+    "Do not render the blue circles, red rectangles, or any colored markings in the output.",
+    GEOMETRY_INTERIOR
+  )
+  if (grounding?.dimensions) parts.push(grounding.dimensions)
+  if (comment?.trim()) parts.push(comment.trim())
+  parts.push(LISTING_SUFFIX)
+  return parts.join(" ")
+}
+
 const SKY_STYLES: Record<string, string> = {
   any: "an attractive natural daytime sky",
   clear_blue: "a clear blue daytime sky",
@@ -687,6 +732,8 @@ export function compilePrompt(
         comment,
         grounding
       )
+    case "MARKUP_EDIT":
+      return MARKUP_EDIT((step.options ?? {}) as MarkupEditOptions, comment, grounding)
     case "IMAGE_ENHANCEMENT":
       return IMAGE_ENHANCEMENT((step.options ?? {}) as ImageEnhancementOptions, comment)
     case "TURN_ON_LIGHTS":

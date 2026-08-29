@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
+import dynamic from "next/dynamic"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
@@ -12,6 +13,12 @@ import { simulateCents } from "@/lib/simulate"
 import { BeforeAfter } from "@/components/before-after"
 import { TourViewer } from "@/components/tour-viewer"
 import type { PhotoRow } from "./photo-grid"
+
+// konva touches window — client-only (same pattern as the aerial panel)
+const MarkupCanvas = dynamic(
+  () => import("@/components/markup-canvas").then((m) => m.MarkupCanvas),
+  { ssr: false }
+)
 
 export type SampleRow = {
   id: string
@@ -58,6 +65,8 @@ type ChainEdit = { edit_type: string; options: Record<string, unknown> }
 
 const EDIT_TYPES: Record<string, { label: string; defaults: Record<string, unknown> }> = {
   ITEM_REMOVAL: { label: "Item removal", defaults: { tier: 1, items: "" } },
+  // markup-to-edit (phase 23): drag-drawn marks drive the edit; gemini-only
+  MARKUP_EDIT: { label: "Markup edit (draw on the photo)", defaults: {} },
   IMAGE_ENHANCEMENT: {
     label: "Image enhancement",
     defaults: {
@@ -644,6 +653,42 @@ export function JobPanel({
                     />
                   </div>
                 )}
+                {edit.edit_type === "MARKUP_EDIT" &&
+                  (photoIds.length !== 1 ? (
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      Markup works one photo at a time — keep exactly one selected.
+                    </p>
+                  ) : edit.options.markup_path ? (
+                    <div className="mt-2 flex flex-wrap items-center gap-2 text-sm">
+                      <span className="text-muted-foreground">
+                        Markup attached — {Number(edit.options.remove_count ?? 0)} remove,{" "}
+                        {Number(edit.options.replace_count ?? 0)} replace. Describe replacements in
+                        the comment field.
+                      </span>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setOption(i, "markup_path", undefined)
+                          setOption(i, "remove_count", undefined)
+                          setOption(i, "replace_count", undefined)
+                        }}
+                      >
+                        Redo markup
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="mt-2">
+                      <MarkupCanvas
+                        src={photoById.get(photoIds[0])?.url ?? ""}
+                        onAttach={(m) => {
+                          setOption(i, "markup_path", m.markup_path)
+                          setOption(i, "remove_count", m.remove_count)
+                          setOption(i, "replace_count", m.replace_count)
+                        }}
+                      />
+                    </div>
+                  ))}
                 {edit.edit_type === "IMAGE_ENHANCEMENT" && (
                   // style preset chips (phase 18 ride-along) — recorded on the
                   // job record via the step options, default Natural
@@ -877,7 +922,12 @@ export function JobPanel({
             </div>
             {chain.length > 0 && photoIds.length > 0 && (() => {
               // dry-run estimate (CLAUDE.md cost simulation) — refs force gemini
-              const sim = simulateCents(chain.length, photoIds.length, sampleIds.length > 0)
+              const sim = simulateCents(
+                chain.length,
+                photoIds.length,
+                // markup edits force gemini (phase 23), same rate path as refs
+                sampleIds.length > 0 || chain.some((e) => e.edit_type === "MARKUP_EDIT")
+              )
               return (
                 <p className="mt-2 text-xs text-muted-foreground">
                   Estimate: {centsLabel(sim.firstRunCents)} first run · ~

@@ -114,6 +114,38 @@ export async function POST(req: Request) {
     }
   }
 
+  // Markup-to-edit (phase 23): the flattened annotated copy rides
+  // options.markup_path as the model input; the clean original stays the
+  // stored source. Single-step, single-photo, room photos only.
+  const hasMarkup = cells.some((c) => c.chain.some((s) => s.edit_type === "MARKUP_EDIT"))
+  if (hasMarkup) {
+    if (cells.some((c) => c.chain.length !== 1 || c.chain[0].edit_type !== "MARKUP_EDIT")) {
+      return NextResponse.json(
+        { error: "MARKUP_EDIT runs alone, not chained with other edits" },
+        { status: 400 }
+      )
+    }
+    if (requestedPhotoIds.length !== 1 || isIdeas) {
+      return NextResponse.json(
+        { error: "markup edits run one photo at a time" },
+        { status: 400 }
+      )
+    }
+    if (photo.is_floor_plan) {
+      return NextResponse.json(
+        { error: "markup edits need a room photo, not a floor plan" },
+        { status: 400 }
+      )
+    }
+    const markupPath = cells[0].chain[0].options?.markup_path
+    if (typeof markupPath !== "string" || !markupPath.startsWith(`${user.id}/markup/`)) {
+      return NextResponse.json(
+        { error: "markup edit needs an attached markup — draw on the photo first" },
+        { status: 400 }
+      )
+    }
+  }
+
   // RLS-scoped read proves ownership of any sample refs
   let sampleIds: string[] = []
   if (sampleImageIds?.length) {
@@ -135,6 +167,7 @@ export async function POST(req: Request) {
       "VIRTUAL_RENOVATION",
       "360_VIRTUAL_STAGING",
       "360_ITEM_REMOVAL",
+      "MARKUP_EDIT",
     ].includes(s.edit_type)
   )
   const grounding: { dimension_sentence?: string; floor_plan_photo_id?: string } = {}
@@ -218,12 +251,14 @@ export async function POST(req: Request) {
     // plan redraws force gemini — the only wired provider that renders room
     // labels and dimension text legibly (phase 11). 360 chains force qwen —
     // it takes an explicit image_size (full-res path) and preserves the input
-    // aspect ratio (phase 17).
-    const provider = hasPlanRedraw
-      ? "gemini"
-      : has360
-        ? "qwen"
-        : pickProvider(cell.chain.length, hasRefs)
+    // aspect ratio (phase 17). Markup edits force gemini — qwen followed
+    // replace marks but ignored remove marks in the phase 23 gate experiment.
+    const provider =
+      hasPlanRedraw || hasMarkup
+        ? "gemini"
+        : has360
+          ? "qwen"
+          : pickProvider(cell.chain.length, hasRefs)
     ideasCost += MODELS[provider].costCents * cell.chain.length
     const { data: fg, error: fgError } = await supabase
       .from("file_groups")
