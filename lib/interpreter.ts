@@ -16,7 +16,15 @@ export type Chips = {
 export type IdeaDirection = { label: string; edit_chain: EditStep[] }
 
 export type ParsedIntent =
-  | { kind: "job"; edit_chain: EditStep[]; comment: string; defaults_noted: string[] }
+  | {
+      kind: "job"
+      edit_chain: EditStep[]
+      comment: string
+      // imperative-normalized comment (phase 24): fills the prompt slot while
+      // the user's verbatim words stay on the record (title + chat thread)
+      comment_imperative: string
+      defaults_noted: string[]
+    }
   | { kind: "question"; question: string }
   | { kind: "ideas"; directions: IdeaDirection[]; comment: string }
 
@@ -115,6 +123,7 @@ export function validateIntent(raw: unknown): ParsedIntent {
     kind: "job",
     edit_chain: sanitizeChain(obj.edit_chain),
     comment: str(obj.comment),
+    comment_imperative: str(obj.comment_imperative),
     defaults_noted: defaults,
   }
 }

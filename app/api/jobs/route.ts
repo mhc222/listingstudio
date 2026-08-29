@@ -16,13 +16,16 @@ export async function POST(req: Request) {
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 })
 
   const body = await req.json()
-  const { listingId, photoId, photoIds, editChain, comment, sizePreset, sampleImageIds, chat, kind, variants } =
+  const { listingId, photoId, photoIds, editChain, comment, commentImperative, sizePreset, sampleImageIds, chat, kind, variants } =
     body as {
       listingId: string
       photoId?: string // back-compat single-photo form
       photoIds?: string[] // batch (phase 10): one file group per photo
       editChain?: EditStep[]
       comment?: string
+      // interpreter's imperative-normalized comment (phase 24): fills the
+      // prompt slot; the verbatim comment stays on the record (title + chat)
+      commentImperative?: string
       sizePreset?: string
       sampleImageIds?: string[]
       // interpreter-path conversation, persisted per FileGroup (phase 7)
@@ -266,8 +269,9 @@ export async function POST(req: Request) {
         job_id: job.id,
         primary_photo_id: cell.photoId,
         edit_chain: cell.chain,
-        // ideas labels double as style language in the prompt
-        comment: cell.label ?? comment ?? null,
+        // ideas labels double as style language in the prompt; interpreter
+        // jobs compile the imperative comment, verbatim words stay on record
+        comment: cell.label ?? (commentImperative?.trim() || comment) ?? null,
         size_preset: ["original", "under_10mb", "under_5mb"].includes(sizePreset ?? "")
           ? sizePreset
           : "original",

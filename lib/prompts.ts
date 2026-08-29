@@ -633,7 +633,7 @@ Edit catalog (edit_type -> allowed options):
 - PORTRAIT_RETOUCHING: {} — conservative headshot/portrait retouch (blemishes, stray hairs); identity preserved exactly.
 
 Response shapes (exactly one):
-1. {"kind":"job","edit_chain":[{"edit_type":"...","options":{...}}],"comment":"...","defaults_noted":["..."]}
+1. {"kind":"job","edit_chain":[{"edit_type":"...","options":{...}}],"comment":"...","comment_imperative":"...","defaults_noted":["..."]}
 2. {"kind":"question","question":"..."}
 3. {"kind":"ideas","directions":[{"label":"...","edit_chain":[...]},{...},{...},{...}],"comment":"..."} — EXACTLY 4 directions
 
@@ -641,6 +641,7 @@ Rules:
 - edit_chain is ordered; edits run in sequence, each edit's output feeding the next. Put IMAGE_ENHANCEMENT before VIRTUAL_STAGING, and ITEM_REMOVAL before either.
 - Complaints about darkness, dullness, or photo quality mean IMAGE_ENHANCEMENT (with TURN_ON_LIGHTS only if the user asks for lights on).
 - comment: preserve the user's own words (their request, lightly trimmed). Never invent detail they didn't give.
+- comment_imperative: the same request normalized into short imperative editing instructions for the image model ("cozy vibes" -> "make the room feel cozy and warm"). No detail beyond what the comment implies; empty string when comment is empty or already covered by the edit_chain options.
 - Chips: the user may attach structured chip selections (edit type, room type, furniture style). Chips are authoritative — merge them into the spec even if the text doesn't mention them.
 - Only ask a question (shape 2) when a required option is genuinely ambiguous AND guessing would likely waste a generation — e.g. staging requested but the room type is neither in the text, the chips, nor implied. Ask at most ONE question, then commit on the next turn.
 - Otherwise pick a sensible default and record each defaulted choice as a short human-readable string in defaults_noted (empty array if nothing was defaulted).
@@ -714,7 +715,47 @@ export function compileNegative(step: EditStep): string | null {
   return NEGATIVES[step.edit_type] ?? null
 }
 
+// ---- Provider prompt dialects (phase 24) ----
+// The same semantic job spec renders in each provider's native shape
+// (2026-08-30 prompting audit, finding 4). The base templates above ARE the
+// qwen dialect — imperative sentences with failure-mode negatives riding
+// alongside via compileNegative. gemini gets Google's own edit-template shape
+// (instruction framing + the canonical preservation close); kontext gets
+// BFL's "while maintaining ..." clause. FLOOR_PLAN_REDRAW is exempt: a redraw
+// transforms the whole image, so "keep everything else the same" would fight
+// the edit (and that template is already tuned for gemini, its forced
+// provider). Geometry sentences stay verbatim in every dialect.
+export type PromptProvider = "qwen" | "gemini" | "kontext" | "local"
+
+const GEMINI_PREFIX = "Edit the provided photo: "
+export const GEMINI_PRESERVE =
+  "Keep everything else in the image exactly the same, preserving the original style, lighting, and composition."
+export const KONTEXT_MAINTAIN =
+  "Make these changes while maintaining the same camera angle, framing, and lighting as the original image."
+
+// Dialect clauses land BEFORE the listing suffix so rule 4 (templates end
+// with the suffix) holds; templates without the suffix just append.
+function withClause(base: string, clause: string): string {
+  const marker = " " + LISTING_SUFFIX
+  return base.endsWith(marker)
+    ? `${base.slice(0, -marker.length)} ${clause}${marker}`
+    : `${base} ${clause}`
+}
+
 export function compilePrompt(
+  step: EditStep,
+  comment?: string | null,
+  grounding?: Grounding,
+  provider: PromptProvider = "qwen"
+): string {
+  const base = compileBase(step, comment, grounding)
+  if (step.edit_type === "FLOOR_PLAN_REDRAW") return base
+  if (provider === "gemini") return GEMINI_PREFIX + withClause(base, GEMINI_PRESERVE)
+  if (provider === "kontext") return withClause(base, KONTEXT_MAINTAIN)
+  return base // qwen + local stub: the base dialect
+}
+
+function compileBase(
   step: EditStep,
   comment?: string | null,
   grounding?: Grounding
@@ -723,7 +764,7 @@ export function compilePrompt(
   // (the brightness cue stays in the first ten words of the base template).
   const base360 = EDIT_360_BASE[step.edit_type]
   if (base360) {
-    return compilePrompt({ ...step, edit_type: base360 }, comment, grounding) + " " + EQUIRECT_360
+    return compileBase({ ...step, edit_type: base360 }, comment, grounding) + " " + EQUIRECT_360
   }
   switch (step.edit_type) {
     case "ITEM_REMOVAL":

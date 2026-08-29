@@ -196,7 +196,8 @@ export async function submitStep(db: SupabaseClient, fileGroupId: string): Promi
   }
 
   try {
-    const prompt = compilePrompt(step, fg.comment, await groundingFor(db, fg))
+    // provider-aware compilation (phase 24): same spec, the provider's dialect
+    const prompt = compilePrompt(step, fg.comment, await groundingFor(db, fg), fg.provider)
     const imageUrl = await inputUrlForStep(db, fg)
     const refUrls = await refUrlsFor(db, fg)
     // 360 chains run on qwen (forced at the jobs route), which accepts an

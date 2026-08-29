@@ -364,6 +364,7 @@ export function JobPanel({
             }
           : { editChain: data.edit_chain }),
         comment: data.comment || undefined,
+        commentImperative: data.comment_imperative || undefined,
         sizePreset,
         sampleImageIds: sampleIds.length ? sampleIds : undefined,
         chat: convo,
