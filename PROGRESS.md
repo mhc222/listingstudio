@@ -14,12 +14,18 @@
 - [x] Phase 11 — FLOOR_PLAN_REDRAW
 - [x] Phase 12 — VIRTUAL_TOUR builder
 - [x] Phase 13 — COPYWRITING
-- [ ] Phase 14 — AERIAL annotation + PORTRAIT_RETOUCHING + HDR_MERGE
+- [x] Phase 14 — AERIAL annotation + PORTRAIT_RETOUCHING + HDR_MERGE
 - [ ] Phase 15 — Dashboard + spend tracking
 - [ ] Phase 16 — Vercel deploy
 - [ ] Phase 17 — Experimental 360 edits
 
 ## Current state
+
+Phase 14 complete (code + agent-tested live 2026-08-29; ⚠️ migration 0005 blocker from phase 13 still stands — see below). Three specialty tools, no migration needed. **Prompts:** AERIAL_EDITING (drone-tuned: haze/clarity/dust/prop-shadow, shares sky_replacement/day_sky_style/grass_repair option shape with IMAGE_ENHANCEMENT, exterior geometry verbatim + no-move-buildings sentence, listing suffix) and PORTRAIT_RETOUCHING (no options, conservative flaw-only cleanup, identity-preserved-exactly sentence, deliberately NO listing suffix/geometry) in prompts.ts + compilePrompt + INTERPRETER_SYSTEM catalog + interpreter sanitizers; job panel picker entries (aerial reuses the enhancement option form); portrait fgs skip auto-QA alongside plan redraws (QA prompt judges photo geometry, not faces). **HDR_MERGE:** `lib/hdr.ts` fuseExposures — single-scale well-exposedness (Mertens-lite) weighted average over 3-9 brackets, raw-pixel loop, jpeg out; `/api/hdr-merge` (multipart, heic ok, count-validated, RLS listing check, merged photo → originals + photos row, NO ledger row — pure code, no AI); upload panel "HDR merge brackets" button + "enhance after merge" checkbox that fires a normal /api/jobs IMAGE_ENHANCEMENT on the returned photoId. **AERIAL annotation:** konva + react-konva@19.0.7 (19.2.x needs react ≥19.2; project is 19.1); `components/aerial-annotator.tsx` — ops-list undo model (point/close/end/pin ops, shapes derived by fold), lot polygons (yellow translucent fill), dashed red boundary lines, labeled pins (Label/Tag), dblclick-or-button closes shapes, tool switch auto-closes, Export PNG downloads at ORIGINAL resolution (toDataURL pixelRatio 1/scale), Save to listing posts the flattened PNG to the existing /api/upload; `aerial-panel.tsx` (dynamic ssr:false — konva touches window) with photo-thumb picker, wired into the listing page above TourPanel. Build + lint clean.
+
+Phase 14 TESTED live 2026-08-29 (agent-driven, minted session per the headless recipe): template self-check (brightness cue, verbatim geometry, options, suffix rules, compilePrompt wiring) ✓; HDR API — 3 synthetic brackets fused (photos row + originals object, clipped highlights recovered 255→98, shadows lifted), 2-bracket set rejected 400 ✓; annotator in-browser — panel renders, konva canvas at 880px scaled, lot clicks → Finish shape → closed polygon, labeled pin dropped, Save to listing produced a FULL-RES 1280×896 PNG with yellow fill inside the polygon, #ef4444 at the pin, untouched pixels elsewhere (DB + pixel-verified) ✓. Konva synthesizes dblclick from clicks <400ms apart — rapid programmatic clicks self-close polygons; human clicking is unaffected. Matt's remaining eyeball test: drag real drone brackets through "HDR merge brackets" and annotate a real aerial (the two synthetic test photos are on 123 Smith Street).
+
+---
 
 Phase 13 complete (code; ⚠️ migration 0005 NOT applied live — see below). COPYWRITING: `supabase/migrations/0005_copy.sql` (listing_copy table — unique(listing_id, tone), facts jsonb, headline/desc_100/desc_250, RLS via listing ownership; spend_ledger kind check extended with 'copywriting'). `lib/prompts.ts`: COPY_TONES (luxury/family/investor voice lines) + COPYWRITING_SYSTEM (strict JSON {headline, desc_100, desc_250}, ~100w/~250w, photos-and-facts-only rule, fair-housing rule). `/api/listings/[id]/copy`: POST (photoIds ≤8 + facts {beds,baths,sqft,features} + tone → signed photo URLs → Haiku vision call → parse/validate → upsert listing_copy per tone; ledger kind=copywriting edit_type=COPYWRITING via admin client), PATCH (persist in-app edits per tone). `app/listings/[id]/copy/` page + CopyPanel (photo multi-select thumbs, facts form, tone select seeded from saved rows, Generate/Regenerate, editable headline input + two textareas with live word counts, per-block clipboard Copy buttons, Save edits). "Listing copy →" link in the listing header. Build + lint + tsx self-check (tone keys match the 0005 check constraint, JSON keys in system prompt) clean.
 
@@ -76,4 +82,4 @@ Outstanding (Matt, manual):
 - Webhook signature verification still unexercised locally (needs deployed URL — phase 16).
 
 ## Next action
-Matt: apply migration 0005 (see blocker above). Then Phase 14 — AERIAL annotation (Konva canvas: LOT_HIGHLIGHT/DROP_PIN/boundary lines, flattened PNG export) + PORTRAIT_RETOUCHING template + HDR_MERGE (3-9 brackets, exposure fusion in code, optional chain to IMAGE_ENHANCEMENT).
+Matt: apply migration 0005 (see phase 13 blocker above — still outstanding). Then Phase 15 — Dashboard + spend tracking (app/page.tsx: recent listings, jobs in progress live, failed jobs with re-run, MTD spend by edit type via admin-client ledger aggregation, BoxBrownie comparison from config prices).

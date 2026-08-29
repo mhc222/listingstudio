@@ -59,3 +59,8 @@
 - 2026-08-28: spend_ledger kind check extended with 'copywriting' in 0005 (edit_type='COPYWRITING' set for phase-15 aggregation) rather than overloading kind=interpreter.
 - 2026-08-28: Migration 0005 could NOT be applied live this session — no Supabase MCP connected and the permission classifier blocked keychain reads (CLI token) twice; left for Matt's SQL editor or an MCP session, per the blocker note in PROGRESS.md.
 - 2026-08-28: ~100/250 word targets are prompt-enforced only (live word counts shown in the UI, no server validation) — MLS tolerances are loose and the user edits in-app anyway.
+- 2026-08-29: HDR fusion = single-scale well-exposedness weighting (Mertens-lite, no contrast/saturation terms, no pyramid blending) — upgrade to multiband only if halos on high-contrast window edges annoy; pure code, so no spend_ledger row.
+- 2026-08-29: HDR merged photo is a normal photos row in originals; the optional IMAGE_ENHANCEMENT chain is a client-side /api/jobs call on the returned photoId — no special job kind, no route coupling.
+- 2026-08-29: react-konva pinned to 19.0.7 — 19.2.x requires react ^19.2.0, project is on 19.1.0; bump both together when upgrading React.
+- 2026-08-29: Aerial annotation is fully client-side (ops-list undo, shapes derived by folding ops); export = Konva toDataURL at pixelRatio 1/scale for original-resolution PNG, and "Save to listing" reuses /api/upload verbatim — no new storage path or table.
+- 2026-08-29: AERIAL_EDITING shares IMAGE_ENHANCEMENT's option shape (sky/grass) so the job panel reuses one option form; PORTRAIT_RETOUCHING has zero options — the conservatism is the template, and it skips auto-QA (the QA prompt judges listing-photo geometry, not faces).

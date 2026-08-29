@@ -8,6 +8,7 @@ import { RoomPanel, type RoomRow } from "./room-panel"
 import { JobPanel, type JobRow, type SampleRow } from "./job-panel"
 import { PlanPanel } from "./plan-panel"
 import { TourPanel, type TourRow } from "./tour-panel"
+import { AerialPanel } from "./aerial-panel"
 
 export default async function ListingPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -135,6 +136,7 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
               />
             </section>
           )}
+          <AerialPanel listingId={id} photos={regular} />
           <TourPanel listingId={id} tours={tourRows} />
           <JobPanel
             listingId={id}
