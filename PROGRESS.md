@@ -18,6 +18,8 @@
 - [x] Phase 15 — Dashboard + spend tracking
 - [ ] Phase 16 — Vercel deploy
 - [ ] Phase 17 — Experimental 360 edits
+- [ ] Phase 18 — Darkroom visual identity
+- [ ] Phase 19 — Listing video reels
 
 ## Current state
 

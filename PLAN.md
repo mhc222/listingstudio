@@ -202,3 +202,25 @@ Conventions used throughout: all prompt templates in `lib/prompts.ts`; provider 
 
 **DoD:** Each 360 edit runs on an equirectangular input and returns full-res output with review flag; build clean.
 **Manual test:** Enhance a 360 pano, load result in the tour viewer, inspect seam and poles.
+
+---
+
+## Phase 18 — Darkroom visual identity
+
+**Goal:** Apply the chosen "Darkroom" identity system to the app. Spec is the published artifact https://claude.ai/code/artifact/c59ca593-118c-4584-9364-a80994a20b62 (re-read it via the Artifact tool at phase start — the local source file is gone); decisions summarized in project memory `listing-studio-brand`.
+
+**Files:** `app/globals.css` (drop-in tokens from the spec: cyan-biased greys ~hue 220, signal teal `#3FBFB9` dark mode / `#147F7A` light mode — teal means *the system is acting*, never decorative; separate state colours for queued/running/complete/failed/QA; radius 0.625→0.375rem). `app/layout.tsx` (next/font: JetBrains Mono + Public Sans; semantic split — mono = machine truth: state, cost, dimensions, filenames; sans = human intent). `public/`: three hand-tuned mark SVGs (104/40/16px — at 16px stroke doubles and the inner room goes solid fill; never one scaled file) + favicon. Header wordmark (JetBrains Mono Bold uppercase .2em, LISTING full weight / STUDIO regular secondary grey). Restyle state pills + file-group progress stripe. LAST (touches shipped output): watermark mark in `lib/deliver.ts`; `lib/plan.ts` address/disclaimer bands stay pure black on white, never teal (plans get printed and photocopied).
+
+**DoD:** Tokens, fonts, mark, and state styling applied across dashboard/listings/job cards; both light and dark modes pass contrast (light-mode teal is `#147F7A`); watermark + plan band pixel-checked; build clean.
+**Manual test:** Eyeball dashboard, a listing page, and running job cards in light and dark; download a staged photo (new watermark pill); export a plan PNG (bands still plain black on white).
+
+---
+
+## Phase 19 — Listing video reels
+
+**Goal:** AutoReel-style listing videos from finished photos (see DECISIONS.md 2026-08-29 + memory `listing-video-reels-idea`).
+
+**Files:** Tier A first: photos → ~3s Ken Burns clips (pan/zoom over the *edited* outputs), crossfades, bundled royalty-free music picker, address/beds/baths caption overlay from listing facts, 9:16 and 16:9 MP4 exports. ffmpeg (or Remotion) — pure code, no ledger row (HDR_MERGE precedent). Render is a background job, NEVER in a request handler (CLAUDE.md orchestration rule); video lands in the outputs bucket with a download link on the listing. Reel builder panel on the listing page: photo multi-select + order, format toggle, music pick. Tier B (optional, ships only if Tier A motion feels flat): per-photo fal image-to-video (Kling ~$0.11/s / Veo 3.1 Fast ~$0.10/s → ~$0.30–0.35 per clip) through the existing queue/webhook state machine, ledgered like any generation; geometry-safe camera prompts only (slow push-in — no "walkthrough" prompts, walls bend).
+
+**DoD:** Tier A reel generates end to end from a listing's photos in both formats and downloads; render survives a dev-server restart (state in DB, not memory); build clean. Tier B explicitly deferrable.
+**Manual test:** Pick 8 finished photos on a listing, generate a 9:16 reel with music, play it, download it; regenerate in 16:9.
