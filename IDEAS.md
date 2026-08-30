@@ -85,6 +85,35 @@ direction (per-listing value jumps from ~$2 of edits to a full promo package).
 email sending (export HTML only, or integrate a sender — sending is scope
 creep, export-only first).
 
+## Single-shot 360s + photo-derived 3D (Matt, 2026-08-30)
+
+> "can we make 360 panos from a single shot? Could we make our own 3d without
+> them uploading 3d?"
+
+Feasibility, honestly assessed:
+
+1. **Single photo → 360 pano: technically yes, compliance-dangerous.**
+   Diffusion pano-outpainting models (Skybox AI, PanoDiff-class) take one
+   ~70° photo and hallucinate the other ~290°. For a listing that means
+   three-quarters of the "room" is invented — fabricated property features,
+   the exact thing the MLS compliance checker exists to flag. Viable only as
+   a clearly-labeled concept/mood asset, never as a tour of record. Park
+   unless a marketing-fluff use case shows up.
+2. **Real 3D from normal photos: yes — Gaussian splatting.** 15–50 overlapping
+   photos (or a 1-minute phone video walk) → photoreal 3D walkthrough, nothing
+   invented. This is what Luma/Polycam sell; hosted APIs exist, and web viewers
+   (three.js gsplat) drop into our tour page next to Marzipano. The agent
+   already shoots the listing — a capture checklist ("slow pan video of each
+   room") is the only new ask. This is the credible "own 3D" path and could
+   make VIRTUAL_TOUR work without 360 cameras.
+3. **Cheap middle: single-image depth → 2.5D parallax.** Depth-Anything-class
+   models give a depth map from one photo; warping yields a dolly/parallax
+   move — no invention beyond tiny edge fills. Weak as "3D", strong as
+   **Reels Tier B motion** (real camera-move feel for the slideshow renderer
+   at pennies). Probably the best effort-to-wow ratio of the three.
+
+**Suggested order if pursued:** 3 (reel motion) → 2 (splat tours) → 1 (probably never).
+
 ## Already-deferred (logged in DECISIONS/PROGRESS, indexed here)
 
 - **Reels Tier B** — true image-to-video motion (fal) if Ken Burns feels flat.
