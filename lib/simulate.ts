@@ -9,6 +9,9 @@ export type Simulation = {
   firstRunCents: number
   // includes average rework/QA-retry regenerations (CLAUDE.md assumption)
   expectedCents: number
+  // generation counts — the user-facing unit now that prices are off the UI
+  firstRunGenerations: number
+  expectedGenerations: number
 }
 
 export function simulateCents(chainLength: number, photoCount: number, hasRefs: boolean): Simulation {
@@ -19,5 +22,7 @@ export function simulateCents(chainLength: number, photoCount: number, hasRefs: 
     providerLabel: MODELS[provider].label,
     firstRunCents: chainLength * rate * photoCount,
     expectedCents: AVG_GENERATIONS_PER_FILE_GROUP * rate * photoCount,
+    firstRunGenerations: chainLength * photoCount,
+    expectedGenerations: Math.round(AVG_GENERATIONS_PER_FILE_GROUP * photoCount),
   }
 }

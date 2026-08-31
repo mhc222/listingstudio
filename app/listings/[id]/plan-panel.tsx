@@ -59,7 +59,6 @@ export function PlanPanel({ listingId, plans }: { listingId: string; plans: Phot
     router.refresh()
   }
 
-  const rate = MODELS.gemini.costCents
   return (
     <div className="mt-3 rounded-lg border p-4">
       <p className="text-sm font-medium">Redraw a floor plan</p>
@@ -137,14 +136,9 @@ export function PlanPanel({ listingId, plans }: { listingId: string; plans: Phot
         </Button>
       </div>
       <p className="mt-2 text-xs text-muted-foreground">
-        Estimate: {(rate / 100).toLocaleString("en-US", { style: "currency", currency: "USD" })}{" "}
-        first run · ~
-        {((rate * AVG_GENERATIONS_PER_FILE_GROUP) / 100).toLocaleString("en-US", {
-          style: "currency",
-          currency: "USD",
-        })}{" "}
-        with reworks ({MODELS.gemini.label}). For 3D: redraw in 2D first, attach the result as a
-        floor plan, then redraw the attached plan in 3D Isometric.
+        ~{Math.round(AVG_GENERATIONS_PER_FILE_GROUP)} generations · {MODELS.gemini.label}. For 3D:
+        redraw in 2D first, attach the result as a floor plan, then redraw the attached plan in 3D
+        Isometric.
       </p>
       {error && <p className="mt-2 text-sm text-destructive">{error}</p>}
     </div>

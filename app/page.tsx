@@ -1,17 +1,12 @@
 import Link from "next/link"
 import { createClient } from "@/lib/supabase/server"
-import { createAdminClient } from "@/lib/supabase/admin"
-import { BOXBROWNIE_CENTS, BOXBROWNIE_DEFAULT_CENTS } from "@/config/models"
+import { getUrls } from "@/lib/storage"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { DashboardLive, RerunButton } from "./dashboard-live"
 import { StatePill, Wordmark } from "@/components/brand"
 
 type ChainStep = { edit_type: string }
-
-function centsLabel(cents: number): string {
-  return (cents / 100).toLocaleString("en-US", { style: "currency", currency: "USD" })
-}
 
 function chainLabel(chain: ChainStep[]): string {
   return chain
@@ -20,27 +15,16 @@ function chainLabel(chain: ChainStep[]): string {
     .join(" → ")
 }
 
-// BoxBrownie price for one completed output's edit chain (reworks are free there)
-function bbCents(chain: ChainStep[]): number {
-  return chain
-    .filter((s) => s.edit_type !== "REWORK")
-    .reduce((sum, s) => sum + (BOXBROWNIE_CENTS[s.edit_type] ?? BOXBROWNIE_DEFAULT_CENTS), 0)
-}
-
 export default async function Dashboard() {
   const supabase = await createClient()
   const {
     data: { user },
   } = await supabase.auth.getUser()
 
-  const monthStart = new Date()
-  monthStart.setDate(1)
-  monthStart.setHours(0, 0, 0, 0)
-
-  const [listingsQ, activeQ, failedQ, ledgerQ] = await Promise.all([
+  const [listingsQ, activeQ, failedQ] = await Promise.all([
     supabase
       .from("listings")
-      .select("id, address, mls_number, created_at, photos(count)")
+      .select("id, address, mls_number, created_at")
       .order("created_at", { ascending: false })
       .limit(6),
     supabase
@@ -55,55 +39,35 @@ export default async function Dashboard() {
       .eq("step_status", "failed")
       .order("created_at", { ascending: false })
       .limit(12),
-    // Admin client: RLS scopes the ledger via job_id, which hides pre-job
-    // interpreter rows (job_id null) — MTD spend must count every call.
-    createAdminClient()
-      .from("spend_ledger")
-      .select("edit_type, kind, cost_cents")
-      .gte("created_at", monthStart.toISOString()),
   ])
 
   const listings = listingsQ.data ?? []
   const activeJobs = activeQ.data ?? []
   const failedGroups = failedQ.data ?? []
-  const ledger = ledgerQ.data ?? []
 
-  // MTD spend by edit type (kind labels the null-edit_type rows: interpreter, qa…)
-  const byType = new Map<string, number>()
-  let mtdTotal = 0
-  for (const row of ledger) {
-    const key = row.edit_type ?? row.kind
-    const cents = Number(row.cost_cents)
-    byType.set(key, (byType.get(key) ?? 0) + cents)
-    mtdTotal += cents
-  }
-  const spendRows = [...byType.entries()].sort((a, b) => b[1] - a[1])
-
-  // Per-listing BoxBrownie comparison over completed outputs
+  // Cover photo per listing = first non-floor-plan by created_at asc (same rule
+  // as the listing hero); count is every photo including floor plans.
   const listingIds = listings.map((l) => l.id)
-  const { data: costJobs } = listingIds.length
+  const { data: photos } = listingIds.length
     ? await supabase
-        .from("jobs")
-        .select("listing_id, total_cost_cents, file_groups(step_status, edit_chain)")
+        .from("photos")
+        .select("listing_id, storage_path, is_floor_plan, created_at")
         .in("listing_id", listingIds)
+        .order("created_at", { ascending: true })
     : { data: [] }
-  const perListing = new Map<string, { our: number; bb: number }>()
-  for (const j of costJobs ?? []) {
-    const entry = perListing.get(j.listing_id) ?? { our: 0, bb: 0 }
-    entry.our += j.total_cost_cents
-    for (const fg of j.file_groups as unknown as { step_status: string; edit_chain: ChainStep[] }[]) {
-      if (fg.step_status === "complete") entry.bb += bbCents(fg.edit_chain)
-    }
-    perListing.set(j.listing_id, entry)
+  const coverPath = new Map<string, string>()
+  const photoCount = new Map<string, number>()
+  for (const p of photos ?? []) {
+    photoCount.set(p.listing_id, (photoCount.get(p.listing_id) ?? 0) + 1)
+    if (!p.is_floor_plan && !coverPath.has(p.listing_id)) coverPath.set(p.listing_id, p.storage_path)
   }
+  const coverUrls = await getUrls("originals", [...coverPath.values()])
 
   return (
-    <main className="mx-auto max-w-5xl p-6">
+    <main className="mx-auto max-w-6xl p-6">
       <DashboardLive />
       <div className="flex items-center justify-between">
-        <h1>
-          <Wordmark />
-        </h1>
+        <Wordmark />
         <div className="flex items-center gap-4">
           <Link href="/listings" className="text-sm text-muted-foreground hover:underline">
             Listings
@@ -118,146 +82,131 @@ export default async function Dashboard() {
           </form>
         </div>
       </div>
-      <p className="mt-2 text-sm text-muted-foreground">Signed in as {user?.email}</p>
 
-      <div className="mt-6 grid gap-4 md:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Jobs in progress</CardTitle>
-          </CardHeader>
-          <CardContent className="grid gap-3">
-            {activeJobs.length === 0 && (
-              <p className="text-sm text-muted-foreground">Nothing running.</p>
-            )}
-            {activeJobs.map((j) => {
-              const fgs = j.file_groups as unknown as { step_status: string }[]
-              const done = fgs.filter((f) => f.step_status === "complete").length
-              const listing = j.listings as unknown as { address: string } | null
-              return (
-                <div key={j.id} className="text-sm">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="font-medium">{j.title}</span>
-                    <StatePill status={j.status} />
-                  </div>
-                  <div className="text-muted-foreground">
-                    {listing?.address} ·{" "}
-                    <span className="font-ui tabular-nums">
-                      {done}/{fgs.length}
-                    </span>{" "}
-                    outputs done
-                  </div>
-                </div>
-              )
-            })}
-          </CardContent>
-        </Card>
+      <header className="mt-10">
+        <h1>Welcome back</h1>
+        <p className="mt-1 text-sm text-muted-foreground">{user?.email}</p>
+      </header>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Failed jobs</CardTitle>
-          </CardHeader>
-          <CardContent className="grid gap-3">
-            {failedGroups.length === 0 && (
-              <p className="text-sm text-muted-foreground">No failures.</p>
-            )}
-            {failedGroups.map((fg) => {
-              const job = fg.jobs as unknown as {
-                title: string
-                listings: { address: string } | null
-              } | null
-              return (
-                <div key={fg.id} className="flex items-start justify-between gap-3 text-sm">
-                  <div className="min-w-0">
-                    <div className="font-medium">{job?.title}</div>
-                    <div className="text-muted-foreground">
-                      {job?.listings?.address} · {chainLabel(fg.edit_chain as ChainStep[])}
-                    </div>
-                    {fg.last_error && (
-                      <div className="truncate text-xs text-destructive">{fg.last_error}</div>
-                    )}
-                  </div>
-                  <RerunButton fileGroupId={fg.id} />
-                </div>
-              )
-            })}
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card className="mt-4">
-        <CardHeader>
-          <CardTitle className="text-base">
-            Spend this month ·{" "}
-            {/* the one number worth colouring — the argument against a $220 invoice */}
-            <span className="font-ui tabular-nums text-primary">{centsLabel(mtdTotal)}</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {spendRows.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No spend yet this month.</p>
-          ) : (
-            <div className="grid gap-1 sm:grid-cols-2">
-              {spendRows.map(([type, cents]) => (
-                <div key={type} className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">
-                    {type.replaceAll("_", " ").toLowerCase()}
-                  </span>
-                  <span className="font-ui tabular-nums">{centsLabel(cents)}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      <div className="mt-6 flex items-center justify-between">
-        <h2 className="text-lg font-medium">Recent listings</h2>
-        <Link href="/listings" className="text-sm text-primary underline">
+      <div className="mt-10 flex items-baseline justify-between">
+        <h2>Recent listings</h2>
+        <Link href="/listings" className="text-sm text-primary hover:underline">
           All listings →
         </Link>
       </div>
-      <div className="mt-3 grid gap-3">
-        {listings.length === 0 && (
-          <p className="text-sm text-muted-foreground">
-            No listings yet.{" "}
-            <Link href="/listings" className="text-primary underline">
-              Create one →
-            </Link>
-          </p>
-        )}
-        {listings.map((l) => {
-          const costs = perListing.get(l.id)
-          return (
-            <Link key={l.id} href={`/listings/${l.id}`}>
-              <Card className="transition-colors hover:bg-accent/50">
-                <CardContent className="flex items-center justify-between py-4">
-                  <div>
-                    <div className="font-medium">{l.address}</div>
-                    <div className="text-sm text-muted-foreground">
-                      {l.mls_number ? `MLS ${l.mls_number} · ` : ""}
-                      {(l.photos as unknown as { count: number }[])[0]?.count ?? 0} photos
+
+      {listings.length === 0 ? (
+        <p className="mt-4 text-sm text-muted-foreground">
+          No listings yet.{" "}
+          <Link href="/listings" className="text-primary underline">
+            Create one →
+          </Link>
+        </p>
+      ) : (
+        <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {listings.map((l) => {
+            const path = coverPath.get(l.id)
+            const cover = path ? coverUrls[path] : null
+            const count = photoCount.get(l.id) ?? 0
+            const meta = `${l.mls_number ? `MLS ${l.mls_number} · ` : ""}${count} photo${count === 1 ? "" : "s"}`
+            return (
+              <Link key={l.id} href={`/listings/${l.id}`} className="group">
+                <Card className="overflow-hidden p-0 transition-colors hover:border-input">
+                  <div className="relative aspect-[4/3] w-full bg-muted">
+                    {cover ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={cover}
+                        alt={l.address}
+                        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.02]"
+                      />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center px-4 text-center text-muted-foreground">
+                        <span className="text-2xl" style={{ fontFamily: "var(--font-cormorant)" }}>
+                          {l.address}
+                        </span>
+                      </div>
+                    )}
+                    <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-4 pt-10">
+                      <div
+                        className="text-xl leading-tight text-white"
+                        style={{ fontFamily: "var(--font-cormorant)" }}
+                      >
+                        {l.address}
+                      </div>
+                      <div className="mt-0.5 text-xs uppercase tracking-wide text-white/70">
+                        {meta}
+                      </div>
                     </div>
                   </div>
-                  <div className="text-right font-ui text-sm tabular-nums">
-                    {costs && costs.bb > 0 ? (
-                      <>
-                        <div className="font-medium">{centsLabel(costs.our)}</div>
+                </Card>
+              </Link>
+            )
+          })}
+        </div>
+      )}
+
+      {(activeJobs.length > 0 || failedGroups.length > 0) && (
+        <div className="mt-10 grid gap-4 md:grid-cols-2">
+          {activeJobs.length > 0 && (
+            <Card>
+              <CardContent className="grid gap-3 py-4">
+                <div className="text-xs uppercase tracking-wide text-muted-foreground">
+                  In progress
+                </div>
+                {activeJobs.map((j) => {
+                  const fgs = j.file_groups as unknown as { step_status: string }[]
+                  const done = fgs.filter((f) => f.step_status === "complete").length
+                  const listing = j.listings as unknown as { address: string } | null
+                  return (
+                    <div key={j.id} className="text-sm">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-medium">{j.title}</span>
+                        <StatePill status={j.status} />
+                      </div>
+                      <div className="text-muted-foreground">
+                        {listing?.address} ·{" "}
+                        <span className="font-ui tabular-nums">
+                          {done}/{fgs.length}
+                        </span>{" "}
+                        outputs done
+                      </div>
+                    </div>
+                  )
+                })}
+              </CardContent>
+            </Card>
+          )}
+
+          {failedGroups.length > 0 && (
+            <Card>
+              <CardContent className="grid gap-3 py-4">
+                <div className="text-xs uppercase tracking-wide text-muted-foreground">Failed</div>
+                {failedGroups.map((fg) => {
+                  const job = fg.jobs as unknown as {
+                    title: string
+                    listings: { address: string } | null
+                  } | null
+                  return (
+                    <div key={fg.id} className="flex items-start justify-between gap-3 text-sm">
+                      <div className="min-w-0">
+                        <div className="font-medium">{job?.title}</div>
                         <div className="text-muted-foreground">
-                          vs ~{centsLabel(costs.bb)} at BoxBrownie
+                          {job?.listings?.address} · {chainLabel(fg.edit_chain as ChainStep[])}
                         </div>
-                      </>
-                    ) : (
-                      <span className="text-muted-foreground">
-                        {costs?.our ? centsLabel(costs.our) : "—"}
-                      </span>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            </Link>
-          )
-        })}
-      </div>
+                        {fg.last_error && (
+                          <div className="truncate text-xs text-destructive">{fg.last_error}</div>
+                        )}
+                      </div>
+                      <RerunButton fileGroupId={fg.id} />
+                    </div>
+                  )
+                })}
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
     </main>
   )
 }

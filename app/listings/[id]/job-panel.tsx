@@ -146,14 +146,6 @@ const DOWNLOAD_VARIANTS: [string, string][] = [
 
 const STAGED_TYPES = ["VIRTUAL_STAGING", "VIRTUAL_RENOVATION"]
 
-function centsLabel(cents: number): string {
-  return (cents / 100).toLocaleString("en-US", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 2,
-  })
-}
-
 export function JobPanel({
   listingId,
   photos,
@@ -931,10 +923,9 @@ export function JobPanel({
               )
               return (
                 <p className="mt-2 text-xs text-muted-foreground">
-                  Estimate: {centsLabel(sim.firstRunCents)} first run · ~
-                  {centsLabel(sim.expectedCents)} with reworks ({sim.providerLabel},{" "}
-                  {photoIds.length} photo{photoIds.length > 1 ? "s" : ""} × {chain.length} step
-                  {chain.length > 1 ? "s" : ""})
+                  ~{sim.expectedGenerations} generation{sim.expectedGenerations === 1 ? "" : "s"} ·{" "}
+                  {sim.providerLabel} ({photoIds.length} photo{photoIds.length > 1 ? "s" : ""} ×{" "}
+                  {chain.length} step{chain.length > 1 ? "s" : ""})
                 </p>
               )
             })()}
@@ -1073,15 +1064,6 @@ export function JobPanel({
                         status={fg.step_status}
                         label={`Step ${fg.current_step + 1}/${fg.edit_chain.length} · ${fg.step_status}`}
                       />
-                      {job.total_cost_cents > 0 && (
-                        <span className="font-ui text-xs tabular-nums text-muted-foreground">
-                          {(Number(job.total_cost_cents) / 100).toLocaleString("en-US", {
-                            style: "currency",
-                            currency: "USD",
-                            maximumFractionDigits: 3,
-                          })}
-                        </span>
-                      )}
                     </div>
                     {fg.step_status === "failed" && (
                       <div className="mt-1 flex items-center gap-2">
