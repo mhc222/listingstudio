@@ -1,15 +1,28 @@
 import type { Metadata } from "next";
-import { JetBrains_Mono, Public_Sans } from "next/font/google";
+import { Cormorant_Garamond, DM_Sans, JetBrains_Mono, Public_Sans } from "next/font/google";
 import "./globals.css";
 import { createClient } from "@/lib/supabase/server";
 import { TERMS_VERSION } from "@/config/terms";
 import { TermsGate } from "@/components/terms-gate";
 
-// Darkroom identity: mono marks machine truth (state, cost, dimensions,
-// filenames), sans marks human intent (what you asked for).
+// Editorial Luxury identity (phase 25, DECISIONS 2026-08-31): serif display for
+// hero moments (address, titles), DM Sans for UI labels/state, Public Sans for
+// body copy. JetBrains Mono remains ONLY for the interim Wordmark/Mark —
+// TODO(brand): mark/wordmark redesign is a flagged open decision.
 const publicSans = Public_Sans({
   variable: "--font-public-sans",
   subsets: ["latin"],
+});
+
+const dmSans = DM_Sans({
+  variable: "--font-dm-sans",
+  subsets: ["latin"],
+});
+
+const cormorant = Cormorant_Garamond({
+  variable: "--font-cormorant",
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
 });
 
 const jetbrainsMono = JetBrains_Mono({
@@ -49,7 +62,7 @@ export default async function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${publicSans.variable} ${jetbrainsMono.variable} antialiased`}
+        className={`${publicSans.variable} ${dmSans.variable} ${cormorant.variable} ${jetbrainsMono.variable} antialiased`}
       >
         {children}
         {showTerms && <TermsGate />}

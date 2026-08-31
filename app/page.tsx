@@ -141,7 +141,7 @@ export default async function Dashboard() {
                   </div>
                   <div className="text-muted-foreground">
                     {listing?.address} ·{" "}
-                    <span className="font-mono tabular-nums">
+                    <span className="font-ui tabular-nums">
                       {done}/{fgs.length}
                     </span>{" "}
                     outputs done
@@ -189,7 +189,7 @@ export default async function Dashboard() {
           <CardTitle className="text-base">
             Spend this month ·{" "}
             {/* the one number worth colouring — the argument against a $220 invoice */}
-            <span className="font-mono tabular-nums text-primary">{centsLabel(mtdTotal)}</span>
+            <span className="font-ui tabular-nums text-primary">{centsLabel(mtdTotal)}</span>
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -202,7 +202,7 @@ export default async function Dashboard() {
                   <span className="text-muted-foreground">
                     {type.replaceAll("_", " ").toLowerCase()}
                   </span>
-                  <span className="font-mono tabular-nums">{centsLabel(cents)}</span>
+                  <span className="font-ui tabular-nums">{centsLabel(cents)}</span>
                 </div>
               ))}
             </div>
@@ -238,7 +238,7 @@ export default async function Dashboard() {
                       {(l.photos as unknown as { count: number }[])[0]?.count ?? 0} photos
                     </div>
                   </div>
-                  <div className="text-right font-mono text-sm tabular-nums">
+                  <div className="text-right font-ui text-sm tabular-nums">
                     {costs && costs.bb > 0 ? (
                       <>
                         <div className="font-medium">{centsLabel(costs.our)}</div>

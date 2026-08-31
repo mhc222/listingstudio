@@ -41,7 +41,7 @@ export function TermsGate() {
           className="fixed top-1/2 left-1/2 z-50 flex max-h-[85vh] w-[calc(100vw-2rem)] max-w-2xl -translate-x-1/2 -translate-y-1/2 flex-col rounded-md border bg-card text-card-foreground shadow-lg"
         >
           <div className="border-b px-6 py-4">
-            <Dialog.Title className="font-mono text-base font-semibold uppercase tracking-wide">
+            <Dialog.Title className="font-ui text-base font-semibold uppercase tracking-wide">
               Terms of Use
             </Dialog.Title>
             <Dialog.Description className="mt-1 text-sm text-muted-foreground">

@@ -1,59 +1,37 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
-/* Darkroom identity (phase 18, spec artifact c59ca593). Dark is the designed
-   state; light is the same system inverted. dark: variant follows the OS
-   (Tailwind default media strategy — no theme toggle to build). */
+/* Editorial Luxury identity (phase 25, DECISIONS 2026-08-31, supersedes
+   Darkroom). Light-only by design — the realtor audience research killed dark
+   mode; no dark blocks are maintained. Warm linen ground, brass accent, serif
+   display. Mockup of record: artifact c302dc51. */
 
 :root {
-  --radius: 0.375rem; /* tightened from 0.625 — instrument, not brochure */
-  --background: oklch(0.977 0.002 220); /* #F7F8F8 */
-  --foreground: oklch(0.205 0.007 220); /* #14181B */
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.205 0.007 220);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.205 0.007 220);
-  --primary: oklch(0.505 0.078 187); /* #147F7A — teal darkened for contrast on white */
-  --primary-foreground: oklch(0.985 0.002 220);
-  --secondary: oklch(0.95 0.003 220); /* #EEF1F2 */
-  --secondary-foreground: oklch(0.505 0.078 187);
-  --muted: oklch(0.95 0.003 220);
-  --muted-foreground: oklch(0.47 0.012 225); /* #5A676E */
-  --accent: oklch(0.935 0.014 187);
-  --accent-foreground: oklch(0.505 0.078 187);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.888 0.005 220); /* #DCE1E3 */
-  --input: oklch(0.888 0.005 220);
-  --ring: oklch(0.505 0.078 187);
-  /* Semantic — job/step state only. Not part of the accent system; never decorative. */
-  --state-queued: oklch(0.545 0.014 225); /* #6B7981 */
-  --state-running: oklch(0.725 0.105 187); /* #3FBFB9 */
-  --state-complete: oklch(0.675 0.118 155); /* #4FB477 */
-  --state-failed: oklch(0.63 0.155 22); /* #D9635F */
-  --state-qa: oklch(0.75 0.128 78); /* #D9A441 */
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: oklch(0.155 0.006 220); /* #0B0E10 */
-    --foreground: oklch(0.925 0.004 220); /* #E4E9EB */
-    --card: oklch(0.205 0.007 220); /* #14181B */
-    --card-foreground: oklch(0.925 0.004 220);
-    --popover: oklch(0.238 0.008 220); /* #1C2226 */
-    --popover-foreground: oklch(0.925 0.004 220);
-    --primary: oklch(0.725 0.105 187); /* #3FBFB9 signal teal */
-    --primary-foreground: oklch(0.135 0.012 187); /* #07100F */
-    --secondary: oklch(0.238 0.008 220);
-    --secondary-foreground: oklch(0.925 0.004 220);
-    --muted: oklch(0.238 0.008 220);
-    --muted-foreground: oklch(0.695 0.014 225); /* #97A5AD */
-    --accent: oklch(0.33 0.038 191); /* #1E3B3C teal dim */
-    --accent-foreground: oklch(0.845 0.081 187); /* #7FD9D4 */
-    --destructive: oklch(0.63 0.155 22); /* #D9635F */
-    --border: oklch(0.28 0.01 225); /* #2A3238 */
-    --input: oklch(0.325 0.011 225); /* #384249 */
-    --ring: oklch(0.725 0.105 187);
-  }
+  --radius: 0.1875rem; /* 3px — hairline-and-square, not rounded SaaS */
+  --background: oklch(0.945 0.014 85); /* #F3EEE4 warm linen */
+  --foreground: oklch(0.235 0.012 60); /* #241F1A warm near-black */
+  --card: oklch(0.985 0.005 85); /* #FDFBF7 */
+  --card-foreground: oklch(0.235 0.012 60);
+  --popover: oklch(0.915 0.02 85); /* #EDE4D5 */
+  --popover-foreground: oklch(0.235 0.012 60);
+  --primary: oklch(0.585 0.085 75); /* #A57C3F brass */
+  --primary-foreground: oklch(0.97 0.012 85); /* #FBF6EC cream, not white */
+  --secondary: oklch(0.915 0.02 85); /* #EDE4D5 */
+  --secondary-foreground: oklch(0.47 0.075 70); /* #7A5A2A deep bronze */
+  --muted: oklch(0.915 0.02 85);
+  --muted-foreground: oklch(0.56 0.02 70); /* #83766A */
+  --accent: oklch(0.905 0.035 85); /* #EDE1C8 pale sand */
+  --accent-foreground: oklch(0.47 0.075 70); /* #7A5A2A */
+  --destructive: oklch(0.5 0.13 27); /* #A8483F */
+  --border: oklch(0.865 0.025 85); /* #DED0BC hairline */
+  --input: oklch(0.79 0.045 85); /* #CBB994 */
+  --ring: oklch(0.585 0.085 75);
+  /* Semantic — job/step state only. Never decorative (Darkroom rule carries over). */
+  --state-queued: oklch(0.56 0.02 70); /* #83766A */
+  --state-running: oklch(0.585 0.085 75); /* #A57C3F brass — the system acting */
+  --state-complete: oklch(0.55 0.07 145); /* #5C7A52 */
+  --state-failed: oklch(0.5 0.13 27); /* #A8483F */
+  --state-qa: oklch(0.63 0.1 80); /* #B8842A */
 }
 
 @theme inline {
@@ -85,6 +63,9 @@
   --color-state-failed: var(--state-failed);
   --color-state-qa: var(--state-qa);
   --font-sans: var(--font-public-sans);
+  --font-display: var(--font-cormorant);
+  --font-ui: var(--font-dm-sans);
+  /* mono is interim-Wordmark-only — TODO(brand); nothing else may use it */
   --font-mono: var(--font-jetbrains-mono);
 }
 
@@ -96,20 +77,24 @@
     /* font-sans here, not preflight: the next/font variable is body-scoped */
     @apply bg-background font-sans text-foreground;
   }
-  /* Mono is structural: headings, labels, states, numbers = machine truth.
-     Sans (Public Sans) is what a human reads in sentences. */
+  /* Serif display carries the hero moments (addresses, titles); everything
+     functional is DM Sans (font-ui) or Public Sans (body). Mono is gone from
+     the UI — TODO(brand): interim Wordmark only. */
   h1,
   h2 {
-    @apply font-mono tracking-tight;
+    /* --font-cormorant directly (next/font var, body-scoped) — the @theme
+       inline --font-display alias is not emitted as a runtime var */
+    font-family: var(--font-cormorant), Georgia, serif;
+    font-weight: 500;
+    letter-spacing: 0.002em;
   }
 }
 
 /* ---- Motion --------------------------------------------------------------
-   Darkroom idiom: an output does not "appear", it develops. Every move here
-   reports something true about the state machine — a frame coming up, a step
-   still running, variants landing in order. Nothing is decorative, same rule
-   as the teal. CSS-only (no library, no state), and disabled wholesale under
-   prefers-reduced-motion. */
+   Carried over from Darkroom (phase 18) into Editorial Luxury: an output does
+   not "appear", it develops. Every move reports something true about the state
+   machine. Colors derive from --state-running (now brass), nothing decorative.
+   CSS-only, disabled wholesale under prefers-reduced-motion. */
 
 @layer utilities {
   /* The signature move: a print coming up in the tray. Fires on mount via

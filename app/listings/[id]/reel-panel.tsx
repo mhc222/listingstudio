@@ -113,11 +113,11 @@ export function ReelPanel({
                 ) : (
                   <span className="text-xs">?</span>
                 )}
-                <span className="absolute bottom-0 left-0 bg-black/60 px-1 font-mono text-[0.6rem] uppercase tracking-wider text-white">
+                <span className="absolute bottom-0 left-0 bg-black/60 px-1 font-ui text-[0.6rem] uppercase tracking-wider text-white">
                   {s.label}
                 </span>
                 {pos >= 0 && (
-                  <span className="absolute right-1 top-1 flex size-5 items-center justify-center rounded-full bg-primary font-mono text-xs font-bold text-primary-foreground">
+                  <span className="absolute right-1 top-1 flex size-5 items-center justify-center rounded-full bg-primary font-ui text-xs font-bold text-primary-foreground">
                     {pos + 1}
                   </span>
                 )}
@@ -133,7 +133,7 @@ export function ReelPanel({
                 key={f}
                 type="button"
                 onClick={() => setFormat(f)}
-                className={`px-3 py-1.5 font-mono text-xs ${
+                className={`px-3 py-1.5 font-ui text-xs ${
                   format === f ? "bg-primary text-primary-foreground" : "text-muted-foreground"
                 }`}
               >
@@ -169,7 +169,7 @@ export function ReelPanel({
             {reels.map((r) => (
               <li key={r.id} className="flex items-center gap-3 text-sm">
                 <StatePill status={PILL_MAP[r.status] ?? r.status} label={r.status} />
-                <span className="font-mono text-xs text-muted-foreground">
+                <span className="font-ui text-xs text-muted-foreground">
                   {r.format} · {r.clip_count} photos{r.music ? " · music" : ""}
                 </span>
                 {r.status === "complete" && (

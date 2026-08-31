@@ -27,7 +27,7 @@ export function TermsBody() {
       {blocks.map((b, i) => {
         if (b.kind === "h2")
           return (
-            <h2 key={i} className="pt-3 font-mono text-sm font-semibold uppercase tracking-wide text-foreground">
+            <h2 key={i} className="pt-3 font-ui text-sm font-semibold uppercase tracking-wide text-foreground">
               {b.text}
             </h2>
           )

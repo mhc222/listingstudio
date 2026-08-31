@@ -1074,7 +1074,7 @@ export function JobPanel({
                         label={`Step ${fg.current_step + 1}/${fg.edit_chain.length} · ${fg.step_status}`}
                       />
                       {job.total_cost_cents > 0 && (
-                        <span className="font-mono text-xs tabular-nums text-muted-foreground">
+                        <span className="font-ui text-xs tabular-nums text-muted-foreground">
                           {(Number(job.total_cost_cents) / 100).toLocaleString("en-US", {
                             style: "currency",
                             currency: "USD",

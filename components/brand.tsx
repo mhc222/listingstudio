@@ -1,6 +1,7 @@
-// Darkroom brand primitives (phase 18): the mark, the wordmark lockups, and
-// the state pill. Crop marks track the theme via currentColor; the room and
-// floor rule stay signal teal (never the crop marks — spec rule).
+// Brand primitives. Mark/Wordmark are the INTERIM Darkroom lockups —
+// TODO(brand): mark/wordmark redesign is a flagged open decision (DECISIONS
+// 2026-08-31); do not restyle piecemeal. StatePill is Editorial Luxury
+// (phase 25): colored dot + tracked-uppercase label, no tinted fill.
 
 export function Mark({ size = 26 }: { size?: number }) {
   return (
@@ -42,28 +43,29 @@ export function Wordmark({ stacked = false }: { stacked?: boolean }) {
   )
 }
 
-// State encoded twice — colour AND the left border stripe + dot — so it parses
+// State encoded twice — colour AND the dot + label form — so it parses
 // colour-blind and from four feet away. Job statuses map onto step states.
+// Editorial Luxury: no tinted fill, no border stripe — a quiet museum label.
 const PILL_STATES: Record<string, string> = {
-  queued: "text-state-queued bg-state-queued/10",
-  pending: "text-state-queued bg-state-queued/10",
-  running: "text-state-running bg-state-running/10",
-  processing: "text-state-running bg-state-running/10",
-  complete: "text-state-complete bg-state-complete/10",
-  failed: "text-state-failed bg-state-failed/10",
+  queued: "text-state-queued",
+  pending: "text-state-queued",
+  running: "text-state-running",
+  processing: "text-state-running",
+  complete: "text-state-complete",
+  failed: "text-state-failed",
 }
 
 export function StatePill({ status, label }: { status: string; label?: string }) {
-  // The dot breathes only while the system is actually acting — same rule as
-  // the teal. A pulsing "complete" would make the signal meaningless.
+  // The dot breathes only while the system is actually acting — same rule the
+  // teal followed, now brass. A pulsing "complete" would make it meaningless.
   const live = status === "running" || status === "processing"
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-sm border-l-2 border-current px-2 py-0.5 font-mono text-[0.66rem] font-bold uppercase tracking-[0.13em] ${
+      className={`inline-flex items-center gap-1.5 font-ui text-[0.64rem] font-semibold uppercase tracking-[0.11em] ${
         PILL_STATES[status] ?? PILL_STATES.queued
       }`}
     >
-      <span className={`size-[5px] shrink-0 rounded-full bg-current ${live ? "pulse-live" : ""}`} />
+      <span className={`size-1.5 shrink-0 rounded-full bg-current ${live ? "pulse-live" : ""}`} />
       {label ?? status}
     </span>
   )
