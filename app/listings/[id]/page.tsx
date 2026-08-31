@@ -5,7 +5,7 @@ import { getUrls } from "@/lib/storage"
 import { UploadPanel } from "./upload-panel"
 import { type PhotoRow } from "./photo-grid"
 import { RoomPanel, type RoomRow } from "./room-panel"
-import { type JobRow, type SampleRow, type ComplianceNote } from "./job-panel"
+import { type JobRow, type SampleRow, type ComplianceNote } from "./job-feed"
 import { ListingWorkspace } from "./listing-workspace"
 import { ToolsNav } from "./tools-nav"
 

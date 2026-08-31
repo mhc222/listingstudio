@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { StatePill } from "@/components/brand"
 import { BeforeAfter } from "@/components/before-after"
 import { TourViewer } from "@/components/tour-viewer"
-import type { ComplianceNote } from "../../job-panel"
+import type { ComplianceNote } from "../../job-feed"
 
 const EDIT_360_TYPES = ["360_IMAGE_ENHANCEMENT", "360_ITEM_REMOVAL", "360_VIRTUAL_STAGING"]
 const STAGED_TYPES = ["VIRTUAL_STAGING", "VIRTUAL_RENOVATION"]

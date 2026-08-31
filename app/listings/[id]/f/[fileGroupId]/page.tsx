@@ -2,7 +2,7 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import { getUrls } from "@/lib/storage"
-import type { ComplianceNote } from "../../job-panel"
+import type { ComplianceNote } from "../../job-feed"
 import { FileGroupWorkspace, type WorkspaceFileGroup } from "./file-group-workspace"
 
 export default async function FileGroupPage({

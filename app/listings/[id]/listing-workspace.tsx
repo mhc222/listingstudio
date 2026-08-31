@@ -2,7 +2,8 @@
 
 import { useState } from "react"
 import { PhotoGrid, type PhotoRow } from "./photo-grid"
-import { JobPanel, type JobRow, type SampleRow } from "./job-panel"
+import { Composer } from "./composer"
+import { JobFeed, type JobRow, type SampleRow } from "./job-feed"
 
 type Room = { id: string; name: string }
 
@@ -70,15 +71,14 @@ export function ListingWorkspace({
           onSelect={selectPhoto}
         />
       </section>
-      <JobPanel
+      <Composer
         listingId={listingId}
         photos={photos}
-        floorPlans={floorPlans}
-        jobs={jobs}
         samples={samples}
         selectedIds={selectedIds}
         onClearSelection={clear}
       />
+      <JobFeed listingId={listingId} photos={photos} floorPlans={floorPlans} jobs={jobs} />
     </div>
   )
 }
