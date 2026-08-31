@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
+import { Select } from "@/components/ui/select"
 import { StatePill } from "@/components/brand"
 import { createClient } from "@/lib/supabase/client"
 
@@ -141,10 +142,10 @@ export function ReelPanel({
               </button>
             ))}
           </div>
-          <select
+          <Select
             value={music}
             onChange={(e) => setMusic(e.target.value)}
-            className="rounded border bg-background px-2 py-1.5 text-sm"
+            className="w-auto"
           >
             <option value="">No music</option>
             {musicTracks.map((t) => (
@@ -152,7 +153,7 @@ export function ReelPanel({
                 {t.replace(/\.[^.]+$/, "").replace(/[-_]+/g, " ")}
               </option>
             ))}
-          </select>
+          </Select>
           <Button onClick={generate} disabled={busy || selected.length < 2}>
             {busy ? "Queuing…" : `Generate reel${selected.length >= 2 ? ` ×${selected.length}` : ""}`}
           </Button>

@@ -2,6 +2,7 @@
 
 import dynamic from "next/dynamic"
 import { Button } from "@/components/ui/button"
+import { Select } from "@/components/ui/select"
 import { ROOM_TYPES } from "@/lib/roomTypes"
 import { ENHANCEMENT_STYLES, FURNITURE_STYLES, LIGHT_PRESETS } from "@/lib/prompts"
 import type { PhotoRow } from "./photo-grid"
@@ -51,14 +52,14 @@ export function ChainStepEditor({
           </div>
           {["ITEM_REMOVAL", "360_ITEM_REMOVAL"].includes(edit.edit_type) && (
             <div className="mt-2 flex flex-wrap items-center gap-2">
-              <select
+              <Select
                 value={Number(edit.options.tier)}
                 onChange={(e) => onOption(i, "tier", Number(e.target.value))}
-                className="rounded-md border bg-transparent px-2 py-1.5 text-sm"
+                className="w-auto"
               >
                 <option value={1}>Minor removal</option>
                 <option value={2}>Full declutter</option>
-              </select>
+              </Select>
               <input
                 value={String(edit.options.items ?? "")}
                 onChange={(e) => onOption(i, "items", e.target.value)}
@@ -139,17 +140,17 @@ export function ChainStepEditor({
                 Sky replacement
               </label>
               {Boolean(edit.options.sky_replacement) && (
-                <select
+                <Select
                   value={String(edit.options.day_sky_style)}
                   onChange={(e) => onOption(i, "day_sky_style", e.target.value)}
-                  className="rounded-md border bg-transparent px-2 py-1.5 text-sm"
+                  className="w-auto"
                 >
                   {Object.entries(SKY_STYLE_LABELS).map(([k, label]) => (
                     <option key={k} value={k}>
                       {label}
                     </option>
                   ))}
-                </select>
+                </Select>
               )}
               <label className="flex items-center gap-1.5">
                 <input
@@ -163,28 +164,28 @@ export function ChainStepEditor({
           )}
           {["VIRTUAL_STAGING", "360_VIRTUAL_STAGING"].includes(edit.edit_type) && (
             <div className="mt-2 flex flex-wrap items-center gap-2">
-              <select
+              <Select
                 value={String(edit.options.room_type)}
                 onChange={(e) => onOption(i, "room_type", e.target.value)}
-                className="rounded-md border bg-transparent px-2 py-1.5 text-sm"
+                className="w-auto"
               >
                 {ROOM_TYPES.map((r) => (
                   <option key={r.value} value={r.value}>
                     {r.label}
                   </option>
                 ))}
-              </select>
-              <select
+              </Select>
+              <Select
                 value={String(edit.options.furniture_style)}
                 onChange={(e) => onOption(i, "furniture_style", e.target.value)}
-                className="rounded-md border bg-transparent px-2 py-1.5 text-sm"
+                className="w-auto"
               >
                 {Object.entries(FURNITURE_STYLES).map(([k, { label }]) => (
                   <option key={k} value={k}>
                     {label}
                   </option>
                 ))}
-              </select>
+              </Select>
               <input
                 value={String(edit.options.furniture_required ?? "")}
                 onChange={(e) => onOption(i, "furniture_required", e.target.value)}
@@ -195,17 +196,17 @@ export function ChainStepEditor({
           )}
           {edit.edit_type === "VIRTUAL_RENOVATION" && (
             <div className="mt-2 flex flex-wrap items-center gap-2">
-              <select
+              <Select
                 value={String(edit.options.tier)}
                 onChange={(e) => onOption(i, "tier", e.target.value)}
-                className="rounded-md border bg-transparent px-2 py-1.5 text-sm"
+                className="w-auto"
               >
                 {Object.entries(RENOVATION_TIER_LABELS).map(([k, label]) => (
                   <option key={k} value={k}>
                     {label}
                   </option>
                 ))}
-              </select>
+              </Select>
               <input
                 value={String(edit.options.changes ?? "")}
                 onChange={(e) => onOption(i, "changes", e.target.value)}
@@ -226,17 +227,17 @@ export function ChainStepEditor({
           )}
           {edit.edit_type === "DAY_TO_DUSK" && (
             <div className="mt-2">
-              <select
+              <Select
                 value={String(edit.options.preset)}
                 onChange={(e) => onOption(i, "preset", e.target.value)}
-                className="rounded-md border bg-transparent px-2 py-1.5 text-sm"
+                className="w-auto"
               >
                 {Object.entries(LIGHT_PRESETS).map(([k, { label }]) => (
                   <option key={k} value={k}>
                     {label}
                   </option>
                 ))}
-              </select>
+              </Select>
             </div>
           )}
           {edit.edit_type === "COLOUR_CHANGE" && (

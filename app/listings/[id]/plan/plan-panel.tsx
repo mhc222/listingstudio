@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
+import { Select } from "@/components/ui/select"
 import { PLAN_STYLES, PLAN_DISCLAIMER } from "@/lib/prompts"
 import { MODELS, AVG_GENERATIONS_PER_FILE_GROUP } from "@/config/models"
 import type { PhotoRow } from "../photo-grid"
@@ -80,25 +81,25 @@ export function PlanPanel({ listingId, plans }: { listingId: string; plans: Phot
         ))}
       </div>
       <div className="mt-2 flex flex-wrap items-center gap-2">
-        <select
+        <Select
           value={style}
           onChange={(e) => setStyle(e.target.value)}
-          className="rounded-md border bg-transparent px-2 py-1.5 text-sm"
+          className="w-auto"
         >
           {Object.entries(PLAN_STYLES).map(([k, { label }]) => (
             <option key={k} value={k}>
               {label}
             </option>
           ))}
-        </select>
-        <select
+        </Select>
+        <Select
           value={units}
           onChange={(e) => setUnits(e.target.value)}
-          className="rounded-md border bg-transparent px-2 py-1.5 text-sm"
+          className="w-auto"
         >
           <option value="sqft">sq ft</option>
           <option value="sqm">sq m</option>
-        </select>
+        </Select>
         <label className="flex items-center gap-1.5 text-sm">
           <input
             type="checkbox"

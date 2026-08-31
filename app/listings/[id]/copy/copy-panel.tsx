@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
+import { Select } from "@/components/ui/select"
 import { COPY_TONES } from "@/lib/prompts"
 
 export type CopyRow = {
@@ -189,17 +190,17 @@ export function CopyPanel({
         </label>
         <label className="grid gap-1 text-sm">
           Tone
-          <select
+          <Select
             value={tone}
             onChange={(e) => switchTone(e.target.value)}
-            className="rounded border px-2 py-1"
+            className="w-auto"
           >
             {Object.entries(COPY_TONES).map(([key, t]) => (
               <option key={key} value={key}>
                 {t.label}
               </option>
             ))}
-          </select>
+          </Select>
         </label>
         <label className="grid gap-1 text-sm sm:col-span-4">
           Notable features

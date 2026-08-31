@@ -29,6 +29,20 @@ export function ListingWorkspace({
   // anchor index for shift-click range select
   const [anchor, setAnchor] = useState<number | null>(null)
 
+  // phase 31: newest job's batchable chain — feeds the composer's "apply last
+  // chain" accelerator. Skip ideas jobs; strip REWORK (internal) and MARKUP_EDIT
+  // (arity-1, bound to a one-off drawn image) — neither replays across a batch.
+  const lastChain = (() => {
+    for (const j of jobs) {
+      if (j.kind === "ideas") continue
+      const steps = (j.file_groups[0]?.edit_chain ?? []).filter(
+        (s) => s.edit_type !== "REWORK" && s.edit_type !== "MARKUP_EDIT"
+      )
+      if (steps.length) return steps
+    }
+    return null
+  })()
+
   function selectPhoto(index: number, shift: boolean) {
     if (shift && anchor !== null) {
       const [lo, hi] = anchor < index ? [anchor, index] : [index, anchor]
@@ -77,6 +91,7 @@ export function ListingWorkspace({
         samples={samples}
         selectedIds={selectedIds}
         onClearSelection={clear}
+        lastChain={lastChain}
       />
       <JobFeed listingId={listingId} photos={photos} floorPlans={floorPlans} jobs={jobs} />
     </div>

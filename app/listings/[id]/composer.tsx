@@ -1,9 +1,10 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
+import { Select } from "@/components/ui/select"
 import { ROOM_TYPES } from "@/lib/roomTypes"
 import { FURNITURE_STYLES } from "@/lib/prompts"
 import { simulateCents } from "@/lib/simulate"
@@ -16,6 +17,8 @@ import type { SampleRow } from "./job-feed"
 // labeled ideas) instead of blind-firing a job; the manual builder is demoted
 // to a <details>; a single Run posts the possibly-edited chain + persisted chat.
 type IdeaDir = { label: string; edit_chain: ChainEdit[] }
+// a chain whose per-step options may be absent (JobRow.edit_chain / stored default)
+type ChainLike = { edit_type: string; options?: Record<string, unknown> }
 
 export function Composer({
   listingId,
@@ -23,6 +26,7 @@ export function Composer({
   samples,
   selectedIds,
   onClearSelection,
+  lastChain,
 }: {
   listingId: string
   photos: PhotoRow[]
@@ -31,6 +35,10 @@ export function Composer({
   // and clears it on a successful run
   selectedIds: string[]
   onClearSelection: () => void
+  // newest job's batchable chain, derived by the workspace (phase 31) — the
+  // "apply last chain" accelerator for the repeat weekly workflow. Loose options
+  // (JobRow's edit_chain has them optional) — applyChain fills defaults anyway.
+  lastChain: ChainLike[] | null
 }) {
   const router = useRouter()
   // batch (phase 10): multi-select; the chat path requires exactly one photo.
@@ -65,6 +73,44 @@ export function Composer({
   const [uploadingRef, setUploadingRef] = useState(false)
 
   const photoById = useMemo(() => new Map(photos.map((p) => [p.id, p])), [photos])
+
+  // phase 31: per-listing default chain in localStorage (single-user, no
+  // migration); read once on mount (SSR-safe — localStorage is client-only)
+  const defaultKey = `ls:defaultChain:${listingId}`
+  const [defaultChain, setDefaultChain] = useState<ChainEdit[] | null>(null)
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(defaultKey)
+      if (raw) setDefaultChain(JSON.parse(raw) as ChainEdit[])
+    } catch {
+      // corrupt/blocked storage — no default, no crash
+    }
+  }, [defaultKey])
+
+  // apply a saved/derived chain into the editable draft (deep-cloned over
+  // catalog defaults so option edits never mutate the source)
+  function applyChain(next: ChainLike[]) {
+    setIdeas(null)
+    setChain(
+      next.map((s) => ({
+        edit_type: s.edit_type,
+        options: { ...(EDIT_TYPES[s.edit_type]?.defaults ?? {}), ...(s.options ?? {}) },
+      }))
+    )
+  }
+
+  function saveDefault() {
+    if (chain.length === 0) return
+    try {
+      localStorage.setItem(defaultKey, JSON.stringify(chain))
+      setDefaultChain(chain)
+    } catch {
+      // blocked storage — best-effort, no default persisted
+    }
+  }
+
+  const chainSummary = (c: ChainLike[]) =>
+    c.map((s) => EDIT_TYPES[s.edit_type]?.label ?? s.edit_type).join(" → ")
 
   function toggleSample(id: string) {
     setSampleIds((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]))
@@ -290,6 +336,41 @@ export function Composer({
                 : `${photoIds.length} photos selected — batch run.`}
           </p>
 
+          {/* phase 31 accelerators: reuse a chain without rebuilding it */}
+          {(lastChain || defaultChain || chain.length > 0) && (
+            <div className="mb-2 flex flex-wrap items-center gap-1.5">
+              {lastChain && (
+                <button
+                  type="button"
+                  onClick={() => applyChain(lastChain)}
+                  title={chainSummary(lastChain)}
+                  className="rounded-full border px-2 py-1 text-xs hover:bg-muted"
+                >
+                  ↻ Apply last chain
+                </button>
+              )}
+              {defaultChain && (
+                <button
+                  type="button"
+                  onClick={() => applyChain(defaultChain)}
+                  title={chainSummary(defaultChain)}
+                  className="rounded-full border px-2 py-1 text-xs hover:bg-muted"
+                >
+                  ★ Apply default
+                </button>
+              )}
+              {chain.length > 0 && (
+                <button
+                  type="button"
+                  onClick={saveDefault}
+                  className="rounded-full border px-2 py-1 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
+                >
+                  Save as listing default
+                </button>
+              )}
+            </div>
+          )}
+
           <div className="rounded-md border p-3">
             <p className="text-sm font-medium">Describe it</p>
             {chatMessages.length > 0 && (
@@ -455,10 +536,10 @@ export function Composer({
               Precise chain builder
             </summary>
             <div className="mt-2 flex flex-wrap items-center gap-2">
-              <select
+              <Select
                 value=""
                 onChange={(e) => e.target.value && addEdit(e.target.value)}
-                className="rounded-md border bg-transparent px-2 py-1.5 text-sm"
+                className="w-auto"
               >
                 <option value="">+ Add edit…</option>
                 {Object.entries(EDIT_TYPES).map(([k, { label }]) => (
@@ -466,7 +547,7 @@ export function Composer({
                     {label}
                   </option>
                 ))}
-              </select>
+              </Select>
             </div>
           </details>
 
@@ -509,17 +590,17 @@ export function Composer({
           </div>
 
           <div className="mt-2 flex flex-wrap items-center gap-2">
-            <select
+            <Select
               value={sizePreset}
               onChange={(e) => setSizePreset(e.target.value)}
-              className="rounded-md border bg-transparent px-2 py-1.5 text-sm"
+              className="w-auto"
             >
               {Object.entries(SIZE_PRESETS).map(([k, label]) => (
                 <option key={k} value={k}>
                   {label}
                 </option>
               ))}
-            </select>
+            </Select>
             <input
               value={comment}
               onChange={(e) => setComment(e.target.value)}

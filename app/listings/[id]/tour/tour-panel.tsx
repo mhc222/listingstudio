@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
+import { Select } from "@/components/ui/select"
 import { TourViewer, type TourViewerHandle, type TourScene } from "@/components/tour-viewer"
 
 export type TourRow = {
@@ -44,17 +45,17 @@ export function TourPanel({ listingId, tours }: { listingId: string; tours: Tour
       <div className="mb-3 flex items-center gap-2">
         <h2 className="text-lg font-medium">Virtual tour</h2>
         {tours.length > 1 && (
-          <select
+          <Select
             value={tour?.id ?? ""}
             onChange={(e) => setTourId(e.target.value)}
-            className="rounded-md border bg-transparent px-2 py-1 text-sm"
+            className="w-auto"
           >
             {tours.map((t) => (
               <option key={t.id} value={t.id}>
                 {t.title}
               </option>
             ))}
-          </select>
+          </Select>
         )}
         <Button size="sm" variant="outline" onClick={createTour} disabled={busy}>
           {tours.length ? "New tour" : "Create tour"}
@@ -249,10 +250,10 @@ function TourEditor({ tour }: { tour: TourRow }) {
           {pending && active && (
             <div className="mt-2 flex flex-wrap items-center gap-2 rounded-md border p-2">
               <span className="text-sm">Hotspot →</span>
-              <select
+              <Select
                 value={pendingTarget}
                 onChange={(e) => setPendingTarget(e.target.value)}
-                className="rounded-md border bg-transparent px-2 py-1 text-sm"
+                className="w-auto"
               >
                 <option value="">Target scene…</option>
                 {scenes
@@ -262,7 +263,7 @@ function TourEditor({ tour }: { tour: TourRow }) {
                       {s.name}
                     </option>
                   ))}
-              </select>
+              </Select>
               <input
                 value={pendingLabel}
                 onChange={(e) => setPendingLabel(e.target.value)}

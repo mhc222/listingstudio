@@ -2,6 +2,7 @@ import { ROOM_TYPES } from "@/lib/roomTypes"
 import { createRoom, deleteRoom, updateRoom } from "../actions"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Select } from "@/components/ui/select"
 
 export type RoomRow = {
   id: string
@@ -19,17 +20,17 @@ function RoomFields({ room }: { room?: RoomRow }) {
     <div className="grid gap-2">
       <div className="flex gap-2">
         <Input name="name" placeholder="Name" defaultValue={room?.name} required className="flex-1" />
-        <select
+        <Select
           name="room_type"
           defaultValue={room?.room_type ?? "other"}
-          className="h-9 rounded-md border bg-transparent px-2 text-sm"
+          className="w-auto"
         >
           {ROOM_TYPES.map((t) => (
             <option key={t.value} value={t.value}>
               {t.label}
             </option>
           ))}
-        </select>
+        </Select>
       </div>
       <div className="flex gap-2">
         <Input name="length" type="number" step="any" placeholder="Length" defaultValue={room?.length ?? ""} />
@@ -41,14 +42,14 @@ function RoomFields({ room }: { room?: RoomRow }) {
           placeholder="Ceiling"
           defaultValue={room?.ceiling_height ?? ""}
         />
-        <select
+        <Select
           name="units"
           defaultValue={room?.units ?? "ft"}
-          className="h-9 rounded-md border bg-transparent px-2 text-sm"
+          className="w-auto"
         >
           <option value="ft">ft</option>
           <option value="m">m</option>
-        </select>
+        </Select>
       </div>
       <Input name="notes" placeholder="Notes" defaultValue={room?.notes ?? ""} />
     </div>

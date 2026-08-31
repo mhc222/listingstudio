@@ -3,6 +3,7 @@
 import { useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
+import { Select } from "@/components/ui/select"
 
 type Room = { id: string; name: string }
 
@@ -115,10 +116,10 @@ export function UploadPanel({ listingId, rooms }: { listingId: string; rooms: Ro
       <Button disabled={busy} onClick={() => photoInput.current?.click()}>
         Upload photos
       </Button>
-      <select
+      <Select
         value={roomId}
         onChange={(e) => setRoomId(e.target.value)}
-        className="h-9 rounded-md border bg-transparent px-2 text-sm"
+        className="w-auto"
         title="Quick-tag uploads to a room"
       >
         <option value="">No room tag</option>
@@ -127,7 +128,7 @@ export function UploadPanel({ listingId, rooms }: { listingId: string; rooms: Ro
             tag: {r.name}
           </option>
         ))}
-      </select>
+      </Select>
       <Button variant="outline" disabled={busy} onClick={() => planInput.current?.click()}>
         Attach floor plan
       </Button>
