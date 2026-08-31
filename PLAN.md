@@ -285,3 +285,88 @@ Conventions used throughout: all prompt templates in `lib/prompts.ts`; provider 
 
 **DoD:** Same job spec produces three distinct provider-shaped prompts (unit-checkable string assertions); geometry sentences still verbatim in all three; interpreter round-trips comment_imperative; build clean.
 **Manual test:** Run one staging job on qwen and one with a ref (gemini) and compare the logged prompts; type a vague comment ("cozy vibes") and confirm the compiled prompt carries an imperative version while the job card still shows the user's words.
+
+---
+
+# UI REDESIGN ARC (phases 25–31, locked 2026-08-31)
+
+Spec of record: DECISIONS.md 2026-08-31 "UI REDESIGN DIRECTION LOCKED" (commit b4c740d). Visual reference: mockup artifact https://claude.ai/code/artifact/c302dc51-2259-486c-8e4c-b17a52e3870f. Full working plan with settled design calls: ~/.claude/plans/wise-herding-aho.md. No migrations anywhere in this arc.
+
+---
+
+## Phase 25 — Editorial Luxury token & type swap
+
+**Goal:** App-wide reskin to the locked visual system; zero structural change. Light-only (dark token blocks deleted, not maintained).
+
+**Files:** `app/layout.tsx` (add Cormorant_Garamond + DM_Sans via next/font; JetBrains Mono stays loaded ONLY for the interim Wordmark/Mark — brand redesign is a flagged TBD, do not improvise), `app/globals.css` (locked tokens: bg #F3EEE4, card #FDFBF7, popover #EDE4D5, fg #241F1A, muted-fg #83766A, border #DED0BC, input #CBB994, primary=brass #A57C3F, brass-fg #FBF6EC, accent #EDE1C8, accent-fg #7A5A2A, states complete #5C7A52 / failed #A8483F / qa #B8842A / queued #83766A; DELETE dark blocks; radius 2-3px; --font-display Cormorant + --font-ui DM Sans; h1/h2 serif; motion layer retuned to the running token — assume brass, confirm with Matt), `components/brand.tsx` (StatePill → colored dot + tracked-uppercase DM Sans label, no tinted bg/border stripe; pulse-only-while-running preserved; Wordmark untouched + TODO(brand)), add `components/ui/select.tsx` + `components/ui/textarea.tsx` (radix installed), restyle button/card/input/label to hairline/2px.
+
+**DoD:** build passes (no dev server running); dashboard + listing page + library render in new palette with serif headers; no dark flash under OS dark appearance; running pill pulses, complete doesn't.
+**Manual test (Matt):** eyeball dashboard + a listing page against the mockup's luxury bar; confirm brass as the running-state color or name a different one.
+
+---
+
+## Phase 26 — Tools move to their own routes + subnav
+
+**Goal:** Aerial/reel/tour/plan leave the listing page; listing page slims to upload/photos/rooms/jobs.
+
+**Files:** new thin server pages `app/listings/[id]/{aerial,reel,tour,plan}/page.tsx` (copy the proven `/copy` pattern — each fetches only its own data); move aerial-panel/reel-panel/tour-panel/plan-panel under their route folders (pickers intact for now); new `app/listings/[id]/tools-nav.tsx` (tracked-uppercase link row: Photos / Aerial / Reel / Tour / Plan / Copy, active by pathname) rendered on listing + tool pages; listing page drops the four panels + their fetches.
+
+**DoD:** build passes; each tool page loads and can run its action (reel realtime still updates); mobile nav wraps cleanly.
+**Manual test (Matt):** generate a reel from /listings/[id]/reel; annotate an aerial from its route.
+
+---
+
+## Phase 27 — FileGroup workspace route
+
+**Goal:** Every FileGroup gets its own bookmarkable page; job cards become compact links.
+
+**Files:** new `app/listings/[id]/f/[fileGroupId]/page.tsx` (server: one fg + job + versions + chat + photos, RLS-scoped, 404 if unowned) + `file-group-workspace.tsx` (client — TRANSPLANT job-panel L1022–1299: before/after, version pills, rework input, QA note, compliance checklist, dusk checks, download menu, plan exports/attach, 360 preview; serif title; narrow realtime channel filtered to the fg id — verify postgres_changes column filters work, fallback = unfiltered channel + client-side match); job-panel inline detail → compact card rows (thumb, title, StatePill, progress stripe, last user message, link — NO dollar figure); ideas cells link to /f/[fgId] (kills client `promoted` state).
+
+**DoD:** build passes; rework from the new route shows a new version pill live; download + watermark toggle work from the route; job-panel ≈600–700 lines.
+**Manual test (Matt):** open a completed output's page, rework it, watch the version appear; bookmark and reload the URL.
+
+---
+
+## Phase 28 — Shared photo tray + hero
+
+**Goal:** One selection surface feeds everything on the listing page; full-bleed photo hero.
+
+**Files:** new `app/listings/[id]/photo-tray.tsx` (ordered selectedIds, shift-click range select, arity hint chip, clear; grid + tray can be one component gaining selection affordances) + `listing-workspace.tsx` client wrapper composing tray + JobPanel via props (no context — one consumer); job-panel loses its picker strip + photoIds state; `page.tsx` gains the hero (first non-floor-plan photo by created_at asc, dark scrim, Cormorant address; zero photos → plain serif header).
+
+**DoD:** build passes; shift-click range works; 1 selected enables chat/markup, N enables batch; hero renders and is mobile-legible; zero-photo listing degrades gracefully.
+**Manual test (Matt):** select a range, run a batch enhancement; check the hero against the mockup.
+
+---
+
+## Phase 29 — The composer (interpret → materialize → estimate → Run)
+
+**Goal:** One composer; chat never blind-spends; manual builder demoted; job-panel.tsx deleted.
+
+**Files:** new `app/listings/[id]/composer.tsx` (chat + chips → /api/interpret; kind:"question" → assistant bubble, stay drafting, resend full messages; kind:"job"/"ideas" → materialize edit_chain into the SAME editable step state as the manual path — extract `chain-step-editor.tsx`; estimate line reads "~N generations · <provider>", NEVER dollars; single Run posts the possibly-edited chain + persisted chat to /api/jobs; ideas materialize as 4 labeled mini-chains with one Run; Enter-to-run when a chain exists); manual "precise chain builder" → collapsed native `<details>` feeding the same chain state; markup step enforces selection arity 1 + mounts MarkupCanvas; refs/URL-inspiration block moves in; new `job-feed.tsx` (compact cards + listing-wide realtime); DELETE job-panel.tsx; types move to job-feed or a types.ts. /api/interpret and /api/jobs contracts unchanged.
+
+**Fallback if the session overruns:** ship materialize for kind:"job" only; ideas keep the auto-fire path one more phase (checkpoint protocol).
+
+**DoD:** build passes; "stage this bedroom" → steps + estimate materialize → edit a step → Run → job lands in feed; ambiguous request → exactly one question → answer → materialize; markup with 2 photos selected is blocked with a message.
+**Manual test (Matt):** the chat flow end to end on a real photo, including editing a materialized step before running.
+
+---
+
+## Phase 30 — Power accelerators + polish
+
+**Goal:** Repeat-work speed for the 25-photos-weekly workflow.
+
+**Files:** `composer.tsx` gains "Apply last chain to selection" (derived from the newest job's edit_chain — zero storage) and "Save as / apply listing default" (localStorage `ls:defaultChain:<listingId>` — single-user, no migration), rendered as chips above the chat box; polish pass replaces remaining raw `<select>`s (tool panels, copy-panel) with ui/select and sweeps stray mono/dark remnants.
+
+**DoD:** build passes; run a chain → select 5 photos → apply-last-chain → Enter fires the batch; default chain survives reload.
+**Manual test (Matt):** the apply-last-chain flow on a real batch.
+
+---
+
+## Phase 31 — Output-artifact brand pass
+
+**Goal:** Downloads and reels match the brand; plan bands untouched.
+
+**Files:** `lib/deliver.ts` applyWatermark (teal #7FD9D4 → brass #A57C3F; mono ref → serif/system stack — sharp renders with system fonts, test legibility at pill size), `lib/reel.ts` caption overlay (same swap). `lib/plan.ts` NOT touched — address/disclaimer bands stay pure black-on-white per DECISIONS.
+
+**DoD:** build passes; a labeled staged download's pill and one reel caption frame eyeballed on-brand.
+**Manual test (Matt):** download a staged photo with the label ON; generate a short reel and check the caption.
