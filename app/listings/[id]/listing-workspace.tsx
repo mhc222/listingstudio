@@ -187,9 +187,10 @@ export function ListingWorkspace({
           className="fixed inset-0 z-50 flex flex-col bg-background/95 backdrop-blur-sm"
           role="dialog"
           aria-modal="true"
+          aria-labelledby="photo-editor-title"
         >
           <div className="flex items-center justify-between border-b px-4 py-2">
-            <span className="font-serif text-lg">Edit photo</span>
+            <span id="photo-editor-title" className="font-serif text-lg">Edit photo</span>
             <button
               type="button"
               onClick={closeEditor}

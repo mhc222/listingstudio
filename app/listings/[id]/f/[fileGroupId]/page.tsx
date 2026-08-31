@@ -3,7 +3,15 @@ import { notFound } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import { getUrls } from "@/lib/storage"
 import type { ComplianceNote } from "../../job-feed"
+import { EDIT_TYPES } from "../../edit-types"
 import { FileGroupWorkspace, type WorkspaceFileGroup } from "./file-group-workspace"
+
+function workspaceTitle(chain: { edit_type: string }[]): string {
+  const labels = chain
+    .filter((step) => step.edit_type !== "REWORK")
+    .map((step) => EDIT_TYPES[step.edit_type]?.label ?? step.edit_type.replaceAll("_", " "))
+  return labels.join(" → ") || "Photo edit"
+}
 
 export default async function FileGroupPage({
   params,
@@ -29,14 +37,28 @@ export default async function FileGroupPage({
   const job = fg?.jobs as unknown as { id: string; title: string; kind: string; listing_id: string } | null
   if (!fg || !job || job.listing_id !== id) notFound()
 
-  const [{ data: listing }, { data: primary }] = await Promise.all([
+  const [{ data: listing }, { data: siblings }] = await Promise.all([
     supabase.from("listings").select("address").eq("id", id).single(),
     supabase
-      .from("photos")
-      .select("storage_path, width")
-      .eq("id", fg.primary_photo_id)
-      .maybeSingle(),
+      .from("file_groups")
+      .select("id, primary_photo_id, step_status, created_at")
+      .eq("job_id", job.id)
+      .order("created_at"),
   ])
+
+  const siblingPhotoIds = [...new Set((siblings ?? []).map((item) => item.primary_photo_id))]
+  const { data: siblingPhotos } = siblingPhotoIds.length
+    ? await supabase
+        .from("photos")
+        .select("id, storage_path, width")
+        .in("id", siblingPhotoIds)
+    : { data: [] }
+  const siblingPhotoById = new Map((siblingPhotos ?? []).map((photo) => [photo.id, photo]))
+  const siblingOriginalUrls = await getUrls(
+    "originals",
+    (siblingPhotos ?? []).map((photo) => photo.storage_path)
+  )
+  const primary = siblingPhotoById.get(fg.primary_photo_id)
 
   const beforeUrls = primary
     ? await getUrls("originals", [primary.storage_path])
@@ -85,17 +107,46 @@ export default async function FileGroupPage({
     })),
   }
 
+  const siblingRows = (siblings ?? []).map((item) => {
+    const photo = siblingPhotoById.get(item.primary_photo_id)
+    return {
+      id: item.id,
+      step_status: item.step_status,
+      url: photo ? siblingOriginalUrls[photo.storage_path] ?? null : null,
+    }
+  })
+
   return (
-    <main className="mx-auto max-w-4xl p-6">
-      <Link
-        href={`/listings/${id}/activity`}
-        className="text-sm text-muted-foreground hover:underline"
-      >
-        ← Activity · {listing?.address ?? "Listing"}
-      </Link>
-      <h1 className="mt-2 text-2xl font-semibold">{job.title}</h1>
-      <div className="mt-6">
-        <FileGroupWorkspace fg={workspaceFg} before={before} />
+    <main className="min-h-screen bg-background">
+      <header className="border-b border-border bg-card">
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-5 gap-y-2 px-4 py-3 sm:px-6">
+          <Link
+            href={`/listings/${id}`}
+            className="text-sm text-muted-foreground underline-offset-4 hover:underline"
+          >
+            ← Photos
+          </Link>
+          <div className="min-w-0 flex-1">
+            <p className="truncate font-ui text-[0.65rem] uppercase tracking-[0.14em] text-muted-foreground">
+              {listing?.address ?? "Listing"}
+            </p>
+            <h1 className="truncate font-serif text-xl sm:text-2xl">{workspaceTitle(workspaceFg.edit_chain)}</h1>
+          </div>
+          <Link
+            href={`/listings/${id}/activity`}
+            className="text-sm text-muted-foreground underline-offset-4 hover:underline"
+          >
+            Activity
+          </Link>
+        </div>
+      </header>
+      <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6">
+        <FileGroupWorkspace
+          listingId={id}
+          fg={workspaceFg}
+          before={before}
+          siblings={siblingRows}
+        />
       </div>
     </main>
   )

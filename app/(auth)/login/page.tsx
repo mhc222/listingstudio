@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
@@ -66,6 +67,9 @@ export default function LoginPage() {
               {loading ? "Signing in…" : "Sign in"}
             </Button>
           </form>
+          <Link href="/" className="mt-5 block text-center text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground">
+            Return to home
+          </Link>
         </CardContent>
       </Card>
     </div>

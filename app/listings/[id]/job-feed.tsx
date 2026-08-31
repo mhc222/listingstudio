@@ -61,7 +61,8 @@ const STATUS_LABELS: Record<string, string> = {
 }
 
 function humanTitle(value: string): string {
-  return value ? value.charAt(0).toUpperCase() + value.slice(1) : "Photo edit"
+  const american = value.replace(/\bcolour\b/gi, (word) => (word[0] === "C" ? "Color" : "color"))
+  return american ? american.charAt(0).toUpperCase() + american.slice(1) : "Photo edit"
 }
 
 function feetAndInches(value: string): string {

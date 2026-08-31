@@ -2,6 +2,7 @@ import Link from "next/link"
 import { createClient } from "@/lib/supabase/server"
 import { Button } from "@/components/ui/button"
 import { Wordmark } from "@/components/brand"
+import { GEOMETRY_INTERIOR } from "@/lib/prompts"
 import { BeforeAfterDemo } from "./landing-showcase"
 
 // Public product front door. No auth gate, no data fetch, no ledger, no prices.
@@ -46,7 +47,7 @@ export default async function Landing() {
             className="mt-5 max-w-3xl text-balance text-5xl leading-[1.02] text-[#FBF6EC] sm:text-6xl md:text-7xl"
             style={{ textShadow: "0 2px 30px rgba(0,0,0,0.45)" }}
           >
-            Editorial listing photos in minutes — not a three-day, thirty-dollar wait.
+            Editorial listing photos in minutes — without the outsourced handoff.
           </h1>
           <p className="mt-6 max-w-xl text-lg text-[#F2E9D8]/90">
             Enhance, stage, and finish every photo by describing what you want in plain language.
@@ -103,8 +104,7 @@ export default async function Landing() {
               scaled to the room.
             </p>
             <p className="mt-2 text-muted-foreground">
-              Do not alter room dimensions, wall positions, window or door placement, flooring,
-              ceiling height, or camera perspective.
+              {GEOMETRY_INTERIOR}
             </p>
             <div className="mt-3 flex flex-wrap gap-2">
               <Tag>Lighting preserved</Tag>
@@ -119,7 +119,7 @@ export default async function Landing() {
       <section className="mx-auto max-w-6xl border-t border-border px-6 py-16">
         <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Why bother</p>
         <h2 className="mt-3 max-w-2xl text-3xl">
-          Outsourced editing is slow and priced by the photo. This isn&rsquo;t.
+          Outsourced editing is slow and disconnected. This isn&rsquo;t.
         </h2>
         <div className="mt-10 grid gap-px overflow-hidden rounded-lg border border-border bg-border sm:grid-cols-2">
           <Compare
@@ -127,16 +127,16 @@ export default async function Landing() {
             muted
             rows={[
               "Three to five day turnaround",
-              "Around thirty dollars a photo — again for every revision",
+              "A new handoff for every photo and every revision",
               "Email a brief, wait, hope they read it",
-              "Revisions are a new ticket and a new charge",
+              "Revisions mean another ticket and another wait",
             ]}
           />
           <Compare
             head="Listing Studio"
             rows={[
               "Finished in minutes, on your own schedule",
-              "One workspace, not an invoice per image",
+              "One workspace with one continuous edit history",
               "Describe it in plain words and watch it happen",
               "Refine right in the chat — every version kept",
             ]}
