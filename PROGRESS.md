@@ -20,9 +20,9 @@
 - [x] Phase 17 — Experimental 360 edits
 - [x] Phase 18 — Darkroom visual identity
 - [x] Phase 22 — Qwen negative prompts (executed out of order 2026-08-30, small moat win; 19/20/21 still pending)
-- [x] Phase 19 — Listing video reels (Tier A; ⚠️ migration 0006 NOT applied live — Matt's SQL editor)
-- [x] Phase 20 — Terms of Use acceptance modal (⚠️ migration 0007 NOT applied live — Matt's SQL editor; gate fails open until then)
-- [x] Phase 21 — MLS compliance checker (⚠️ migration 0008 NOT applied live — Matt's SQL editor; checker fails open until then)
+- [x] Phase 19 — Listing video reels (Tier A; migration 0006 applied live 2026-08-31)
+- [x] Phase 20 — Terms of Use acceptance modal (migration 0007 applied live 2026-08-31; gate now enforced)
+- [x] Phase 21 — MLS compliance checker (migration 0008 applied live 2026-08-31; checker now enforced)
 - [x] Phase 23 — Markup-to-edit (executed before 24; no migration needed; live-tested end to end)
 - [x] Phase 24 — Provider-aware prompt compilation (the moat move; no migration; last phase in original PLAN)
 - [x] Phase 25 — Editorial Luxury token & type swap (UI redesign arc 25–31; no migration)
@@ -154,4 +154,4 @@ Outstanding (Matt, manual):
 - Webhook signature verification still unexercised locally (needs deployed URL — phase 16).
 
 ## Next action
-UI redesign arc in progress: phases 26 + 33 done, **next = phase 27 (Aerial/Reel/Tour/Plan move to their own `app/listings/[id]/{aerial,reel,tour,plan}/page.tsx` routes following the proven `/copy` pattern + a `tools-nav.tsx` tracked-uppercase subnav; listing page slims to upload/photos/rooms/jobs)**. Phase 33 shipped the public front door (public `/` landing → `/login` → `/dashboard`); the dashboard now lives at `/dashboard`, not `/`. Framing note: lead with the flow change each phase delivers — the reskin-only phase 25 read to Matt as "nothing changed", so phase 26 moved on structure/prices. Still outstanding from before the arc (Matt): migrations 0006/0007/0008 in the SQL editor if not yet applied, prod deploy (`vercel deploy --prod --yes` — will carry 23/24/25/26), manual tests for 19/20/21/23/24/25/26.
+UI redesign arc in progress: phases 26 + 33 done, **next = phase 27 (Aerial/Reel/Tour/Plan move to their own `app/listings/[id]/{aerial,reel,tour,plan}/page.tsx` routes following the proven `/copy` pattern + a `tools-nav.tsx` tracked-uppercase subnav; listing page slims to upload/photos/rooms/jobs)**. Phase 33 shipped the public front door (public `/` landing → `/login` → `/dashboard`); the dashboard now lives at `/dashboard`, not `/`. **Migrations 0001–0008 ALL applied live 2026-08-31** (0006/0007/0008 run in Matt's SQL editor — reels/terms/compliance gates now enforced, no longer fail-open). Still outstanding (Matt): prod deploy (`vercel deploy --prod --yes` — carries 23/24/25/26/33), manual tests for 19/20/21/23/24/25/26/33. Framing note: lead with the flow change each phase delivers — the reskin-only phase 25 read to Matt as "nothing changed", so phase 26 moved on structure/prices.
