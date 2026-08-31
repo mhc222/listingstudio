@@ -399,3 +399,15 @@ Spec of record: DECISIONS.md 2026-08-31 "UI REDESIGN DIRECTION LOCKED" (commit b
 **Not changed:** the dashboard's phase-26 design; `/login`, `/terms`, `/tour/[slug]`; any `/api`.
 **DoD:** build passes; incognito `/` renders the landing with NO redirect to login; "Sign in" → `/login` → after login lands on `/dashboard`; the dashboard is no longer served at `/`; every former `/`-means-dashboard link points at `/dashboard`; terms gate never shows on the public landing; zero `$` on the landing.
 **Manual test (Matt):** incognito → open `/` → the product landing shows (no login bounce); click Sign in, log in → dashboard at `/dashboard`; signed in, revisit `/` → landing still loads (CTA says "Go to dashboard").
+
+---
+
+## Phase 34 — Room browser + photo-tray filtering ✅ DONE
+
+**Goal:** Replace the 26-card room accordion with one deliberate room workspace. Room selection controls the existing shared photo tray; the UI never creates a second photo gallery.
+
+**Files:** `app/listings/[id]/page.tsx` removes the fixed Rooms sidebar and passes full room records + floor-plan choices into `ListingWorkspace`; new `app/listings/[id]/room-browser.tsx` provides a searchable, keyboard-usable selector with All photos / Untagged / individual rooms (duplicate names disambiguated), photo counts, one selected-room summary, inline edit/delete, and add-room disclosure; `listing-workspace.tsx` owns the active room filter, filters the existing `PhotoGrid`, clears selection when the filter changes, and keeps extraction accessible; `room-panel.tsx` is deleted; `upload-panel.tsx` drops its redundant upload-time room selector so the room browser is the single room navigation surface (photos retain their own tagging selector). Existing server actions and photo-tagging contracts stay intact.
+
+**DoD:** build passes; All photos shows the whole tray; Untagged shows only unassigned photos; choosing a room shows only its tagged photos plus one compact room summary; search finds room name/type/dimensions; duplicate Bedrooms/Baths/Halls/W.I.C.s are distinguishable; changing filters cannot leave invisible photos selected; per-photo tagging, full-screen photo editing, batch selection, room add/edit/delete, and floor-plan extraction still work; mobile layout remains usable.
+
+**Manual test (Matt):** on 11689 Elam Dr, switch All photos → Untagged → Primary Bedroom; search for “13′11”; verify the tray count/filter, edit the selected room, retag a photo and watch it leave/enter the filtered tray, then return to All photos.

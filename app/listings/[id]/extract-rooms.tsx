@@ -75,9 +75,11 @@ function dimLabel(r: Proposal): string {
 export function ExtractRooms({
   listingId,
   floorPlans,
+  compact = false,
 }: {
   listingId: string
   floorPlans: { id: string; url: string | null }[]
+  compact?: boolean
 }) {
   const router = useRouter()
   const [planId, setPlanId] = useState(floorPlans[0]?.id ?? "")
@@ -180,7 +182,7 @@ export function ExtractRooms({
   const sel = selected != null && proposals ? proposals[selected] : null
 
   return (
-    <div className="mb-3 rounded-lg border border-dashed p-3">
+    <div className={compact ? "" : "mb-3 rounded-lg border border-dashed p-3"}>
       <div className="flex flex-wrap items-center gap-2">
         {floorPlans.length > 1 && (
           <Select value={planId} onChange={(e) => setPlanId(e.target.value)} className="w-auto text-xs">

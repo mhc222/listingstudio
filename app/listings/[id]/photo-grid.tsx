@@ -48,6 +48,7 @@ export function PhotoGrid({
       {photos.map((p, i) => {
         const selected = selectedIds.includes(p.id)
         const order = selectedIds.indexOf(p.id)
+        const roomName = rooms.find((room) => room.id === p.room_id)?.name
         return (
           <div
             key={p.id}
@@ -63,7 +64,11 @@ export function PhotoGrid({
                 title="Open full-screen editor"
               >
                 {/* eslint-disable-next-line @next/next/no-img-element -- signed URLs expire; next/image caching fights that */}
-                <img src={p.url} alt="" className="aspect-[4/3] w-full object-cover" />
+                <img
+                  src={p.url}
+                  alt={roomName ? `${roomName} listing photo` : "Untagged listing photo"}
+                  className="aspect-[4/3] w-full object-cover"
+                />
                 {/* corner checkbox = batch selection (multi-photo run); the image
                     itself opens the full-screen editor */}
                 {onSelect && (
