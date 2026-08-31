@@ -1,0 +1,222 @@
+# Listing Studio — End-to-End UX Contract
+
+Phase 36 · 2026-08-31 · implementation contract
+
+## Product promise
+
+Listing Studio should feel like a private photo studio for one real-estate power user. The user chooses a listing photo, chooses the outcome, adjusts only the details that matter, and stays with that exact edit through processing, review, refinement, and delivery.
+
+The application may store Jobs, FileGroups, edit chains, providers, prompts, and versions. The interface speaks in photos, edits, results, and refinements.
+
+## Experience principles
+
+1. **The photo is the object of work.** It remains visually dominant from selection through delivery.
+2. **Choose an outcome before configuring it.** Each task reveals its own controls; there is no universal wall of fields.
+3. **Plain language is an accelerator, not homework.** “Describe it” can create or extend an edit, but a common edit never requires prompting skill.
+4. **One screen, one primary action.** The next action is visually unambiguous and fixed where long content cannot hide it.
+5. **Stay with the edit.** Starting work opens the exact processing/result workspace. Activity is history, not the destination.
+6. **Progress must be true.** Local reconciliation and production webhooks update the same human states: Preparing, Editing, Ready, Needs attention.
+7. **Complexity is disclosed progressively.** Ordered chains, references, output size, defaults, and technical QA remain available under Advanced or Details.
+8. **Every version is safe.** Refinement creates a new version; it never silently replaces the selected result.
+
+## Information architecture
+
+```text
+Public home → Sign in → Dashboard → Listing
+                                   ├─ Photos → Task Studio → Edit Workspace → Download
+                                   │                          └─ Refine → new version
+                                   ├─ Aerial
+                                   ├─ Reel
+                                   ├─ Tour
+                                   ├─ Plan
+                                   ├─ Copy
+                                   └─ Activity (history and recovery)
+```
+
+The Photos route owns upload, room filtering/tagging, photo selection, and entry into editing. Specialty tools keep their routes. The edit workspace is a durable URL and owns progress, result review, versions, QA, refinement, and download.
+
+## Golden path
+
+### 1. Public home
+
+- Lead with the result and the plain-language workflow.
+- Primary CTA: **Sign in** or **Open dashboard**.
+- Do not show per-photo pricing, internal chain diagrams, or implementation terminology.
+- The before/after demonstration may say geometry is preserved; it must not paraphrase the mandatory prompt sentence as if it were the literal compiled prompt.
+
+### 2. Sign in
+
+- A quiet, single-purpose screen with email, password, one Sign in action, visible errors, and a return-to-home link.
+- Preserve the intended destination when authentication middleware supplies one; otherwise go to Dashboard.
+- Loading disables the form and keeps its label stable enough to prevent double submission.
+
+### 3. Dashboard
+
+- Primary content: recent listings with cover photo, address, MLS, photo count, and latest useful state.
+- Primary action: **Create listing**. The compact address/MLS form is acceptable for a power user.
+- “In progress” and “Needs attention” are recovery summaries linking to the exact edit workspace. Do not show raw titles or enum-derived chains.
+- Avoid a second visually different listing-management experience unless `/listings` is needed for the full archive.
+
+### 4. Listing / Photos
+
+- Hero confirms the active property. The tool navigation is persistent and secondary.
+- Upload actions remain compact above the workspace.
+- One searchable room selector filters one shared photo tray. A photo has one room tag control.
+- Clicking the image opens Task Studio. The corner selection control builds an ordered batch without opening the photo.
+- Empty state says what to upload and provides the action. A filtered-empty state offers **Show all photos**.
+
+### 5. Task Studio
+
+Desktop is a full-screen split surface:
+
+- **Control rail:** 22–26rem, scrollable content, its header and action footer remain visible.
+- **Canvas:** takes the remaining space, neutral dark-warm surround, selected image contained at maximum useful size.
+- Close returns to the same listing/filter/selection context. Escape closes only when no destructive drawing or pending submission needs confirmation.
+
+Mobile is one column: photo preview first (not taller than 42vh), controls next, sticky action footer. It is not a squeezed two-column modal.
+
+#### Entry state
+
+Header: room label when known, then **What should we do with this photo?**
+
+Primary tasks:
+
+| User label | Internal starting step | Required controls |
+|---|---|---|
+| Enhance | `IMAGE_ENHANCEMENT` | finish; sky and lawn options only when relevant |
+| Stage | `VIRTUAL_STAGING` | room type; furniture style; optional requested furniture |
+| Dusk | `DAY_TO_DUSK` | light preset |
+| Remove | `ITEM_REMOVAL` | removal scope; items to remove; markup path available |
+| Renovate | `VIRTUAL_RENOVATION` | renovation depth; requested changes |
+| Change colour | `COLOUR_CHANGE` | surface/object; new colour |
+| More | catalog | lights, landscaping, shadows, portrait, 360, and other supported steps |
+
+Task buttons are a compact two-column list, not marketing cards. Each has a short outcome phrase. Selecting one materializes the existing validated step defaults and moves directly to its controls.
+
+Below the tasks, **Or describe the result** accepts plain language. Interpreting may ask one clarifying question at a time. A compiled result becomes the selected task/ordered steps and is editable before submission.
+
+#### Configured state
+
+- Header names the outcome: **Stage this room**, **Enhance this photo**, etc.
+- Show only the selected task’s controls, using explicit field labels.
+- Room type defaults from the photo’s room tag when the stored canonical `rooms.room_type` maps to a supported prompt value. The listing workspace must pass that canonical value into the studio; never infer it from a display label.
+- Enhancement keeps sky and lawn repair under **Optional adjustments** until the photo model has a trustworthy interior/exterior classification; do not guess relevance from the image name or room label.
+- **Anything else?** captures optional nuance and can ask the interpreter to add or revise steps.
+- **Add another view** shows unselected photos from the same tagged room first, then all listing photos. Copy must say **Apply these settings to another view**; it must not promise identical furniture placement unless the generation engine actually guarantees it.
+- Selected extra views appear as removable thumbnails. They become one batch with one FileGroup per photo.
+- **Advanced** contains ordered edit steps, add-step catalog, reference images/URLs, output size, apply-last-edit, listing default, and generation estimate. Provider/model names and prices never appear.
+- Markup opens the drawing canvas without losing the draft.
+
+#### Action footer
+
+- One primary action: **Start edit** or **Start edit on N photos**.
+- Disabled state is explained immediately above the action when required data is missing.
+- While posting: **Starting edit…**, action disabled, Close disabled.
+- Submission state is owned or surfaced to the dialog shell so Close and Escape cannot dismiss an in-flight post.
+- Interpreter and submission requests use network error handling with `finally` cleanup. On API or network error: remain in place, preserve every field, state the recoverable problem, offer Retry, and never leave **Understanding…** or **Starting…** stuck.
+- On success: navigate to the first returned FileGroup workspace. Never close back to the listing and discard the returned IDs.
+
+### 6. Edit workspace: processing
+
+The workspace URL is `/listings/[listingId]/f/[fileGroupId]`.
+
+- Top bar: back to Photos, property address, human edit title, Activity link.
+- Batch work adds **1 of N** with previous/next thumbnails or controls, derived from sibling FileGroups in the same Job.
+- The server page must supply the property address, human edit title, Job identity, and sibling FileGroup IDs/primary-photo thumbnails to the client workspace; `fg` plus one source image is not a sufficient view model.
+- Main stage keeps the original photo visible with a restrained developing overlay.
+- Status language: **Preparing your edit**, **Editing photo**, or a step-specific human message. Never “Step 1/2 · running”.
+- Explain: **You can leave this page. The edit will keep running.**
+- Local development polls the authenticated listing reconcile endpoint while active and refreshes after a successful reconciliation; production realtime remains primary.
+- A failure keeps the source image, names the actionable problem, and offers **Try again** plus **Back to photos**.
+
+### 7. Edit workspace: result
+
+Visual order:
+
+1. Result canvas / before-after comparison
+2. Primary actions: **Download** and **Refine**
+3. Version selector
+4. QA / MLS checks
+5. Edit details and original conversation
+
+Requirements:
+
+- Result is the largest element on the page.
+- Before/after slider has keyboard support and readable labels.
+- Download opens a compact disclosure: size, staged-label toggle when applicable, then **Download photo**.
+- Refine is a clearly labelled text field: **What should change in this version?** with **Create new version**. Enter submits only when focus is in that field and a message exists.
+- Version choices use **Original edit**, **Revision 1**, etc., with branch/source detail in secondary copy; raw `v2` may remain supplemental.
+- Selecting a prior version updates the comparison, QA, and rework parent visibly.
+- QA is summarized as **Ready for MLS**, **Review recommended**, or **Needs attention**. Raw notes/checklists live in a disclosure.
+- Conversation and compiled edit chain live under **Edit details**, not above the result.
+
+### 8. Activity
+
+- History and recovery only: thumbnail, human edit title, listing/room context, time, one status, and link to exact workspace.
+- No nested file-group boxes, duplicate status, raw grounding, provider names, or enum labels.
+- Filters may be added later only if volume warrants them.
+
+## Cross-screen language
+
+Use: photo, edit, result, refinement, version, activity, prepare, ready, needs attention.
+
+Avoid in customer-facing UI: job, FileGroup, chain, materialized, run, provider, model ID, raw enum, grounding, webhook, reconcile.
+
+Internal “chain” may appear only inside the Advanced disclosure as **Edit order**.
+
+## States and recovery
+
+| State | Required response |
+|---|---|
+| No listing photos | Explain accepted input and show Upload photos |
+| Room filter has no photos | State the active filter and offer Show all photos |
+| Interpreter working | Keep input and photo visible; use “Understanding your edit…” |
+| Interpreter question | Show one question beside the answer field; preserve prior choices |
+| Submission failed | Preserve draft, inline error, Retry |
+| Generation active | Source photo, truthful state, leave-page reassurance |
+| Generation failed | Source photo, plain error, Try again, Activity link |
+| Output ready | Result dominant, Download primary, Refine secondary |
+| QA warning | Keep output viewable; explain what needs visual review |
+| Signed URL/image fails | Neutral frame, Retry image, never collapse controls |
+
+## Accessibility and input behavior
+
+- Dialog has an accessible name, focus enters the rail heading, focus is trapped, and returns to the triggering photo.
+- Every icon-only control has a visible tooltip and accessible label.
+- Task selection is a radio-like single selection with visible focus and `aria-pressed`/selection semantics.
+- All form controls have persistent labels; placeholders are examples, not labels.
+- Minimum pointer target is 40×40px for the task studio and photo selection.
+- Batch order is announced and not encoded only by colour.
+- Status uses text plus colour. Motion respects `prefers-reduced-motion`.
+- On mobile, the sticky footer never covers the last control and safe-area padding is included.
+
+## Visual contract
+
+- Keep Editorial Luxury: warm linen, cream surfaces, brass action, serif display, humanist sans UI, hairline borders, 2–3px radii.
+- The canvas surround may be a dark warm neutral because it is a photographic viewing surface, not a return to application dark mode.
+- Avoid nested bordered boxes. Separate sections with space, hairlines, or typographic hierarchy.
+- No orange EdenSign imitation, glossy gradients, oversized pills, credit badges, or generic SaaS card grids.
+- Photography remains the colour and emotional focus.
+
+## Phase 36 priority
+
+### P0 — implement now
+
+- Task-first split-screen studio for single and batch edits.
+- Contextual task controls using existing edit definitions and interpreter.
+- Same-room additional-view picker with honest batch language.
+- Direct navigation from successful submission to exact FileGroup workspace.
+- FileGroup processing/result redesign, local reconciliation, batch sibling navigation.
+- Human language sweep across the golden path, including removal of visible per-photo price claims.
+- Keyboard/mobile/error states for changed surfaces.
+
+### P1 — follow-up after the golden path is proven
+
+- Dashboard recovery cards deep-linking to exact workspaces.
+- Destination-preserving login.
+- Full archive refinements and activity filtering.
+- Photo-to-room auto-match and true cross-view staging consistency when supported by the generation layer.
+
+## Acceptance journey
+
+Starting from `/`, the user can sign in, create or open a listing, upload and room-tag photos, open one photo, choose Stage, accept the room-derived default, choose a furniture style, add an instruction and another same-room view, start the edit, land on the exact processing workspace, leave and return, compare/download the ready output, request a refinement from a selected version, and find the work later in Activity. No step exposes internal orchestration vocabulary or a second disconnected photo gallery.
