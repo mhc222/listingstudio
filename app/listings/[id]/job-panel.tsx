@@ -10,8 +10,6 @@ import { ROOM_TYPES } from "@/lib/roomTypes"
 import { ENHANCEMENT_STYLES, FURNITURE_STYLES, LIGHT_PRESETS } from "@/lib/prompts"
 import { StatePill } from "@/components/brand"
 import { simulateCents } from "@/lib/simulate"
-import { BeforeAfter } from "@/components/before-after"
-import { TourViewer } from "@/components/tour-viewer"
 import type { PhotoRow } from "./photo-grid"
 
 // konva touches window — client-only (same pattern as the aerial panel)
@@ -115,12 +113,6 @@ const RENOVATION_TIER_LABELS: Record<string, string> = {
   full: "Full renovation",
 }
 
-// Manual QA checklist for dusk outputs (CLAUDE.md rule 5); auto-QA arrives phase 8.
-const DUSK_CHECKS = [
-  "No windows glowing in rooms that were dark in the original",
-  "Dusk sky consistent with the shadow direction",
-]
-
 const SKY_STYLE_LABELS: Record<string, string> = {
   any: "Any sky",
   clear_blue: "Clear blue",
@@ -133,18 +125,6 @@ const SIZE_PRESETS: Record<string, string> = {
   under_10mb: "Under 10MB",
   under_5mb: "Under 5MB",
 }
-
-// download menu variants ("" = the group's size preset, decided server-side)
-const DOWNLOAD_VARIANTS: [string, string][] = [
-  ["", "Preset default"],
-  ["original", "Original photo"],
-  ["full", "Full-res edited"],
-  ["web1920", "Web 1920px"],
-  ["under_10mb", "MLS under 10MB"],
-  ["under_5mb", "MLS under 5MB"],
-]
-
-const STAGED_TYPES = ["VIRTUAL_STAGING", "VIRTUAL_RENOVATION"]
 
 export function JobPanel({
   listingId,
@@ -181,26 +161,13 @@ export function JobPanel({
   const [interpreting, setInterpreting] = useState(false)
   const [chatError, setChatError] = useState<string | null>(null)
 
-  // rework + version selection, keyed by file group id (phase 8)
-  const [selectedVersion, setSelectedVersion] = useState<Record<string, string>>({})
-  const [reworkText, setReworkText] = useState<Record<string, string>>({})
-  const [reworking, setReworking] = useState<Record<string, boolean>>({})
-
-  // inspiration (phase 9): URL extraction picker + promoted ideas cell per job
+  // inspiration (phase 9): URL extraction picker
   const [urlText, setUrlText] = useState("")
   const [urlImages, setUrlImages] = useState<string[]>([])
   const [urlBusy, setUrlBusy] = useState(false)
   const [urlError, setUrlError] = useState<string | null>(null)
   const [importedUrls, setImportedUrls] = useState<Record<string, boolean>>({})
-  const [promoted, setPromoted] = useState<Record<string, string>>({})
   const [uploadingRef, setUploadingRef] = useState(false)
-
-  // download menu (phase 10), keyed by file group id
-  const [dlVariant, setDlVariant] = useState<Record<string, string>>({})
-  const [dlWatermark, setDlWatermark] = useState<Record<string, boolean>>({})
-
-  // 360 output preview toggle (phase 17), keyed by file group id
-  const [preview360, setPreview360] = useState<Record<string, boolean>>({})
 
   function togglePhoto(id: string) {
     setPhotoIds((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]))
@@ -228,23 +195,6 @@ export function JobPanel({
     () => new Map([...photos, ...floorPlans].map((p) => [p.id, p])),
     [photos, floorPlans]
   )
-
-  // plan attach state (phase 11), keyed by file group id
-  const [attaching, setAttaching] = useState<Record<string, boolean>>({})
-  const [attached, setAttached] = useState<Record<string, boolean>>({})
-
-  async function attachPlan(fileGroupId: string, versionId: string | undefined) {
-    if (attaching[fileGroupId]) return
-    setAttaching((a) => ({ ...a, [fileGroupId]: true }))
-    const res = await fetch(`/api/file-groups/${fileGroupId}/attach-plan`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ versionId }),
-    })
-    setAttaching((a) => ({ ...a, [fileGroupId]: false }))
-    if (res.ok) setAttached((a) => ({ ...a, [fileGroupId]: true }))
-    router.refresh()
-  }
 
   // live status: refetch server data whenever job state changes
   useEffect(() => {
@@ -426,28 +376,6 @@ export function JobPanel({
       setSampleIds((s) => [...s, ...data.uploaded])
       router.refresh()
     }
-  }
-
-  async function sendRework(fileGroupId: string, versionId: string | undefined) {
-    const message = (reworkText[fileGroupId] ?? "").trim()
-    if (!message || reworking[fileGroupId]) return
-    setReworking((r) => ({ ...r, [fileGroupId]: true }))
-    const res = await fetch(`/api/file-groups/${fileGroupId}/rework`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message, versionId }),
-    })
-    setReworking((r) => ({ ...r, [fileGroupId]: false }))
-    if (res.ok) {
-      setReworkText((t) => ({ ...t, [fileGroupId]: "" }))
-      setSelectedVersion((s) => ({ ...s, [fileGroupId]: "" }))
-    }
-    router.refresh()
-  }
-
-  async function rerun(fileGroupId: string) {
-    await fetch(`/api/file-groups/${fileGroupId}/rerun`, { method: "POST" })
-    router.refresh()
   }
 
   const hasFinals = jobs.some((j) =>
@@ -970,27 +898,19 @@ export function JobPanel({
                     .join(" · ")}
                 </p>
               )}
-              {job.kind === "ideas" && (
-                // labeled 2x2 grid; tap promotes a variant into the normal
-                // before/after + refinement chat below (phase 9)
+              {job.kind === "ideas" ? (
+                // labeled 2x2 grid; each cell opens its own FileGroup page
+                // (phase 28 — the promoted-in-place state is gone)
                 <div className="stagger mt-3 grid grid-cols-2 gap-2">
                   {job.file_groups.map((fg) => {
                     const v = [...fg.output_versions].sort(
                       (a, b) => b.version_number - a.version_number
                     )[0]
                     return (
-                      <button
+                      <Link
                         key={fg.id}
-                        type="button"
-                        onClick={() =>
-                          setPromoted((p) => ({
-                            ...p,
-                            [job.id]: p[job.id] === fg.id ? "" : fg.id,
-                          }))
-                        }
-                        className={`develop-in overflow-hidden rounded-md border-2 text-left transition-colors ${
-                          promoted[job.id] === fg.id ? "border-primary" : "border-transparent hover:border-primary/50"
-                        }`}
+                        href={`/listings/${listingId}/f/${fg.id}`}
+                        className="develop-in overflow-hidden rounded-md border-2 border-transparent text-left transition-colors hover:border-primary/50"
                       >
                         {v?.url ? (
                           // eslint-disable-next-line @next/next/no-img-element -- signed URLs expire; next/image caching fights that
@@ -1005,280 +925,67 @@ export function JobPanel({
                           </div>
                         )}
                         <p className="px-1.5 py-1 text-xs font-medium">{fg.comment}</p>
-                      </button>
+                      </Link>
                     )
                   })}
                 </div>
-              )}
-              {job.file_groups.map((fg) => {
-                if (job.kind === "ideas" && promoted[job.id] !== fg.id) return null
-                const before = photoById.get(fg.primary_photo_id)
-                const versionsDesc = [...fg.output_versions].sort(
-                  (a, b) => b.version_number - a.version_number
-                )
-                const latest =
-                  versionsDesc.find((v) => v.id === selectedVersion[fg.id]) ?? versionsDesc[0]
-                const settled = ["complete", "failed"].includes(fg.step_status)
-                const isPlan = fg.edit_chain.some((s) => s.edit_type === "FLOOR_PLAN_REDRAW")
-                const isDusk = fg.edit_chain.some(
-                  (s) =>
-                    s.edit_type === "DAY_TO_DUSK" &&
-                    (s.options?.preset ?? "dusk") === "dusk"
-                )
-                const thread = [...(fg.chat_messages ?? [])].sort((a, b) =>
-                  a.created_at.localeCompare(b.created_at)
-                )
-                // progress stripe: fills as chain steps complete — the card
-                // reports its own progress without a number (spec §05)
-                const doneSteps = fg.current_step + (fg.step_status === "complete" ? 1 : 0)
-                const stripeColor =
-                  fg.step_status === "failed"
-                    ? "bg-state-failed"
-                    : fg.step_status === "complete"
-                      ? "bg-state-complete"
-                      : "bg-state-running"
-                return (
-                  <div key={fg.id} className="mt-3">
-                    <div className="mb-2 h-1 overflow-hidden rounded-full bg-muted">
-                      <div
-                        className={`h-full ${stripeColor}`}
-                        style={{
-                          width: `${Math.round((doneSteps / Math.max(fg.edit_chain.length, 1)) * 100)}%`,
-                        }}
-                      />
-                    </div>
-                    {thread.length > 0 && (
-                      <div className="mb-2 grid gap-1 rounded-md bg-muted/40 p-2">
-                        {thread.map((m, mi) => (
-                          <p key={mi} className="text-xs">
-                            <span className="font-medium">
-                              {m.role === "user" ? "You" : "Studio"}:
-                            </span>{" "}
-                            {m.content}
-                          </p>
-                        ))}
-                      </div>
-                    )}
-                    <div className="flex items-center gap-2">
-                      <StatePill
-                        status={fg.step_status}
-                        label={`Step ${fg.current_step + 1}/${fg.edit_chain.length} · ${fg.step_status}`}
-                      />
-                    </div>
-                    {fg.step_status === "failed" && (
-                      <div className="mt-1 flex items-center gap-2">
-                        <p className="text-xs text-destructive">{fg.last_error}</p>
-                        <Button size="sm" variant="outline" onClick={() => rerun(fg.id)}>
-                          Re-run
-                        </Button>
-                      </div>
-                    )}
-                    {isPlan && latest?.url && (
-                      // plan exports (phase 11): SVG/PNG/PDF, then attach the
-                      // plan back to the listing to feed grounding / a 3D redraw
-                      <div className="mt-2">
-                        <BeforeAfter beforeUrl={before?.url ?? null} afterUrl={latest.url} />
-                        <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                          <span>v{latest.version_number}</span>
-                          {(["png", "svg", "pdf"] as const).map((f) => (
-                            <a
-                              key={f}
-                              href={`/api/file-groups/${fg.id}/plan-export?format=${f}&version=${latest.id}`}
-                              className="uppercase underline hover:text-foreground"
-                            >
-                              {f}
-                            </a>
-                          ))}
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => attachPlan(fg.id, latest.id)}
-                            disabled={attaching[fg.id] || attached[fg.id]}
-                          >
-                            {attached[fg.id]
-                              ? "Attached ✓"
-                              : attaching[fg.id]
-                                ? "Attaching…"
-                                : "Attach as floor plan"}
-                          </Button>
-                        </div>
-                      </div>
-                    )}
-                    {!isPlan && latest?.url && (() => {
-                      const staged = fg.edit_chain.some((s) =>
-                        STAGED_TYPES.includes(s.edit_type)
-                      )
-                      const is360 = fg.edit_chain.some((s) =>
-                        EDIT_360_TYPES.includes(s.edit_type)
-                      )
-                      const wm = dlWatermark[fg.id] ?? staged
-                      const variant = dlVariant[fg.id] ?? ""
-                      const href =
-                        `/api/file-groups/${fg.id}/download?version=${latest.id}` +
-                        `&watermark=${wm ? 1 : 0}` +
-                        (variant ? `&variant=${variant}` : "")
-                      return (
-                        <div className="mt-2">
-                          {is360 && preview360[fg.id] ? (
-                            // Marzipano preview of the edited pano (phase 17) —
-                            // the fastest way to eyeball the seam and poles
-                            <div className="h-80 w-full overflow-hidden rounded-md bg-black">
-                              <TourViewer
-                                scenes={[
-                                  {
-                                    id: fg.id,
-                                    name: "360 preview",
-                                    url: latest.url,
-                                    width:
-                                      photoById.get(fg.primary_photo_id)?.width ?? 4096,
-                                    initial_yaw: 0,
-                                    hotspots: [],
-                                  },
-                                ]}
-                                activeSceneId={fg.id}
-                              />
-                            </div>
-                          ) : (
-                            <BeforeAfter
-                              beforeUrl={before?.url ?? null}
-                              afterUrl={latest.url}
-                            />
-                          )}
-                          <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                            <span>v{latest.version_number}</span>
-                            {is360 && (
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setPreview360((s) => ({ ...s, [fg.id]: !s[fg.id] }))
-                                }
-                                className="underline hover:text-foreground"
-                              >
-                                {preview360[fg.id] ? "Before/after" : "Preview in 360"}
-                              </button>
-                            )}
-                            <select
-                              value={variant}
-                              onChange={(e) =>
-                                setDlVariant((s) => ({ ...s, [fg.id]: e.target.value }))
-                              }
-                              className="rounded-md border bg-transparent px-1.5 py-0.5 text-xs"
-                            >
-                              {DOWNLOAD_VARIANTS.map(([k, label]) => (
-                                <option key={k} value={k}>
-                                  {label}
-                                </option>
-                              ))}
-                            </select>
-                            {variant !== "original" && (
-                              <label className="flex items-center gap-1">
-                                <input
-                                  type="checkbox"
-                                  checked={wm}
-                                  onChange={(e) =>
-                                    setDlWatermark((s) => ({ ...s, [fg.id]: e.target.checked }))
-                                  }
-                                />
-                                “Virtually Staged” label
-                              </label>
-                            )}
-                            <a href={href} className="underline hover:text-foreground">
-                              Download
-                            </a>
-                          </div>
-                        </div>
-                      )
-                    })()}
-                    {latest?.qa_note && (
-                      <p className="mt-1 text-xs text-muted-foreground">QA: {latest.qa_note}</p>
-                    )}
-                    {(latest?.compliance?.checks?.length ?? 0) > 0 && (
-                      <div className="mt-2 rounded-md border p-2">
-                        <p className="text-xs font-medium uppercase tracking-wide">
-                          MLS compliance
-                        </p>
-                        {latest!.compliance!.checks!.map((c) => (
-                          <p
-                            key={c.id}
-                            className="mt-1 flex items-start gap-1.5 text-xs text-muted-foreground"
-                          >
-                            <span
-                              className={
-                                c.pass ? "text-state-complete" : "font-bold text-state-failed"
-                              }
-                            >
-                              {c.pass ? "✓" : "✕"}
-                            </span>
-                            <span>
-                              {c.label}
-                              {c.note ? ` — ${c.note}` : ""}
-                            </span>
-                          </p>
-                        ))}
-                      </div>
-                    )}
-                    {versionsDesc.length > 1 && (
-                      <div className="mt-2 flex flex-wrap items-center gap-1">
-                        <span className="text-xs text-muted-foreground">Versions:</span>
-                        {[...versionsDesc].reverse().map((v) => (
-                          <button
-                            key={v.id}
-                            type="button"
-                            title={v.parent_version_id ? "branched" : undefined}
-                            onClick={() =>
-                              setSelectedVersion((s) => ({ ...s, [fg.id]: v.id }))
-                            }
-                            className={`rounded-full border px-2 py-0.5 text-xs ${
-                              latest?.id === v.id
-                                ? "border-primary font-medium"
-                                : "hover:bg-muted"
+              ) : (
+                // compact card rows — each links to the FileGroup workspace where
+                // before/after, versions, rework, download etc. now live (phase 28)
+                job.file_groups.map((fg) => {
+                  const latest = [...fg.output_versions].sort(
+                    (a, b) => b.version_number - a.version_number
+                  )[0]
+                  const before = photoById.get(fg.primary_photo_id)
+                  const thumb = latest?.url ?? before?.url ?? null
+                  const summary = fg.edit_chain
+                    .map((s) => EDIT_TYPES[s.edit_type]?.label ?? s.edit_type)
+                    .join(" → ")
+                  const doneSteps = fg.current_step + (fg.step_status === "complete" ? 1 : 0)
+                  const stripeColor =
+                    fg.step_status === "failed"
+                      ? "bg-state-failed"
+                      : fg.step_status === "complete"
+                        ? "bg-state-complete"
+                        : "bg-state-running"
+                  return (
+                    <Link
+                      key={fg.id}
+                      href={`/listings/${listingId}/f/${fg.id}`}
+                      className="mt-3 flex items-center gap-3 rounded-md border p-2 transition-colors hover:bg-muted"
+                    >
+                      <div className="h-14 w-20 shrink-0 overflow-hidden rounded-md bg-muted">
+                        {thumb ? (
+                          // eslint-disable-next-line @next/next/no-img-element -- signed URLs expire; next/image caching fights that
+                          <img src={thumb} alt="" className="h-full w-full object-cover" />
+                        ) : (
+                          <div
+                            className={`flex h-full w-full items-center justify-center text-[10px] text-muted-foreground ${
+                              fg.step_status === "failed" ? "" : "sweep"
                             }`}
                           >
-                            v{v.version_number}
-                          </button>
-                        ))}
+                            {fg.step_status === "failed" ? "failed" : "…"}
+                          </div>
+                        )}
                       </div>
-                    )}
-                    {settled && versionsDesc.length > 0 && (
-                      <div className="mt-2 flex items-center gap-2">
-                        <input
-                          value={reworkText[fg.id] ?? ""}
-                          onChange={(e) =>
-                            setReworkText((t) => ({ ...t, [fg.id]: e.target.value }))
-                          }
-                          onKeyDown={(e) => e.key === "Enter" && sendRework(fg.id, latest?.id)}
-                          placeholder={`React to v${latest?.version_number} to rework it, e.g. couch in gray, lose the wall art`}
-                          className="min-w-0 flex-1 rounded-md border bg-transparent px-2 py-1.5 text-sm"
-                        />
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => sendRework(fg.id, latest?.id)}
-                          disabled={!(reworkText[fg.id] ?? "").trim() || reworking[fg.id]}
-                        >
-                          {reworking[fg.id] ? "Reworking…" : "Rework"}
-                        </Button>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="truncate text-sm font-medium">{summary}</p>
+                          <StatePill status={fg.step_status} />
+                        </div>
+                        <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-muted">
+                          <div
+                            className={`h-full ${stripeColor}`}
+                            style={{
+                              width: `${Math.round((doneSteps / Math.max(fg.edit_chain.length, 1)) * 100)}%`,
+                            }}
+                          />
+                        </div>
                       </div>
-                    )}
-                    {/* manual dusk checkboxes (phase 6) stand in only until the
-                        automated compliance checklist exists for the version */}
-                    {isDusk && latest?.url && !latest?.compliance?.checks?.length && (
-                      <div className="mt-2 rounded-md border p-2">
-                        <p className="text-xs font-medium">Dusk checks (manual)</p>
-                        {DUSK_CHECKS.map((check) => (
-                          <label key={check} className="mt-1 flex items-center gap-1.5 text-xs">
-                            <input type="checkbox" />
-                            {check}
-                          </label>
-                        ))}
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          If either fails, re-run with a corrective note.
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                )
-              })}
+                    </Link>
+                  )
+                })
+              )}
             </div>
           ))}
         </div>
