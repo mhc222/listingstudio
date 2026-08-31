@@ -27,7 +27,7 @@ export const EDIT_TYPES: Record<string, { label: string; defaults: Record<string
   },
   VIRTUAL_LANDSCAPING: { label: "Virtual landscaping", defaults: { instructions: "" } },
   DAY_TO_DUSK: { label: "Day to dusk / relight", defaults: { preset: "dusk" } },
-  COLOUR_CHANGE: { label: "Colour change", defaults: { element: "", colour: "" } },
+  COLOUR_CHANGE: { label: "Color change", defaults: { element: "", colour: "" } },
   SHADOW_REMOVAL: { label: "Shadow removal", defaults: {} },
   AERIAL_EDITING: {
     label: "Aerial enhancement",

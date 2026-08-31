@@ -37,10 +37,10 @@ export function ChainStepEditor({
   return (
     <>
       {chain.map((edit, i) => (
-        <div key={i} className="mt-2 rounded-md border p-3">
-          <div className="flex items-center justify-between">
+        <div key={i} className={chain.length > 1 ? "mt-4 border-t border-border pt-4" : "mt-4"}>
+          {chain.length > 1 && <div className="mb-3 flex items-center justify-between">
             <p className="text-sm font-medium">
-              {i + 1}. {EDIT_TYPES[edit.edit_type]?.label ?? edit.edit_type}
+              Edit {i + 1} · {EDIT_TYPES[edit.edit_type]?.label ?? edit.edit_type}
             </p>
             <button
               type="button"
@@ -49,23 +49,28 @@ export function ChainStepEditor({
             >
               Remove
             </button>
-          </div>
+          </div>}
           {["ITEM_REMOVAL", "360_ITEM_REMOVAL"].includes(edit.edit_type) && (
-            <div className="mt-2 flex flex-wrap items-center gap-2">
-              <Select
-                value={Number(edit.options.tier)}
-                onChange={(e) => onOption(i, "tier", Number(e.target.value))}
-                className="w-auto"
-              >
-                <option value={1}>Minor removal</option>
-                <option value={2}>Full declutter</option>
-              </Select>
-              <input
-                value={String(edit.options.items ?? "")}
-                onChange={(e) => onOption(i, "items", e.target.value)}
-                placeholder="What should be removed? e.g. the boxes and the cat tree"
-                className="min-w-0 flex-1 rounded-md border bg-transparent px-2 py-1.5 text-sm"
-              />
+            <div className="grid gap-3">
+              <label className="grid gap-1.5 text-xs text-muted-foreground">
+                Removal scope
+                <Select
+                  value={Number(edit.options.tier)}
+                  onChange={(e) => onOption(i, "tier", Number(e.target.value))}
+                >
+                  <option value={1}>Remove selected items</option>
+                  <option value={2}>Clear the room</option>
+                </Select>
+              </label>
+              <label className="grid gap-1.5 text-xs text-muted-foreground">
+                What should be removed?
+                <input
+                  value={String(edit.options.items ?? "")}
+                  onChange={(e) => onOption(i, "items", e.target.value)}
+                  placeholder="e.g. the boxes and cat tree"
+                  className="border border-input bg-card px-3 py-2 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                />
+              </label>
             </div>
           )}
           {edit.edit_type === "MARKUP_EDIT" &&
@@ -163,56 +168,68 @@ export function ChainStepEditor({
             </div>
           )}
           {["VIRTUAL_STAGING", "360_VIRTUAL_STAGING"].includes(edit.edit_type) && (
-            <div className="mt-2 flex flex-wrap items-center gap-2">
-              <Select
-                value={String(edit.options.room_type)}
-                onChange={(e) => onOption(i, "room_type", e.target.value)}
-                className="w-auto"
-              >
-                {ROOM_TYPES.map((r) => (
-                  <option key={r.value} value={r.value}>
-                    {r.label}
-                  </option>
-                ))}
-              </Select>
-              <Select
-                value={String(edit.options.furniture_style)}
-                onChange={(e) => onOption(i, "furniture_style", e.target.value)}
-                className="w-auto"
-              >
-                {Object.entries(FURNITURE_STYLES).map(([k, { label }]) => (
-                  <option key={k} value={k}>
-                    {label}
-                  </option>
-                ))}
-              </Select>
-              <input
-                value={String(edit.options.furniture_required ?? "")}
-                onChange={(e) => onOption(i, "furniture_required", e.target.value)}
-                placeholder="Required furniture (optional), e.g. a king bed and reading chair"
-                className="min-w-0 flex-1 rounded-md border bg-transparent px-2 py-1.5 text-sm"
-              />
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="grid gap-1.5 text-xs text-muted-foreground">
+                Room type
+                <Select
+                  value={String(edit.options.room_type)}
+                  onChange={(e) => onOption(i, "room_type", e.target.value)}
+                >
+                  {ROOM_TYPES.map((r) => (
+                    <option key={r.value} value={r.value}>
+                      {r.label}
+                    </option>
+                  ))}
+                </Select>
+              </label>
+              <label className="grid gap-1.5 text-xs text-muted-foreground">
+                Furniture style
+                <Select
+                  value={String(edit.options.furniture_style)}
+                  onChange={(e) => onOption(i, "furniture_style", e.target.value)}
+                >
+                  {Object.entries(FURNITURE_STYLES).map(([k, { label }]) => (
+                    <option key={k} value={k}>
+                      {label}
+                    </option>
+                  ))}
+                </Select>
+              </label>
+              <label className="grid gap-1.5 text-xs text-muted-foreground sm:col-span-2">
+                Furniture to include <span className="sr-only">(optional)</span>
+                <input
+                  value={String(edit.options.furniture_required ?? "")}
+                  onChange={(e) => onOption(i, "furniture_required", e.target.value)}
+                  placeholder="Optional · e.g. a king bed and reading chair"
+                  className="border border-input bg-card px-3 py-2 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                />
+              </label>
             </div>
           )}
           {edit.edit_type === "VIRTUAL_RENOVATION" && (
-            <div className="mt-2 flex flex-wrap items-center gap-2">
-              <Select
-                value={String(edit.options.tier)}
-                onChange={(e) => onOption(i, "tier", e.target.value)}
-                className="w-auto"
-              >
-                {Object.entries(RENOVATION_TIER_LABELS).map(([k, label]) => (
-                  <option key={k} value={k}>
-                    {label}
-                  </option>
-                ))}
-              </Select>
-              <input
-                value={String(edit.options.changes ?? "")}
-                onChange={(e) => onOption(i, "changes", e.target.value)}
-                placeholder="Describe the finish changes, e.g. white shaker cabinets and quartz counters"
-                className="min-w-0 flex-1 rounded-md border bg-transparent px-2 py-1.5 text-sm"
-              />
+            <div className="grid gap-3">
+              <label className="grid gap-1.5 text-xs text-muted-foreground">
+                Renovation depth
+                <Select
+                  value={String(edit.options.tier)}
+                  onChange={(e) => onOption(i, "tier", e.target.value)}
+                >
+                  {Object.entries(RENOVATION_TIER_LABELS).map(([k, label]) => (
+                    <option key={k} value={k}>
+                      {label}
+                    </option>
+                  ))}
+                </Select>
+              </label>
+              <label className="grid gap-1.5 text-xs text-muted-foreground">
+                What should change?
+                <input
+                  value={String(edit.options.changes ?? "")}
+                  onChange={(e) => onOption(i, "changes", e.target.value)}
+                  placeholder="e.g. white shaker cabinets and quartz counters"
+                  className="border border-input bg-card px-3 py-2 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                />
+              </label>
             </div>
           )}
           {edit.edit_type === "VIRTUAL_LANDSCAPING" && (
@@ -226,11 +243,11 @@ export function ChainStepEditor({
             </div>
           )}
           {edit.edit_type === "DAY_TO_DUSK" && (
-            <div className="mt-2">
+            <label className="grid gap-1.5 text-xs text-muted-foreground">
+              Lighting
               <Select
                 value={String(edit.options.preset)}
                 onChange={(e) => onOption(i, "preset", e.target.value)}
-                className="w-auto"
               >
                 {Object.entries(LIGHT_PRESETS).map(([k, { label }]) => (
                   <option key={k} value={k}>
@@ -238,22 +255,28 @@ export function ChainStepEditor({
                   </option>
                 ))}
               </Select>
-            </div>
+            </label>
           )}
           {edit.edit_type === "COLOUR_CHANGE" && (
-            <div className="mt-2 flex flex-wrap items-center gap-2">
-              <input
-                value={String(edit.options.element ?? "")}
-                onChange={(e) => onOption(i, "element", e.target.value)}
-                placeholder="Element, e.g. the front door"
-                className="min-w-0 flex-1 rounded-md border bg-transparent px-2 py-1.5 text-sm"
-              />
-              <input
-                value={String(edit.options.colour ?? "")}
-                onChange={(e) => onOption(i, "colour", e.target.value)}
-                placeholder="New colour, e.g. deep navy blue"
-                className="min-w-0 flex-1 rounded-md border bg-transparent px-2 py-1.5 text-sm"
-              />
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="grid gap-1.5 text-xs text-muted-foreground">
+                Surface or object
+                <input
+                  value={String(edit.options.element ?? "")}
+                  onChange={(e) => onOption(i, "element", e.target.value)}
+                  placeholder="e.g. the front door"
+                  className="border border-input bg-card px-3 py-2 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                />
+              </label>
+              <label className="grid gap-1.5 text-xs text-muted-foreground">
+                New color
+                <input
+                  value={String(edit.options.colour ?? "")}
+                  onChange={(e) => onOption(i, "colour", e.target.value)}
+                  placeholder="e.g. deep navy blue"
+                  className="border border-input bg-card px-3 py-2 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                />
+              </label>
             </div>
           )}
         </div>

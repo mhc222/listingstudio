@@ -1,7 +1,6 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { PhotoGrid, type PhotoRow } from "./photo-grid"
 import { Composer } from "./composer"
@@ -40,8 +39,10 @@ export function ListingWorkspace({
   // corner-checkbox batch path. Esc closes.
   const [openId, setOpenId] = useState<string | null>(null)
   const [batchOpen, setBatchOpen] = useState(false)
-  const [editStarted, setEditStarted] = useState(false)
+  const [additionalIds, setAdditionalIds] = useState<string[]>([])
+  const [editorSubmitting, setEditorSubmitting] = useState(false)
   const openPhoto = photos.find((p) => p.id === openId) ?? null
+  const studioIds = openPhoto ? [openPhoto.id, ...additionalIds] : []
   const selectedPhotos = photos.filter((photo) => selectedIds.includes(photo.id))
   const filteredPhotos =
     activeRoom === ALL_ROOMS
@@ -69,13 +70,14 @@ export function ListingWorkspace({
   useEffect(() => {
     if (!openId && !batchOpen) return
     const onKey = (e: KeyboardEvent) => {
-      if (e.key !== "Escape") return
+      if (e.key !== "Escape" || editorSubmitting) return
       setOpenId(null)
       setBatchOpen(false)
+      setAdditionalIds([])
     }
     window.addEventListener("keydown", onKey)
     return () => window.removeEventListener("keydown", onKey)
-  }, [openId, batchOpen])
+  }, [openId, batchOpen, editorSubmitting])
 
   // phase 31: newest job's batchable chain — feeds the composer's "apply last
   // chain" accelerator. Skip ideas jobs; strip REWORK (internal) and MARKUP_EDIT
@@ -116,17 +118,19 @@ export function ListingWorkspace({
   function openSelection() {
     if (selectedIds.length === 1) {
       setOpenId(selectedIds[0])
+      setAdditionalIds([])
       clear()
       return
     }
     if (selectedIds.length > 1) setBatchOpen(true)
   }
 
-  function finishEdit() {
+  function closeEditor() {
+    if (editorSubmitting) return
     setOpenId(null)
     setBatchOpen(false)
+    setAdditionalIds([])
     clear()
-    setEditStarted(true)
   }
 
   return (
@@ -139,29 +143,6 @@ export function ListingWorkspace({
         activeRoom={activeRoom}
         onActiveRoomChange={changeRoomFilter}
       />
-      {editStarted && (
-        <aside className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4 text-sm">
-          <p>
-            Edit started. You can keep working here while the image is prepared.
-          </p>
-          <div className="flex items-center gap-3">
-            <Link
-              href={`/listings/${listingId}/activity`}
-              className="font-medium text-primary underline underline-offset-4"
-            >
-              View activity →
-            </Link>
-            <button
-              type="button"
-              onClick={() => setEditStarted(false)}
-              className="text-muted-foreground hover:text-foreground"
-              aria-label="Dismiss edit confirmation"
-            >
-              ×
-            </button>
-          </div>
-        </aside>
-      )}
       <section>
         <div className="mb-3 flex items-center justify-between gap-3">
           <h2 className="text-lg font-medium">
@@ -188,7 +169,10 @@ export function ListingWorkspace({
           listingId={listingId}
           selectedIds={selectedIds}
           onSelect={selectPhoto}
-          onOpen={(i) => setOpenId(filteredPhotos[i].id)}
+          onOpen={(i) => {
+            setOpenId(filteredPhotos[i].id)
+            setAdditionalIds([])
+          }}
         />
         {filteredPhotos.length > 0 && (
           <p className="mt-2 text-xs text-muted-foreground">
@@ -208,32 +192,48 @@ export function ListingWorkspace({
             <span className="font-serif text-lg">Edit photo</span>
             <button
               type="button"
-              onClick={() => setOpenId(null)}
-              className="rounded-md border px-3 py-1 text-sm hover:bg-muted"
+              onClick={closeEditor}
+              disabled={editorSubmitting}
+              className="border px-3 py-1 text-sm hover:bg-muted disabled:cursor-wait disabled:opacity-50"
             >
-              Close ✕
+              {editorSubmitting ? "Starting…" : "Close ✕"}
             </button>
           </div>
-          <div className="grid flex-1 gap-4 overflow-y-auto p-4 lg:grid-cols-[1.4fr_1fr]">
-            <div className="flex items-start justify-center">
+          <div className="grid min-h-0 flex-1 overflow-y-auto lg:grid-cols-[minmax(21rem,25rem)_minmax(0,1fr)] lg:overflow-hidden">
+            <div className="order-1 flex min-h-[32vh] items-center justify-center bg-[#241f1a] p-4 lg:order-2 lg:min-h-0 lg:p-8">
               {openPhoto.url && (
                 // eslint-disable-next-line @next/next/no-img-element -- signed URLs expire; next/image caching fights that
                 <img
                   src={openPhoto.url}
                   alt="Listing photo being edited"
-                  className="max-h-[80vh] w-full rounded-lg object-contain"
+                  className="max-h-[42vh] w-full object-contain shadow-[0_24px_80px_rgba(0,0,0,0.28)] lg:max-h-[calc(100vh-9rem)]"
                 />
               )}
             </div>
-            <div className="min-w-0">
+            <div className="order-2 min-w-0 overflow-y-auto bg-card p-4 pb-8 lg:order-1 lg:p-5">
               <Composer
                 listingId={listingId}
                 photos={photos}
                 samples={samples}
-                selectedIds={[openPhoto.id]}
-                onClearSelection={finishEdit}
+                selectedIds={studioIds}
                 lastChain={lastChain}
-                contextLabel="One photo"
+                contextLabel={roomLabels.get(openPhoto.room_id ?? "") ?? "One photo"}
+                initialRoomType={rooms.find((room) => room.id === openPhoto.room_id)?.room_type}
+                onSubmittingChange={setEditorSubmitting}
+                additionalViews={photos
+                  .filter((photo) => photo.id !== openPhoto.id)
+                  .sort((a, b) => Number(b.room_id === openPhoto.room_id) - Number(a.room_id === openPhoto.room_id))
+                  .map((photo) => ({
+                    id: photo.id,
+                    url: photo.url,
+                    label: roomLabels.get(photo.room_id ?? "") ?? "Other room",
+                    sameRoom: Boolean(openPhoto.room_id && photo.room_id === openPhoto.room_id),
+                  }))}
+                onToggleAdditionalView={(id) =>
+                  setAdditionalIds((current) =>
+                    current.includes(id) ? current.filter((item) => item !== id) : [...current, id]
+                  )
+                }
               />
             </div>
           </div>
@@ -251,10 +251,11 @@ export function ListingWorkspace({
             <span className="font-serif text-lg">Batch edit · {selectedPhotos.length} photos</span>
             <button
               type="button"
-              onClick={() => setBatchOpen(false)}
-              className="rounded-md border px-3 py-1 text-sm hover:bg-muted"
+              onClick={closeEditor}
+              disabled={editorSubmitting}
+              className="border px-3 py-1 text-sm hover:bg-muted disabled:cursor-wait disabled:opacity-50"
             >
-              Close ✕
+              {editorSubmitting ? "Starting…" : "Close ✕"}
             </button>
           </div>
           <div className="grid min-h-0 flex-1 gap-6 overflow-y-auto p-4 lg:grid-cols-[minmax(16rem,0.75fr)_minmax(30rem,1.25fr)]">
@@ -277,9 +278,14 @@ export function ListingWorkspace({
                 photos={photos}
                 samples={samples}
                 selectedIds={selectedIds}
-                onClearSelection={finishEdit}
                 lastChain={lastChain}
                 contextLabel={`${selectedPhotos.length} photos`}
+                initialRoomType={
+                  selectedPhotos.every((photo) => photo.room_id === selectedPhotos[0]?.room_id)
+                    ? rooms.find((room) => room.id === selectedPhotos[0]?.room_id)?.room_type
+                    : null
+                }
+                onSubmittingChange={setEditorSubmitting}
               />
             </div>
           </div>
