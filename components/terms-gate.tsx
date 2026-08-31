@@ -16,7 +16,7 @@ export function TermsGate() {
   const [error, setError] = useState<string | null>(null)
 
   // The terms themselves must stay readable at /terms.
-  if (pathname === "/terms" || pathname === "/login") return null
+  if (pathname === "/" || pathname === "/terms" || pathname === "/login") return null
 
   async function agree() {
     setBusy(true)

@@ -385,7 +385,7 @@ Spec of record: DECISIONS.md 2026-08-31 "UI REDESIGN DIRECTION LOCKED" (commit b
 
 ---
 
-## Phase 33 — Public product home page + route split (Matt, 2026-08-31)
+## Phase 33 — Public product home page + route split (Matt, 2026-08-31) ✅ DONE
 
 **Goal:** A logged-out visitor lands on a real **public product home page** — the product's front door — with login between it and the dashboard. Matt clarified the intended IA after phase 26: "the home page is the actual product home page, then there is a login, a dashboard etc." Today `/` IS the auth-gated dashboard and unauthenticated visitors are bounced straight to `/login`; there is no public landing. This phase adds the missing first layer: **public `/` → `/login` → `/dashboard`.** Chose "build it as a new phase" over a quick minimal one (AskUserQuestion, 2026-08-31) — do it properly, Editorial Luxury, no prices (consistent with phase 26). Sequencing: appended as 33 but **can be pulled ahead of 27** if the public front door is the priority — Matt's call at resume (tell the next session which phase to run).
 

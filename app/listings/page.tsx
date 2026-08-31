@@ -20,7 +20,7 @@ export default async function ListingsPage() {
           <Link href="/library" className="text-sm text-muted-foreground hover:underline">
             Sample library
           </Link>
-          <Link href="/" className="text-sm text-muted-foreground hover:underline">
+          <Link href="/dashboard" className="text-sm text-muted-foreground hover:underline">
             Dashboard
           </Link>
         </div>

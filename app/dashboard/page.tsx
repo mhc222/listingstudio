@@ -1,0 +1,212 @@
+import Link from "next/link"
+import { createClient } from "@/lib/supabase/server"
+import { getUrls } from "@/lib/storage"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent } from "@/components/ui/card"
+import { DashboardLive, RerunButton } from "./dashboard-live"
+import { StatePill, Wordmark } from "@/components/brand"
+
+type ChainStep = { edit_type: string }
+
+function chainLabel(chain: ChainStep[]): string {
+  return chain
+    .filter((s) => s.edit_type !== "REWORK")
+    .map((s) => s.edit_type.replaceAll("_", " ").toLowerCase())
+    .join(" → ")
+}
+
+export default async function Dashboard() {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  const [listingsQ, activeQ, failedQ] = await Promise.all([
+    supabase
+      .from("listings")
+      .select("id, address, mls_number, created_at")
+      .order("created_at", { ascending: false })
+      .limit(6),
+    supabase
+      .from("jobs")
+      .select("id, title, status, created_at, listings(address), file_groups(step_status)")
+      .in("status", ["pending", "processing"])
+      .order("created_at", { ascending: false })
+      .limit(12),
+    supabase
+      .from("file_groups")
+      .select("id, last_error, edit_chain, created_at, jobs(title, listings(address))")
+      .eq("step_status", "failed")
+      .order("created_at", { ascending: false })
+      .limit(12),
+  ])
+
+  const listings = listingsQ.data ?? []
+  const activeJobs = activeQ.data ?? []
+  const failedGroups = failedQ.data ?? []
+
+  // Cover photo per listing = first non-floor-plan by created_at asc (same rule
+  // as the listing hero); count is every photo including floor plans.
+  const listingIds = listings.map((l) => l.id)
+  const { data: photos } = listingIds.length
+    ? await supabase
+        .from("photos")
+        .select("listing_id, storage_path, is_floor_plan, created_at")
+        .in("listing_id", listingIds)
+        .order("created_at", { ascending: true })
+    : { data: [] }
+  const coverPath = new Map<string, string>()
+  const photoCount = new Map<string, number>()
+  for (const p of photos ?? []) {
+    photoCount.set(p.listing_id, (photoCount.get(p.listing_id) ?? 0) + 1)
+    if (!p.is_floor_plan && !coverPath.has(p.listing_id)) coverPath.set(p.listing_id, p.storage_path)
+  }
+  const coverUrls = await getUrls("originals", [...coverPath.values()])
+
+  return (
+    <main className="mx-auto max-w-6xl p-6">
+      <DashboardLive />
+      <div className="flex items-center justify-between">
+        <Wordmark />
+        <div className="flex items-center gap-4">
+          <Link href="/listings" className="text-sm text-muted-foreground hover:underline">
+            Listings
+          </Link>
+          <Link href="/library" className="text-sm text-muted-foreground hover:underline">
+            Sample library
+          </Link>
+          <form action="/auth/signout" method="post">
+            <Button variant="outline" type="submit">
+              Sign out
+            </Button>
+          </form>
+        </div>
+      </div>
+
+      <header className="mt-10">
+        <h1>Welcome back</h1>
+        <p className="mt-1 text-sm text-muted-foreground">{user?.email}</p>
+      </header>
+
+      <div className="mt-10 flex items-baseline justify-between">
+        <h2>Recent listings</h2>
+        <Link href="/listings" className="text-sm text-primary hover:underline">
+          All listings →
+        </Link>
+      </div>
+
+      {listings.length === 0 ? (
+        <p className="mt-4 text-sm text-muted-foreground">
+          No listings yet.{" "}
+          <Link href="/listings" className="text-primary underline">
+            Create one →
+          </Link>
+        </p>
+      ) : (
+        <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {listings.map((l) => {
+            const path = coverPath.get(l.id)
+            const cover = path ? coverUrls[path] : null
+            const count = photoCount.get(l.id) ?? 0
+            const meta = `${l.mls_number ? `MLS ${l.mls_number} · ` : ""}${count} photo${count === 1 ? "" : "s"}`
+            return (
+              <Link key={l.id} href={`/listings/${l.id}`} className="group">
+                <Card className="overflow-hidden p-0 transition-colors hover:border-input">
+                  <div className="relative aspect-[4/3] w-full bg-muted">
+                    {cover ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={cover}
+                        alt={l.address}
+                        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.02]"
+                      />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center px-4 text-center text-muted-foreground">
+                        <span className="text-2xl" style={{ fontFamily: "var(--font-cormorant)" }}>
+                          {l.address}
+                        </span>
+                      </div>
+                    )}
+                    <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-4 pt-10">
+                      <div
+                        className="text-xl leading-tight text-white"
+                        style={{ fontFamily: "var(--font-cormorant)" }}
+                      >
+                        {l.address}
+                      </div>
+                      <div className="mt-0.5 text-xs uppercase tracking-wide text-white/70">
+                        {meta}
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              </Link>
+            )
+          })}
+        </div>
+      )}
+
+      {(activeJobs.length > 0 || failedGroups.length > 0) && (
+        <div className="mt-10 grid gap-4 md:grid-cols-2">
+          {activeJobs.length > 0 && (
+            <Card>
+              <CardContent className="grid gap-3 py-4">
+                <div className="text-xs uppercase tracking-wide text-muted-foreground">
+                  In progress
+                </div>
+                {activeJobs.map((j) => {
+                  const fgs = j.file_groups as unknown as { step_status: string }[]
+                  const done = fgs.filter((f) => f.step_status === "complete").length
+                  const listing = j.listings as unknown as { address: string } | null
+                  return (
+                    <div key={j.id} className="text-sm">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-medium">{j.title}</span>
+                        <StatePill status={j.status} />
+                      </div>
+                      <div className="text-muted-foreground">
+                        {listing?.address} ·{" "}
+                        <span className="font-ui tabular-nums">
+                          {done}/{fgs.length}
+                        </span>{" "}
+                        outputs done
+                      </div>
+                    </div>
+                  )
+                })}
+              </CardContent>
+            </Card>
+          )}
+
+          {failedGroups.length > 0 && (
+            <Card>
+              <CardContent className="grid gap-3 py-4">
+                <div className="text-xs uppercase tracking-wide text-muted-foreground">Failed</div>
+                {failedGroups.map((fg) => {
+                  const job = fg.jobs as unknown as {
+                    title: string
+                    listings: { address: string } | null
+                  } | null
+                  return (
+                    <div key={fg.id} className="flex items-start justify-between gap-3 text-sm">
+                      <div className="min-w-0">
+                        <div className="font-medium">{job?.title}</div>
+                        <div className="text-muted-foreground">
+                          {job?.listings?.address} · {chainLabel(fg.edit_chain as ChainStep[])}
+                        </div>
+                        {fg.last_error && (
+                          <div className="truncate text-xs text-destructive">{fg.last_error}</div>
+                        )}
+                      </div>
+                      <RerunButton fileGroupId={fg.id} />
+                    </div>
+                  )
+                })}
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
+    </main>
+  )
+}
