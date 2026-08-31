@@ -39,6 +39,8 @@ const PRIMARY_TASKS = [
   { editType: "COLOUR_CHANGE", label: "Change color", description: "Repaint a chosen surface" },
 ] as const
 
+const PRIMARY_TASK_TYPES = new Set<string>(PRIMARY_TASKS.map((task) => task.editType))
+
 const TASK_HEADINGS: Record<string, string> = {
   IMAGE_ENHANCEMENT: "Enhance this photo",
   VIRTUAL_STAGING: "Stage this room",
@@ -94,7 +96,6 @@ export function Composer({
   // created, then persisted to chat_messages on the new file group
   const [chatMessages, setChatMessages] = useState<{ role: "user" | "assistant"; content: string }[]>([])
   const [chatText, setChatText] = useState("")
-  const [chipEdit, setChipEdit] = useState("")
   const [chipRoom, setChipRoom] = useState("")
   const [chipStyle, setChipStyle] = useState("")
   const [interpreting, setInterpreting] = useState(false)
@@ -254,7 +255,6 @@ export function Composer({
     setInterpreting(true)
 
     const chips = {
-      edit_type: chipEdit || undefined,
       room_type: chipRoom || undefined,
       furniture_style: chipStyle || undefined,
     }
@@ -428,27 +428,44 @@ export function Composer({
           </p>
 
           {chain.length === 0 && !ideas && (
-            <div className="grid grid-cols-2 gap-px overflow-hidden border border-border bg-border">
-              {PRIMARY_TASKS.map((task) => (
-                <button
-                  key={task.editType}
-                  type="button"
-                  onClick={() => chooseTask(task.editType)}
-                  className="min-h-20 bg-card px-3 py-3 text-left transition-colors hover:bg-accent focus-visible:relative focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                >
-                  <span className="block font-ui text-sm font-semibold">{task.label}</span>
-                  <span className="mt-1 block text-xs leading-snug text-muted-foreground">
-                    {task.description}
+            <div>
+              <div className="grid grid-cols-2 gap-px overflow-hidden border border-border bg-border">
+                {PRIMARY_TASKS.map((task) => (
+                  <button
+                    key={task.editType}
+                    type="button"
+                    onClick={() => chooseTask(task.editType)}
+                    className="min-h-20 bg-card px-3 py-3 text-left transition-colors hover:bg-accent focus-visible:relative focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    <span className="block font-ui text-sm font-semibold">{task.label}</span>
+                    <span className="mt-1 block text-xs leading-snug text-muted-foreground">
+                      {task.description}
+                    </span>
+                  </button>
+                ))}
+              </div>
+              <details className="group border-x border-b border-border bg-card">
+                <summary className="cursor-pointer list-none px-3 py-3 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">
+                  <span className="flex items-center justify-between">
+                    All edit tools
+                    <span aria-hidden="true" className="transition-transform group-open:rotate-90">→</span>
                   </span>
-                </button>
-              ))}
-              <button
-                type="button"
-                onClick={() => document.getElementById("advanced-edit-catalog")?.setAttribute("open", "")}
-                className="col-span-2 min-h-12 bg-card px-3 py-2 text-left text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-              >
-                More edits <span aria-hidden="true">→</span>
-              </button>
+                </summary>
+                <div className="grid grid-cols-2 gap-px border-t border-border bg-border">
+                  {Object.entries(EDIT_TYPES)
+                    .filter(([editType]) => !PRIMARY_TASK_TYPES.has(editType))
+                    .map(([editType, { label }]) => (
+                      <button
+                        key={editType}
+                        type="button"
+                        onClick={() => chooseTask(editType)}
+                        className="min-h-12 bg-card px-3 py-2 text-left text-xs transition-colors hover:bg-accent focus-visible:relative focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      >
+                        {label}
+                      </button>
+                    ))}
+                </div>
+              </details>
             </div>
           )}
 
@@ -548,14 +565,6 @@ export function Composer({
               </summary>
               <div className="mt-2 grid gap-2">
                 <div className="flex flex-wrap items-center gap-2">
-                  <Select value={chipEdit} onChange={(e) => setChipEdit(e.target.value)} className="w-auto text-xs">
-                    <option value="">Edit type…</option>
-                    {Object.entries(EDIT_TYPES).map(([k, { label }]) => (
-                      <option key={k} value={k}>
-                        {label}
-                      </option>
-                    ))}
-                  </Select>
                   <Select value={chipRoom} onChange={(e) => setChipRoom(e.target.value)} className="w-auto text-xs">
                     <option value="">Room type…</option>
                     {ROOM_TYPES.map((r) => (
@@ -690,26 +699,30 @@ export function Composer({
             </details>
           )}
 
-          {/* The ordered chain is the moat, but it is advanced vocabulary. */}
-          <details id="advanced-edit-catalog" className="mt-4 border-t border-border pt-3">
-            <summary className="cursor-pointer font-ui text-xs uppercase tracking-[0.12em] text-muted-foreground hover:text-foreground">
-              Advanced · edit order and more tools
-            </summary>
-            <div className="mt-2 flex flex-wrap items-center gap-2">
-              <Select
-                value=""
-                onChange={(e) => e.target.value && addEdit(e.target.value)}
-                className="w-auto"
-              >
-                <option value="">+ Add edit…</option>
-                {Object.entries(EDIT_TYPES).map(([k, { label }]) => (
-                  <option key={k} value={k}>
+          {/* The ordered chain is powerful, but only appears after the first
+              outcome has been chosen. There is no second empty-state picker. */}
+          {chain.length > 0 && (
+            <details className="group mt-4 border-t border-border pt-3">
+              <summary className="cursor-pointer list-none font-ui text-xs uppercase tracking-[0.12em] text-muted-foreground hover:text-foreground">
+                <span className="flex items-center justify-between">
+                  Add another edit
+                  <span aria-hidden="true" className="transition-transform group-open:rotate-45">＋</span>
+                </span>
+              </summary>
+              <div className="mt-3 grid grid-cols-2 gap-px border border-border bg-border">
+                {Object.entries(EDIT_TYPES).map(([editType, { label }]) => (
+                  <button
+                    key={editType}
+                    type="button"
+                    onClick={() => addEdit(editType)}
+                    className="min-h-12 bg-card px-3 py-2 text-left text-xs transition-colors hover:bg-accent focus-visible:relative focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
                     {label}
-                  </option>
+                  </button>
                 ))}
-              </Select>
-            </div>
-          </details>
+              </div>
+            </details>
+          )}
 
           <div className="mt-3">
             <p className="text-xs font-medium text-muted-foreground">
