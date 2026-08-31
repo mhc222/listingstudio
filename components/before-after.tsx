@@ -71,8 +71,9 @@ export function BeforeAfter({ beforeUrl, afterUrl }: { beforeUrl: string | null;
           onChange={(e) => setPos(Number(e.target.value))}
           aria-label="Before and after comparison"
           aria-valuetext={`${pos}% original, ${100 - pos}% edited`}
-          className="absolute inset-0 h-full w-full cursor-ew-resize opacity-0"
+          className="peer absolute inset-0 h-full w-full cursor-ew-resize opacity-0"
         />
+        <span className="pointer-events-none absolute inset-1 opacity-0 ring-2 ring-white ring-offset-2 ring-offset-[#241f1a] transition-opacity peer-focus-visible:opacity-100" />
       </div>
     </div>
   )

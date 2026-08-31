@@ -37,10 +37,18 @@
 - [x] Phase 34 — Searchable room browser + shared photo-tray filtering (no migration)
 - [x] Phase 35 — Photo-first editing + separate Activity route (no migration)
 - [x] Phase 36 — End-to-end task studio UX + result workspace (no migration)
+- [x] Phase 37 — Staging direction + one-path studio UX (no migration)
 
-## ACTIVE HANDOFF — Task Studio UX + floor-plan parser (2026-08-31, guided-QA session)
+## ACTIVE HANDOFF — Interior-directed staging + Task Studio UX (2026-08-31, guided-QA session)
 
-**Read this first.** Phase 36 replaces the generic editor with a task-first split-screen studio and makes the exact FileGroup page the post-submit processing/result destination. The complete UX contract is in `UI-SPEC.md`; it was challenged by a separate UX checker before implementation. The floor-plan parser, Phase 34 room browser, Phase 35 Activity split, and Phase 36 Task Studio/result workspace are implemented. Browser QA: Elam Plan 5 OCR + 26-room creation; room search/filter; task chooser + contextual Stage controls; Activity American-English labels; completed orange-wall result with dominant before/after, download, versions, refinement, QA, and details. `npx tsc --noEmit`, full ESLint, and the production build pass. Dev server was stopped for build and restored on pinned port 3000. The >10 MB upload limit remains a separate planned fix.
+**Read this first.** Phase 36 replaces the generic editor with a task-first split-screen studio and makes the exact FileGroup page the post-submit processing/result destination. Phase 37 removes its last duplicate edit picker and turns virtual staging into an interior-design-led compiler with restrained furnishing, focal-point/circulation rules, floor-plan reference roles, and staging-specific QA. The complete journey contract is in `UI-SPEC.md`; the Phase 37 audit is in `37-UI-REVIEW.md`. Browser QA: Elam Plan 5 OCR + 26-room creation; room search/filter; one-path task chooser + contextual Stage controls; Activity American-English labels; and a fully contained 50/50 result comparison with download, versions, refinement, QA, and details. TypeScript, targeted ESLint, and responsive browser checks pass. The >10 MB upload limit remains a separate planned fix.
+
+**Phase 37 shipped:**
+- The Task Studio has one selection path: six common outcomes plus All edit tools before selection; Add another edit appears only after the first step. The redundant visible/native `+ Add edit…` control and free-text edit-type chip are gone.
+- Virtual staging defaults to Light MLS staging and exposes only Room type, Furniture style, Furnishing level, Showcase, and an optional must-include/avoid direction. The compiler now prioritizes the camera sightline, true focal point, usable circulation, realistic clearances, minimal furniture, and room-specific composition.
+- Auto-attached floor plans are ordered before style samples and described as spatial evidence only. Staging QA now checks scale/placement, circulation/access, focal composition, and room function/restraint; serious failures feed the existing one-retry corrective loop.
+- Before/after remains fully contained, starts at 50/50, supports drag-anywhere plus keyboard adjustment, has a visible focus ring, and stacks the action rail below the image until an extra-wide viewport can fit both without overflow.
+- Browser QA passed at 393px, 985px, and 1454px with zero horizontal overflow and zero console warnings/errors. `37-UI-REVIEW.md` scores the six-pillar audit 23/24.
 
 **Phase 36 shipped:**
 - `UI-SPEC.md` maps public home → login → dashboard → listing → photo/task studio → processing/result → refinement/version → delivery, including accessibility, mobile, error, and empty states.
