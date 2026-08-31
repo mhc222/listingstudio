@@ -8,57 +8,8 @@ export function UploadPanel({ listingId }: { listingId: string }) {
   const router = useRouter()
   const photoInput = useRef<HTMLInputElement>(null)
   const planInput = useRef<HTMLInputElement>(null)
-  const hdrInput = useRef<HTMLInputElement>(null)
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState("")
-  const [hdrEnhance, setHdrEnhance] = useState(true)
-
-  // HDR_MERGE (phase 14): 3-9 brackets -> fused photo; optional chain to
-  // IMAGE_ENHANCEMENT rides the normal jobs route on the merged photo.
-  async function doHdrMerge(files: FileList | null) {
-    if (!files?.length) return
-    if (files.length < 3 || files.length > 9) {
-      setMessage("Select 3-9 bracketed exposures of the same shot.")
-      if (hdrInput.current) hdrInput.current.value = ""
-      return
-    }
-    setBusy(true)
-    setMessage(`Merging ${files.length} brackets…`)
-    const form = new FormData()
-    form.set("listingId", listingId)
-    for (const f of Array.from(files)) form.append("files", f)
-    try {
-      const res = await fetch("/api/hdr-merge", { method: "POST", body: form })
-      const json = await res.json()
-      if (!res.ok) throw new Error(json.error ?? "merge failed")
-      if (hdrEnhance) {
-        const jobRes = await fetch("/api/jobs", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            listingId,
-            photoId: json.photoId,
-            editChain: [
-              {
-                edit_type: "IMAGE_ENHANCEMENT",
-                options: { sky_replacement: false, day_sky_style: "any", grass_repair: false },
-              },
-            ],
-            comment: "HDR merged bracket set",
-          }),
-        })
-        setMessage(jobRes.ok ? "Merged — enhancement job running." : "Merged, but the enhancement job failed to start.")
-      } else {
-        setMessage("Merged.")
-      }
-      router.refresh()
-    } catch (e) {
-      setMessage(e instanceof Error ? e.message : "HDR merge failed — try again.")
-    } finally {
-      setBusy(false)
-      if (hdrInput.current) hdrInput.current.value = ""
-    }
-  }
 
   async function doUpload(files: FileList | null, isFloorPlan: boolean) {
     if (!files?.length) return
@@ -113,25 +64,6 @@ export function UploadPanel({ listingId }: { listingId: string }) {
       <Button variant="outline" disabled={busy} onClick={() => planInput.current?.click()}>
         Attach floor plan
       </Button>
-      <input
-        ref={hdrInput}
-        type="file"
-        multiple
-        accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif"
-        className="hidden"
-        onChange={(e) => doHdrMerge(e.target.files)}
-      />
-      <Button variant="outline" disabled={busy} onClick={() => hdrInput.current?.click()}>
-        HDR merge brackets
-      </Button>
-      <label className="flex items-center gap-1.5 text-sm text-muted-foreground">
-        <input
-          type="checkbox"
-          checked={hdrEnhance}
-          onChange={(e) => setHdrEnhance(e.target.checked)}
-        />
-        enhance after merge
-      </label>
       {message && <span className="text-sm text-muted-foreground">{message}</span>}
     </div>
   )
