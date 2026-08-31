@@ -428,7 +428,7 @@ Spec of record: DECISIONS.md 2026-08-31 "UI REDESIGN DIRECTION LOCKED" (commit b
 
 ---
 
-## Phase 36 — End-to-end task studio UX
+## Phase 36 — End-to-end task studio UX ✅ DONE
 
 **Goal:** Make the full Listing Studio journey feel like one coherent real-estate photo workflow rather than a collection of internal job-building controls. Preserve the interpreter loop and ordered edit chains under the hood, but lead with the user's task, the selected listing photo, task-specific controls, one clear primary action, an honest progress state, and a visual result/rework workspace. Use EdenSign only as an interaction reference for the split task-controls/photo-canvas pattern; retain Listing Studio's Editorial Luxury identity and its stronger free-text, chained-edit, batch, version, QA, and delivery capabilities.
 
