@@ -24,20 +24,23 @@ export function isStaged(chain: { edit_type: string }[]): boolean {
 }
 
 // Corner disclosure pill, bottom-right with a 16px margin baked into the SVG.
-// Darkroom identity (phase 18): mark + compliance text in teal-light on an
-// 82%-opacity dark scrim so it survives any photograph beneath it. The mark
-// drops the floor rule at this size — three elements is one too many under
-// 12px (spec §06). Applied BEFORE the quality ladder so the ladder compresses
-// the final pixels.
+// Editorial Luxury identity (phase 32): mark + compliance text in brass on an
+// 82%-opacity dark scrim so it survives any photograph beneath it (the scrim
+// stays dark regardless of the light app palette — a photo underneath can be
+// any brightness). The mark drops the floor rule at this size — three elements
+// is one too many under 12px (spec §06). Serif family for the wordmark voice;
+// sharp renders via fontconfig so lead with Cormorant but keep real fallbacks
+// (Georgia on mac, a serif on Vercel's Linux). Applied BEFORE the quality
+// ladder so the ladder compresses the final pixels.
 export async function applyWatermark(buf: Buffer): Promise<Buffer> {
   const svg = Buffer.from(
     `<svg width="262" height="60" xmlns="http://www.w3.org/2000/svg">
        <rect x="0" y="0" width="246" height="44" rx="22" fill="#0B0E10" fill-opacity="0.82"/>
        <svg x="17" y="13" width="18" height="18" viewBox="0 0 48 48">
-         <path d="M7 15V7h8M41 15V7h-8M7 25v8h8M41 25v8h-8" fill="none" stroke="#7FD9D4" stroke-width="4.4"/>
-         <rect x="16" y="15" width="16" height="18" fill="#7FD9D4"/>
+         <path d="M7 15V7h8M41 15V7h-8M7 25v8h8M41 25v8h-8" fill="none" stroke="#A57C3F" stroke-width="4.4"/>
+         <rect x="16" y="15" width="16" height="18" fill="#A57C3F"/>
        </svg>
-       <text x="43" y="28" font-family="'JetBrains Mono', 'Courier New', monospace" font-size="13" font-weight="bold" fill="#7FD9D4" letter-spacing="2">VIRTUALLY STAGED</text>
+       <text x="43" y="28" font-family="'Cormorant Garamond', Georgia, 'Times New Roman', serif" font-size="15" font-weight="bold" fill="#A57C3F" letter-spacing="2">VIRTUALLY STAGED</text>
      </svg>`
   )
   return sharp(buf).composite([{ input: svg, gravity: "southeast" }]).jpeg({ quality: 92 }).toBuffer()

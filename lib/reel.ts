@@ -65,12 +65,17 @@ export function captionSvg(lines: string[], w: number) {
   const height = pad * 2 + addressSize + (hasFacts ? factsSize + Math.round(pad * 0.4) : 0)
   const esc = (s: string) =>
     s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+  // Editorial Luxury (phase 32): serif address in white, facts line in brass —
+  // the same teal→brass, mono→serif swap as the download watermark. sharp
+  // renders via fontconfig, so lead with Cormorant but keep real serif
+  // fallbacks. Scrim stays a dark 62% wash so both survive any frame beneath.
+  const serif = "'Cormorant Garamond', Georgia, 'Times New Roman', serif"
   return {
     height,
     svg: `<svg width="${w}" height="${height}" xmlns="http://www.w3.org/2000/svg">
   <rect width="${w}" height="${height}" fill="black" fill-opacity="0.62"/>
-  <text x="${pad}" y="${pad + addressSize}" font-family="monospace" font-size="${addressSize}" font-weight="bold" fill="white" letter-spacing="1">${esc(lines[0] ?? "")}</text>
-  ${hasFacts ? `<text x="${pad}" y="${height - pad}" font-family="monospace" font-size="${factsSize}" fill="#3FBFB9" letter-spacing="2">${esc(lines[1])}</text>` : ""}
+  <text x="${pad}" y="${pad + addressSize}" font-family="${serif}" font-size="${addressSize}" font-weight="bold" fill="white" letter-spacing="1">${esc(lines[0] ?? "")}</text>
+  ${hasFacts ? `<text x="${pad}" y="${height - pad}" font-family="${serif}" font-size="${factsSize}" fill="#A57C3F" letter-spacing="2">${esc(lines[1])}</text>` : ""}
 </svg>`,
   }
 }

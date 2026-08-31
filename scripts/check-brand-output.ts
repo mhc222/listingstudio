@@ -17,16 +17,17 @@ async function main() {
     .raw()
     .toBuffer({ resolveWithObject: true })
   let dark = 0
-  let teal = 0
+  let brass = 0
   const d = region.data
   for (let i = 0; i < d.length; i += 3) {
     const [r, g, b] = [d[i], d[i + 1], d[i + 2]]
     if (r < 60 && g < 60 && b < 60) dark++
-    if (g > 150 && b > 150 && g - r > 40 && b - r > 40) teal++
+    // brass #A57C3F ≈ (165,124,63): warm, r > g > b with a real red-blue spread
+    if (r > 110 && r - b > 45 && r >= g && g > b) brass++
   }
-  console.log("watermark region: dark scrim px =", dark, "teal px =", teal)
+  console.log("watermark region: dark scrim px =", dark, "brass px =", brass)
   assert(dark > 2000, "expected a dark scrim in the corner")
-  assert(teal > 100, "expected teal mark/text pixels")
+  assert(brass > 100, "expected brass mark/text pixels")
 
   // untouched pixel far from the corner stays gray
   const far = await sharp(marked).extract({ left: 10, top: 10, width: 4, height: 4 }).raw().toBuffer()
