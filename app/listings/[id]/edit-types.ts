@@ -19,7 +19,13 @@ export const EDIT_TYPES: Record<string, { label: string; defaults: Record<string
   TURN_ON_LIGHTS: { label: "Turn on lights", defaults: {} },
   VIRTUAL_STAGING: {
     label: "Virtual staging",
-    defaults: { room_type: "living_room", furniture_style: "modern", furniture_required: "" },
+    defaults: {
+      room_type: "living_room",
+      furniture_style: "modern",
+      furnishing_level: "light",
+      showcase: "auto",
+      furniture_required: "",
+    },
   },
   VIRTUAL_RENOVATION: {
     label: "Virtual renovation",
@@ -43,7 +49,13 @@ export const EDIT_TYPES: Record<string, { label: string; defaults: Record<string
   "360_ITEM_REMOVAL": { label: "360 item removal (experimental)", defaults: { tier: 1, items: "" } },
   "360_VIRTUAL_STAGING": {
     label: "360 virtual staging (experimental)",
-    defaults: { room_type: "living_room", furniture_style: "modern", furniture_required: "" },
+    defaults: {
+      room_type: "living_room",
+      furniture_style: "modern",
+      furnishing_level: "light",
+      showcase: "auto",
+      furniture_required: "",
+    },
   },
 }
 
@@ -53,6 +65,19 @@ export const RENOVATION_TIER_LABELS: Record<string, string> = {
   light: "Light touch",
   mid: "Mid renovation",
   full: "Full renovation",
+}
+
+export const FURNISHING_LEVEL_LABELS: Record<string, string> = {
+  light: "Light staging",
+  standard: "Standard staging",
+}
+
+export const SHOWCASE_LABELS: Record<string, string> = {
+  auto: "Choose automatically",
+  fireplace: "Fireplace",
+  view: "Exterior view",
+  conversation: "Conversation area",
+  tv: "TV wall",
 }
 
 export const SKY_STYLE_LABELS: Record<string, string> = {

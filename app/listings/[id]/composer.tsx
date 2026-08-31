@@ -776,7 +776,7 @@ export function Composer({
               />
             </div>
           )}
-          <div className="sticky bottom-0 z-10 -mx-4 mt-5 border-t border-border bg-background/95 px-4 py-4 backdrop-blur sm:mx-0 sm:px-0">
+          <div className="-mx-4 mt-5 border-t border-border bg-background/95 px-4 py-4 backdrop-blur sm:mx-0 sm:px-0 lg:sticky lg:bottom-0 lg:z-10">
             <div className="flex items-center gap-3">
               <details className="relative">
                 <summary className="cursor-pointer list-none text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground">

@@ -8,7 +8,9 @@ import { ENHANCEMENT_STYLES, FURNITURE_STYLES, LIGHT_PRESETS } from "@/lib/promp
 import type { PhotoRow } from "./photo-grid"
 import {
   EDIT_TYPES,
+  FURNISHING_LEVEL_LABELS,
   RENOVATION_TIER_LABELS,
+  SHOWCASE_LABELS,
   SKY_STYLE_LABELS,
   type ChainEdit,
 } from "./edit-types"
@@ -195,12 +197,38 @@ export function ChainStepEditor({
                   ))}
                 </Select>
               </label>
+              <label className="grid gap-1.5 text-xs text-muted-foreground">
+                Furnishing level
+                <Select
+                  value={String(edit.options.furnishing_level ?? "light")}
+                  onChange={(e) => onOption(i, "furnishing_level", e.target.value)}
+                >
+                  {Object.entries(FURNISHING_LEVEL_LABELS).map(([k, label]) => (
+                    <option key={k} value={k}>
+                      {label}
+                    </option>
+                  ))}
+                </Select>
+              </label>
+              <label className="grid gap-1.5 text-xs text-muted-foreground">
+                Showcase
+                <Select
+                  value={String(edit.options.showcase ?? "auto")}
+                  onChange={(e) => onOption(i, "showcase", e.target.value)}
+                >
+                  {Object.entries(SHOWCASE_LABELS).map(([k, label]) => (
+                    <option key={k} value={k}>
+                      {label}
+                    </option>
+                  ))}
+                </Select>
+              </label>
               <label className="grid gap-1.5 text-xs text-muted-foreground sm:col-span-2">
-                Furniture to include <span className="sr-only">(optional)</span>
+                Must include or avoid <span className="sr-only">(optional)</span>
                 <input
                   value={String(edit.options.furniture_required ?? "")}
                   onChange={(e) => onOption(i, "furniture_required", e.target.value)}
-                  placeholder="Optional · e.g. a king bed and reading chair"
+                  placeholder="Optional · e.g. include a reading chair; no wall art"
                   className="border border-input bg-card px-3 py-2 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
                 />
               </label>

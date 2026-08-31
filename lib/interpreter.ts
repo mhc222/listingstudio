@@ -53,6 +53,8 @@ const FURNITURE_STYLES = [
   "commercial",
   "scandinavian",
 ]
+const FURNISHING_LEVELS = ["light", "standard"]
+const STAGING_SHOWCASES = ["auto", "fireplace", "view", "conversation", "tv"]
 const RENOVATION_TIERS = ["light", "mid", "full"]
 const LIGHT_PRESETS = ["dusk", "bright_daylight", "golden_hour", "soft_overcast"]
 
@@ -76,6 +78,8 @@ const SANITIZERS: Record<string, (o: Record<string, unknown>) => Record<string, 
   VIRTUAL_STAGING: (o) => ({
     room_type: oneOf(o.room_type, ROOM_TYPES, "other"),
     furniture_style: oneOf(o.furniture_style, FURNITURE_STYLES, "modern"),
+    furnishing_level: oneOf(o.furnishing_level, FURNISHING_LEVELS, "light"),
+    showcase: oneOf(o.showcase, STAGING_SHOWCASES, "auto"),
     furniture_required: str(o.furniture_required),
   }),
   VIRTUAL_RENOVATION: (o) => ({

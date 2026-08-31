@@ -128,12 +128,19 @@ async function groundingFor(db: SupabaseClient, fg: FileGroupRow): Promise<Groun
     .from("jobs")
     .select("grounding_used")
     .eq("id", fg.job_id)
-    .single<{ grounding_used: { dimension_sentence?: string } | null }>()
+    .single<{
+      grounding_used: { dimension_sentence?: string; floor_plan_photo_id?: string } | null
+    }>()
   const sentence = job?.grounding_used?.dimension_sentence
-  return sentence ? { dimensions: sentence } : undefined
+  const floorPlanReference = Boolean(job?.grounding_used?.floor_plan_photo_id)
+  return sentence || floorPlanReference
+    ? { dimensions: sentence, floorPlanReference }
+    : undefined
 }
 
-// Reference images (sample library + auto-attached floor plan) as signed URLs.
+// Reference images as signed URLs. Photo refs are spatial evidence (currently
+// the auto-attached floor plan), so they must precede sample/style refs to keep
+// the role-aware staging prompt deterministic.
 async function refUrlsFor(db: SupabaseClient, fg: FileGroupRow): Promise<string[]> {
   const { data: refs } = await db
     .from("file_group_refs")
@@ -142,14 +149,17 @@ async function refUrlsFor(db: SupabaseClient, fg: FileGroupRow): Promise<string[
   // supabase-js types to-one joins as arrays without generated DB types
   const one = (v: unknown) =>
     (Array.isArray(v) ? v[0] : v) as { storage_path: string } | null | undefined
-  const urls: string[] = []
+  const spatialUrls: string[] = []
+  const styleUrls: string[] = []
   for (const ref of refs ?? []) {
     const photo = one(ref.photos)
     const sample = one(ref.sample_images)
-    if (photo) urls.push(await getUrl("originals", photo.storage_path, 6 * 3600, db))
-    else if (sample) urls.push(await getUrl("references", sample.storage_path, 6 * 3600, db))
+    if (photo)
+      spatialUrls.push(await getUrl("originals", photo.storage_path, 6 * 3600, db))
+    else if (sample)
+      styleUrls.push(await getUrl("references", sample.storage_path, 6 * 3600, db))
   }
-  return urls
+  return [...spatialUrls, ...styleUrls]
 }
 
 // Deterministic per (file group, step, retry) so duplicate completions upsert

@@ -35,6 +35,7 @@ export const EDIT_360_BASE: Record<string, string> = {
 // sentence for staging/renovation/item-removal prompts.
 export type Grounding = {
   dimensions?: string | null
+  floorPlanReference?: boolean
 }
 
 export function ITEM_REMOVAL(
@@ -300,24 +301,35 @@ const ROOM_LABELS: Record<string, string> = {
 
 const ROOM_FURNITURE: Record<string, string> = {
   living_room:
-    "a sofa, accent chairs, a coffee table, an area rug, side tables with lamps, and tasteful wall art",
-  kitchen: "bar stools at any counter or island and minimal styled counter decor",
-  dining: "a dining table with chairs, a simple centerpiece, and an area rug",
+    "Create a restrained conversational seating group around the true focal point. Use one appropriately scaled sofa or loveseat and no more than two accent chairs. Add a coffee table only when correct seating distance and clear circulation remain. When the camera faces a fireplace, keep the firebox, surround, and hearth visually open; do not place a sofa back across the camera-to-fireplace sightline.",
+  kitchen:
+    "Add stools only at a visibly seatable counter or island and keep work aisles, appliances, cabinet doors, and circulation fully usable. Use only minimal counter styling.",
+  dining:
+    "Use one appropriately scaled dining table aligned to the room or an existing light fixture. Reduce the chair count before compromising circulation or believable chair pull-back space. Add only a restrained centerpiece.",
   main_bedroom:
-    "a made bed with headboard and layered bedding, nightstands with lamps, a bench at the foot of the bed, and an area rug",
-  bedroom_2: "a made bed with headboard, nightstands with lamps, and an area rug",
-  bedroom_3: "a made bed with headboard, nightstands with lamps, and an area rug",
-  bedroom_4: "a made bed with headboard, nightstands with lamps, and an area rug",
-  bathroom_ensuite: "neatly folded towels, a bath mat, and minimal counter styling",
-  office: "a desk with a chair, a bookshelf, and an area rug",
-  outdoor_patio: "an outdoor seating set, an outdoor rug, and potted plants",
-  other: "furniture and decor appropriate to the room's function",
+    "Place one made bed with its headboard on an uninterrupted wall. Add nightstands only when both fit with clear passage; add a bench at the foot only when ample circulation remains.",
+  bedroom_2:
+    "Place one made bed with its headboard on an uninterrupted wall. Add only the nightstands and restrained decor that fit with clear passage.",
+  bedroom_3:
+    "Place one made bed with its headboard on an uninterrupted wall. Add only the nightstands and restrained decor that fit with clear passage.",
+  bedroom_4:
+    "Place one made bed with its headboard on an uninterrupted wall. Add only the nightstands and restrained decor that fit with clear passage.",
+  bathroom_ensuite:
+    "Do not add furniture. Add only neatly folded towels, one bath mat, and at most one restrained counter accessory where space permits.",
+  office:
+    "Use one desk with believable chair clearance. Add shelving only on a clearly available wall and keep the route to every opening clear.",
+  outdoor_patio:
+    "Use a minimal outdoor seating group while keeping doors, steps, pool edges, railings, and all paths fully open.",
+  other:
+    "Use minimal neutral staging appropriate to the room only when its function is visually clear; otherwise keep additions sparse.",
 }
 
 export type VirtualStagingOptions = {
   room_type?: string
   furniture_style?: string
   furniture_required?: string
+  furnishing_level?: string
+  showcase?: string
 }
 
 export function VIRTUAL_STAGING(
@@ -328,21 +340,41 @@ export function VIRTUAL_STAGING(
   const roomType = options.room_type ?? "other"
   const style = FURNITURE_STYLES[options.furniture_style ?? "modern"] ?? FURNITURE_STYLES.modern
   const required = (options.furniture_required ?? "").trim()
+  const furnishingLevel = options.furnishing_level === "standard" ? "standard" : "light"
+  const showcase = ["fireplace", "view", "conversation", "tv"].includes(options.showcase ?? "")
+    ? options.showcase
+    : "auto"
   const parts = [
     // brightness cue inside the first ten words
     `Bright natural daylight photo of this exact ${ROOM_LABELS[roomType] ?? "room"}, virtually staged.`,
+    "Design the furniture layout as a senior residential interior designer staging this exact room for sale. First identify the room envelope, primary focal point, likely entries, circulation paths, and the camera's sightline. Add only the smallest set of furniture needed to communicate the room's function, scale, and buyer appeal.",
     `Furnish it in ${style.desc}.`,
-    `Add ${ROOM_FURNITURE[roomType] ?? ROOM_FURNITURE.other}.`,
+    furnishingLevel === "light"
+      ? "Use light MLS staging: one anchor piece and only the supporting pieces needed to make the room's purpose obvious. Preserve generous visible floor area."
+      : "Use standard staging, but reduce the item count whenever a complete arrangement would make the room feel crowded.",
+    showcase === "auto"
+      ? "Choose the strongest existing architectural feature or meaningful exterior view as the primary showcase."
+      : `Use the ${showcase} as the primary showcase while preserving a natural, functional layout.`,
+    ROOM_FURNITURE[roomType] ?? ROOM_FURNITURE.other,
     // spatial anchoring (prompt engineering rule 1): light entry, furniture vs walls/windows, surfaces
     "Anchor every piece to the room as photographed: orient seating toward the room's natural focal point, place large furniture against walls, leave every window, doorway, and walkway unobstructed, and light the furniture consistently with the natural light entering through the existing windows.",
+    "Prioritize the listing photograph's composition as well as real-world function. Keep the primary focal feature, longest sightline, meaningful exterior view, and useful visible floor area readable from the camera. Do not place a tall sofa back or other visually heavy piece across the center foreground or directly between the camera and a fireplace, window view, built-in, or main architectural feature.",
+    "Maintain believable clearances: keep primary walkways about 36 inches wide and secondary passages at least 30 inches wide; leave usable chair pull-back space; maintain about 14 to 18 inches between seating and a coffee table; and keep furniture safely clear of the fireplace. If the room cannot support an item with these clearances, omit the item instead of shrinking or crowding the furniture.",
+    "Use fewer correctly scaled pieces rather than filling a furniture checklist. Keep decor restrained: at most one appropriately scaled rug, only the tables and lamps that serve the layout, and one cohesive wall-art grouping where an open wall clearly permits it. Do not add decor merely to fill empty space.",
+    "Every added object must rest naturally on the floor or supporting surface with correct perspective, contact shadows, and lighting. Furniture must not float, intersect, overlap implausibly, block fixed controls, cross thresholds, or obstruct doors, windows, appliances, steps, hearths, or walkways.",
     "If any added lamp is shown lit, its light must match that fixture's type, shade, and position — glowing and casting light only where that lamp would physically cast it, never contradicting the window light.",
     "Keep the existing flooring, wall finishes, and ceiling exactly as they appear in the photo.",
   ]
   if (grounding?.dimensions) parts.push(grounding.dimensions)
-  if (required) parts.push(`Required furniture: ${required}.`)
-  parts.push(
-    "If reference images are provided, match their furniture style, materials, and color palette."
-  )
+  if (required) parts.push(`Client furniture direction: ${required}.`)
+  if (grounding?.floorPlanReference)
+    parts.push(
+      "The first reference image after the source photo is the listing floor plan and is spatial evidence only. Use it only to understand this room's shape, openings, and circulation. Do not copy its drawing style, text, symbols, colors, or diagram furniture into the photograph. Any later reference images are style references only."
+    )
+  else
+    parts.push(
+      "If reference images are provided, match their furniture style, materials, and color palette."
+    )
   parts.push(GEOMETRY_INTERIOR)
   if (comment?.trim()) parts.push(comment.trim())
   parts.push(LISTING_SUFFIX)
@@ -570,10 +602,11 @@ Check, in order:
 1. The requested edits were actually applied.
 2. No geometry drift: room dimensions, wall positions, window and door placement, flooring, ceiling height, and camera perspective must match the original.
 3. No obvious AI artifacts: warped straight lines, impossible furniture, garbled text, duplicated objects, unrealistic scale.
+4. For VIRTUAL_STAGING, the room must remain physically usable and photograph well: furniture has plausible scale and floor contact; doors, windows, appliances, fireplace, and visible walking paths stay open; the architectural focal point and room depth remain legible from the camera; and the selected room function is clear without crowding or redundant decor.
 Extra named checks may be appended to the request — apply them strictly.
 
 - pass=true when the result is deliverable, even if imperfect; note the imperfection.
-- pass=false only for defects a client would reject; corrective_instruction must then be a concrete imperative fix for the image model ("straighten the warped window frame on the left wall"). corrective_instruction is null when pass=true.`
+- pass=false for defects a client would reject, including geometry drift, floating/colliding/implausibly scaled furniture, a blocked doorway/window/appliance/fireplace/main path, the wrong room function, or a primary focal point substantially obscured from the camera. corrective_instruction must then be a concrete imperative fix for the image model ("move the sofa out of the camera-to-fireplace sightline and restore a clear walking path"). corrective_instruction is null when pass=true.`
 
 // Floor-plan room parser (Matt, 2026-08-31): a vision pass that reads an
 // UPLOADED floor plan and extracts its labelled rooms + printed dimensions so
@@ -620,6 +653,29 @@ export function complianceVisionChecks(
       label:
         "No fabricated permanent features: windows, doors, walls, built-ins, and fixtures match the original photo",
     })
+  if (chain.some((s) => s.edit_type === "VIRTUAL_STAGING"))
+    checks.push(
+      {
+        id: "staging_scale_placement",
+        label:
+          "Furniture is realistically scaled, floor-contacting, perspective-correct, and free of implausible overlaps",
+      },
+      {
+        id: "staging_circulation_access",
+        label:
+          "Doors, windows, fireplace, appliances, and visible circulation paths remain open and usable",
+      },
+      {
+        id: "staging_focal_composition",
+        label:
+          "The architectural focal point and room depth remain visible from the camera without a dominant furniture back blocking the view",
+      },
+      {
+        id: "staging_function_restraint",
+        label:
+          "The selected room function is immediately clear without crowding, redundant decor, or unnecessary pieces",
+      }
+    )
   const isDusk = chain.some(
     (s) => s.edit_type === "DAY_TO_DUSK" && ((s.options?.preset as string) ?? "dusk") === "dusk"
   )
@@ -647,7 +703,7 @@ Edit catalog (edit_type -> allowed options):
 - IMAGE_ENHANCEMENT: { sky_replacement: boolean, day_sky_style: "any"|"clear_blue"|"clouds_blue"|"orange_sunrise", grass_repair: boolean } — general quality pass: white balance, sharpening, straightening, exposure, blemish removal. Use for "too dark", "dull", "make it pop", "fix the photo".
 - TURN_ON_LIGHTS: {} — warm glow on ceiling lights, lamps, chandeliers.
 - ITEM_REMOVAL: { tier: 1|2, items: string } — tier 1 removes only the named items; tier 2 is a full declutter. Put what to remove in items.
-- VIRTUAL_STAGING: { room_type: "living_room"|"kitchen"|"dining"|"main_bedroom"|"bedroom_2"|"bedroom_3"|"bedroom_4"|"bathroom_ensuite"|"office"|"outdoor_patio"|"other", furniture_style: "modern"|"contemporary"|"farmhouse"|"traditional"|"urban_industrial"|"mid_century_modern"|"hamptons"|"commercial"|"scandinavian", furniture_required: string } — add furniture to an empty or sparse room. furniture_required carries any specific pieces the user asked for, else "".
+- VIRTUAL_STAGING: { room_type: "living_room"|"kitchen"|"dining"|"main_bedroom"|"bedroom_2"|"bedroom_3"|"bedroom_4"|"bathroom_ensuite"|"office"|"outdoor_patio"|"other", furniture_style: "modern"|"contemporary"|"farmhouse"|"traditional"|"urban_industrial"|"mid_century_modern"|"hamptons"|"commercial"|"scandinavian", furnishing_level: "light"|"standard", showcase: "auto"|"fireplace"|"view"|"conversation"|"tv", furniture_required: string } — add furniture to an empty or sparse room. Default furnishing_level to "light" for restrained MLS staging. showcase is the feature the camera composition should prioritize; infer it when obvious, otherwise "auto". furniture_required carries any specific pieces to include or avoid, else "".
 - VIRTUAL_RENOVATION: { tier: "light"|"mid"|"full", changes: string } — change finishes (cabinets, counters, paint, floors). changes describes the requested finish changes.
 - VIRTUAL_LANDSCAPING: { instructions: string } — exterior curb appeal: lawn, beds, plants, walkways, door color, porch furniture.
 - DAY_TO_DUSK: { preset: "dusk"|"bright_daylight"|"golden_hour"|"soft_overcast" } — dusk is an exterior twilight conversion; the other three are interior relight-only presets.

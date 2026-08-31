@@ -204,7 +204,7 @@ export function FileGroupWorkspace({ listingId, fg, before, siblings }: {
         </nav>
       )}
 
-      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
+      <div className="grid min-w-0 items-start gap-6 xl:grid-cols-[minmax(0,1fr)_20rem]">
         <section aria-label="Photo result" className="min-w-0">
           {latest?.url ? (
             is360 && preview360 ? (
@@ -232,7 +232,7 @@ export function FileGroupWorkspace({ listingId, fg, before, siblings }: {
           )}
         </section>
 
-        <aside className="border-t border-border pt-5 lg:sticky lg:top-5 lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0">
+        <aside className="min-w-0 border-t border-border pt-5 xl:sticky xl:top-5 xl:border-l xl:border-t-0 xl:pl-6 xl:pt-0">
           <StatePill status={fg.step_status} label={copy.label} />
           <h2 className="mt-2 font-serif text-2xl">{copy.heading}</h2>
 
