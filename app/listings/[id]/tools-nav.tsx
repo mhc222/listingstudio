@@ -12,6 +12,7 @@ const TOOLS = [
   { seg: "tour", label: "Tour" },
   { seg: "plan", label: "Plan" },
   { seg: "copy", label: "Copy" },
+  { seg: "activity", label: "Activity" },
 ] as const
 
 export function ToolsNav({ listingId }: { listingId: string }) {

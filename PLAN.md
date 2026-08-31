@@ -411,3 +411,17 @@ Spec of record: DECISIONS.md 2026-08-31 "UI REDESIGN DIRECTION LOCKED" (commit b
 **DoD:** build passes; All photos shows the whole tray; Untagged shows only unassigned photos; choosing a room shows only its tagged photos plus one compact room summary; search finds room name/type/dimensions; duplicate Bedrooms/Baths/Halls/W.I.C.s are distinguishable; changing filters cannot leave invisible photos selected; per-photo tagging, full-screen photo editing, batch selection, room add/edit/delete, and floor-plan extraction still work; mobile layout remains usable.
 
 **Manual test (Matt):** on 11689 Elam Dr, switch All photos → Untagged → Primary Bedroom; search for “13′11”; verify the tray count/filter, edit the selected room, retag a photo and watch it leave/enter the filtered tray, then return to All photos.
+
+---
+
+## Phase 35 — Photo-first editing + Activity route ✅ DONE
+
+**Goal:** The listing page is a photo workspace, not an operations console. Remove the permanently visible “New job” composer and Jobs feed. A user edits by opening a photo, or selects several photos and explicitly opens a batch editor. Background work lives on a separate, trustworthy Activity page.
+
+**Files:** `app/listings/[id]/listing-workspace.tsx` removes the inline Composer + JobFeed, opens the existing Composer only inside the single-photo editor or an explicit batch-editor overlay, and shows a quiet “Edit started → View activity” confirmation after submission; `composer.tsx` removes internal “New job” language and nested card chrome, uses human action copy (“Describe the edit”, “Build edit”, “Start edit”), and accepts the surrounding editor context; new `app/listings/[id]/activity/page.tsx` fetches listing jobs/versions/photos and renders the realtime feed; `tools-nav.tsx` adds Activity; `job-feed.tsx` becomes an editorial activity list with one job-level status, useful output/input thumbnails, human labels, active progress, and technical grounding collapsed under details; FileGroup back-navigation points to Activity.
+
+**Status semantics:** local development cannot receive fal webhooks. Activity must not claim a provider-complete request is still working indefinitely: the existing reconcile path remains the completion mechanism locally, while the UI uses human labels (`Waiting`, `Editing`, `Ready`, `Needs attention`) and shows one status per job.
+
+**DoD:** build passes; listing page contains neither “New job” nor a Jobs section; clicking a photo opens its focused editor; selecting multiple photos reveals one Batch edit action and no composer until invoked; successful submission closes the editor and shows a link to Activity; Activity live-refreshes, shows one trustworthy status per job, hides raw grounding by default, and links every result to its FileGroup workspace; the two orange-wall jobs reconcile to complete locally; mobile overlays and activity rows remain usable.
+
+**Manual test (Matt):** open a Living Room photo → describe a colour change → Build edit → review → Start edit; confirm the listing returns with “Edit started” and no job cards; open Activity and watch Editing become Ready; repeat with two selected photos using Batch edit.

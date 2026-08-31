@@ -29,6 +29,7 @@ export type JobRow = {
   kind: string
   total_cost_cents: number
   grounding_used: { dimension_sentence?: string; floor_plan_photo_id?: string } | null
+  created_at?: string
   file_groups: {
     id: string
     primary_photo_id: string
@@ -49,8 +50,49 @@ export type JobRow = {
   }[]
 }
 
-// The job feed: compact cards linking to each FileGroup workspace (phase 28),
-// plus the listing-wide realtime subscription that refreshes on any job change.
+const STATUS_LABELS: Record<string, string> = {
+  queued: "Waiting",
+  pending: "Waiting",
+  processing: "Editing",
+  running: "Editing",
+  complete: "Ready",
+  failed: "Needs attention",
+  partial_failure: "Needs attention",
+}
+
+function humanTitle(value: string): string {
+  return value ? value.charAt(0).toUpperCase() + value.slice(1) : "Photo edit"
+}
+
+function feetAndInches(value: string): string {
+  return value.replace(/(\d+(?:\.\d+)?) x (\d+(?:\.\d+)?) ft/g, (_match, a, b) => {
+    const format = (raw: string) => {
+      let feet = Math.floor(Number(raw))
+      let inches = Math.round((Number(raw) - feet) * 12)
+      if (inches === 12) {
+        feet += 1
+        inches = 0
+      }
+      return inches ? `${feet}′${inches}″` : `${feet}′`
+    }
+    return `${format(a)} × ${format(b)}`
+  })
+}
+
+function editSummary(chain: { edit_type: string }[]): string {
+  const labels = chain
+    .filter((step) => step.edit_type !== "REWORK")
+    .map((step) => {
+      const catalogLabel = EDIT_TYPES[step.edit_type]?.label
+      if (catalogLabel) return catalogLabel
+      const words = step.edit_type.toLowerCase().replaceAll("_", " ")
+      return words.charAt(0).toUpperCase() + words.slice(1)
+    })
+  return labels.join(" → ") || "Photo revision"
+}
+
+// Editorial activity list linking to each FileGroup workspace (phase 35), plus
+// the listing-wide realtime subscription that refreshes on any job change.
 export function JobFeed({
   listingId,
   photos,
@@ -91,33 +133,88 @@ export function JobFeed({
     }
   }, [listingId, router])
 
+  const hasActive = jobs.some(
+    (job) =>
+      job.status === "processing" ||
+      job.status === "queued" ||
+      job.file_groups.some((group) => group.step_status === "running" || group.step_status === "queued")
+  )
+
+  // Production finishes via fal webhooks. Localhost cannot receive those, so
+  // Activity polls the authenticated listing-scoped reconciliation endpoint.
+  useEffect(() => {
+    if (!hasActive) return
+    let cancelled = false
+    const reconcile = async () => {
+      try {
+        const response = await fetch(`/api/listings/${listingId}/reconcile`, { method: "POST" })
+        if (response.ok && !cancelled) router.refresh()
+      } catch {
+        // A transient offline tab should not turn status refresh into a UI error.
+      }
+    }
+    void reconcile()
+    const timer = window.setInterval(reconcile, 5000)
+    return () => {
+      cancelled = true
+      window.clearInterval(timer)
+    }
+  }, [hasActive, listingId, router])
+
   const hasFinals = jobs.some((j) =>
     j.file_groups.some((fg) => fg.step_status === "complete" && fg.output_versions.length > 0)
   )
 
   return (
-    <section>
-      <div className="mb-3 flex items-center justify-between">
-        <h2 className="text-lg font-medium">Jobs</h2>
+    <section aria-labelledby="activity-feed-title">
+      <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <p className="font-ui text-[0.65rem] uppercase tracking-[0.14em] text-muted-foreground">
+            Listing history
+          </p>
+          <h2 id="activity-feed-title" className="mt-1 font-serif text-2xl">Recent edits</h2>
+        </div>
         {hasFinals && (
           <a
             href={`/api/listings/${listingId}/download-all`}
-            className="text-sm underline hover:text-foreground"
+            className="text-sm underline underline-offset-4 hover:text-foreground"
           >
-            Download all finals (zip)
+            Download ready images
           </a>
         )}
       </div>
 
       {jobs.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No jobs yet — describe an edit above.</p>
+        <div className="border-y border-border py-10">
+          <p className="font-serif text-xl">No edits yet</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Return to Photos and open an image to begin.
+          </p>
+        </div>
       ) : (
-        <div className="grid gap-3">
-          {jobs.map((job) => (
-            <div key={job.id} className="rounded-lg border p-4">
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-sm font-medium">{job.title}</p>
-                <StatePill status={job.status} />
+        <div className="border-t border-border">
+          {jobs.map((job) => {
+            const completeGroups = job.file_groups.filter(
+              (group) => group.step_status === "complete"
+            ).length
+            return (
+            <article key={job.id} className="border-b border-border py-6">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h3 className="font-serif text-xl">{humanTitle(job.title)}</h3>
+                  {job.created_at && (
+                    <time className="mt-1 block text-xs text-muted-foreground">
+                      {new Intl.DateTimeFormat("en-US", {
+                        month: "short",
+                        day: "numeric",
+                        hour: "numeric",
+                        minute: "2-digit",
+                        timeZone: "America/New_York",
+                      }).format(new Date(job.created_at))}
+                    </time>
+                  )}
+                </div>
+                <StatePill status={job.status} label={STATUS_LABELS[job.status] ?? "Waiting"} />
               </div>
               {(() => {
                 // job cards show the latest user message as description (CLAUDE.md)
@@ -127,24 +224,33 @@ export function JobFeed({
                   .sort((a, b) => a.created_at.localeCompare(b.created_at))
                   .at(-1)
                 return lastUser ? (
-                  <p className="mt-1 text-sm text-muted-foreground">“{lastUser.content}”</p>
+                  <p className="mt-2 max-w-3xl text-sm text-muted-foreground">“{lastUser.content}”</p>
                 ) : null
               })()}
               {job.grounding_used && (
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Grounding:{" "}
-                  {[
-                    job.grounding_used.dimension_sentence,
-                    job.grounding_used.floor_plan_photo_id && "floor plan attached as reference",
-                  ]
-                    .filter(Boolean)
-                    .join(" · ")}
+                <details className="mt-3 max-w-3xl text-xs text-muted-foreground">
+                  <summary className="cursor-pointer hover:text-foreground">Edit context</summary>
+                  <p className="mt-1 leading-relaxed">
+                    {feetAndInches(
+                      [
+                        job.grounding_used.dimension_sentence,
+                        job.grounding_used.floor_plan_photo_id && "Floor plan attached as reference",
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")
+                    )}
+                  </p>
+                </details>
+              )}
+              {job.file_groups.length > 1 && (
+                <p className="mt-3 text-xs text-muted-foreground">
+                  {completeGroups} of {job.file_groups.length} photos ready
                 </p>
               )}
               {job.kind === "ideas" ? (
                 // labeled 2x2 grid; each cell opens its own FileGroup page
                 // (phase 28 — the promoted-in-place state is gone)
-                <div className="stagger mt-3 grid grid-cols-2 gap-2">
+                <div className="stagger mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
                   {job.file_groups.map((fg) => {
                     const v = [...fg.output_versions].sort(
                       (a, b) => b.version_number - a.version_number
@@ -153,11 +259,11 @@ export function JobFeed({
                       <Link
                         key={fg.id}
                         href={`/listings/${listingId}/f/${fg.id}`}
-                        className="develop-in overflow-hidden rounded-md border-2 border-transparent text-left transition-colors hover:border-primary/50"
+                        className="develop-in overflow-hidden text-left transition-opacity hover:opacity-80"
                       >
                         {v?.url ? (
                           // eslint-disable-next-line @next/next/no-img-element -- signed URLs expire; next/image caching fights that
-                          <img src={v.url} alt="" className="aspect-video w-full object-cover" />
+                          <img src={v.url} alt={fg.comment ?? "Edit direction"} className="aspect-video w-full object-cover" />
                         ) : (
                           <div
                             className={`flex aspect-video w-full items-center justify-center bg-muted text-xs text-muted-foreground ${
@@ -175,32 +281,25 @@ export function JobFeed({
               ) : (
                 // compact card rows — each links to the FileGroup workspace where
                 // before/after, versions, rework, download etc. now live (phase 28)
-                job.file_groups.map((fg) => {
+                <div className="mt-4 divide-y divide-border border-y border-border">
+                {job.file_groups.map((fg) => {
                   const latest = [...fg.output_versions].sort(
                     (a, b) => b.version_number - a.version_number
                   )[0]
                   const before = photoById.get(fg.primary_photo_id)
                   const thumb = latest?.url ?? before?.url ?? null
-                  const summary = fg.edit_chain
-                    .map((s) => EDIT_TYPES[s.edit_type]?.label ?? s.edit_type)
-                    .join(" → ")
+                  const summary = editSummary(fg.edit_chain)
                   const doneSteps = fg.current_step + (fg.step_status === "complete" ? 1 : 0)
-                  const stripeColor =
-                    fg.step_status === "failed"
-                      ? "bg-state-failed"
-                      : fg.step_status === "complete"
-                        ? "bg-state-complete"
-                        : "bg-state-running"
                   return (
                     <Link
                       key={fg.id}
                       href={`/listings/${listingId}/f/${fg.id}`}
-                      className="mt-3 flex items-center gap-3 rounded-md border p-2 transition-colors hover:bg-muted"
+                      className="grid grid-cols-[5.5rem_1fr_auto] items-center gap-4 py-3 transition-opacity hover:opacity-75"
                     >
-                      <div className="h-14 w-20 shrink-0 overflow-hidden rounded-md bg-muted">
+                      <div className="aspect-[4/3] overflow-hidden bg-muted">
                         {thumb ? (
                           // eslint-disable-next-line @next/next/no-img-element -- signed URLs expire; next/image caching fights that
-                          <img src={thumb} alt="" className="h-full w-full object-cover" />
+                          <img src={thumb} alt={`${summary} result`} className="h-full w-full object-cover" />
                         ) : (
                           <div
                             className={`flex h-full w-full items-center justify-center text-[10px] text-muted-foreground ${
@@ -211,26 +310,25 @@ export function JobFeed({
                           </div>
                         )}
                       </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center justify-between gap-2">
-                          <p className="truncate text-sm font-medium">{summary}</p>
-                          <StatePill status={fg.step_status} />
-                        </div>
-                        <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-muted">
-                          <div
-                            className={`h-full ${stripeColor}`}
-                            style={{
-                              width: `${Math.round((doneSteps / Math.max(fg.edit_chain.length, 1)) * 100)}%`,
-                            }}
-                          />
-                        </div>
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium">{summary}</p>
+                        {fg.step_status !== "complete" && (
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            Step {Math.min(doneSteps + 1, Math.max(fg.edit_chain.length, 1))} of {Math.max(fg.edit_chain.length, 1)}
+                          </p>
+                        )}
+                        {fg.last_error && (
+                          <p className="mt-1 text-xs text-destructive">{fg.last_error}</p>
+                        )}
                       </div>
+                      <span className="text-sm text-primary">Open →</span>
                     </Link>
                   )
-                })
+                })}
+                </div>
               )}
-            </div>
-          ))}
+            </article>
+          )})}
         </div>
       )}
     </section>

@@ -53,6 +53,7 @@ const PILL_STATES: Record<string, string> = {
   processing: "text-state-running",
   complete: "text-state-complete",
   failed: "text-state-failed",
+  partial_failure: "text-state-failed",
 }
 
 export function StatePill({ status, label }: { status: string; label?: string }) {

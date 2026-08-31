@@ -88,10 +88,10 @@ export default async function FileGroupPage({
   return (
     <main className="mx-auto max-w-4xl p-6">
       <Link
-        href={`/listings/${id}`}
+        href={`/listings/${id}/activity`}
         className="text-sm text-muted-foreground hover:underline"
       >
-        ← {listing?.address ?? "Listing"}
+        ← Activity · {listing?.address ?? "Listing"}
       </Link>
       <h1 className="mt-2 text-2xl font-semibold">{job.title}</h1>
       <div className="mt-6">

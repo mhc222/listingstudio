@@ -1,9 +1,11 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import Link from "next/link"
+import { Button } from "@/components/ui/button"
 import { PhotoGrid, type PhotoRow } from "./photo-grid"
 import { Composer } from "./composer"
-import { JobFeed, type JobRow, type SampleRow } from "./job-feed"
+import { type JobRow, type SampleRow } from "./job-feed"
 import {
   ALL_ROOMS,
   RoomBrowser,
@@ -12,9 +14,8 @@ import {
   type RoomRow,
 } from "./room-browser"
 
-// Phase 29: one selection surface (the grid) feeds the composer. This wrapper
-// owns selectedIds so the tray header and JobPanel stay in sync — no context,
-// there is exactly one consumer.
+// One selection surface feeds focused editors. The listing stays photo-first:
+// the composer only mounts after a photo opens or a batch is explicitly chosen.
 export function ListingWorkspace({
   listingId,
   photos,
@@ -38,7 +39,10 @@ export function ListingWorkspace({
   // it large with the Composer scoped to that one photo; the grid keeps the
   // corner-checkbox batch path. Esc closes.
   const [openId, setOpenId] = useState<string | null>(null)
+  const [batchOpen, setBatchOpen] = useState(false)
+  const [editStarted, setEditStarted] = useState(false)
   const openPhoto = photos.find((p) => p.id === openId) ?? null
+  const selectedPhotos = photos.filter((photo) => selectedIds.includes(photo.id))
   const filteredPhotos =
     activeRoom === ALL_ROOMS
       ? photos
@@ -63,11 +67,15 @@ export function ListingWorkspace({
     }
   }, [activeRoom, rooms])
   useEffect(() => {
-    if (!openId) return
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpenId(null)
+    if (!openId && !batchOpen) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return
+      setOpenId(null)
+      setBatchOpen(false)
+    }
     window.addEventListener("keydown", onKey)
     return () => window.removeEventListener("keydown", onKey)
-  }, [openId])
+  }, [openId, batchOpen])
 
   // phase 31: newest job's batchable chain — feeds the composer's "apply last
   // chain" accelerator. Skip ideas jobs; strip REWORK (internal) and MARKUP_EDIT
@@ -105,6 +113,22 @@ export function ListingWorkspace({
     clear()
   }
 
+  function openSelection() {
+    if (selectedIds.length === 1) {
+      setOpenId(selectedIds[0])
+      clear()
+      return
+    }
+    if (selectedIds.length > 1) setBatchOpen(true)
+  }
+
+  function finishEdit() {
+    setOpenId(null)
+    setBatchOpen(false)
+    clear()
+    setEditStarted(true)
+  }
+
   return (
     <div className="grid gap-8">
       <RoomBrowser
@@ -115,6 +139,29 @@ export function ListingWorkspace({
         activeRoom={activeRoom}
         onActiveRoomChange={changeRoomFilter}
       />
+      {editStarted && (
+        <aside className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4 text-sm">
+          <p>
+            Edit started. You can keep working here while the image is prepared.
+          </p>
+          <div className="flex items-center gap-3">
+            <Link
+              href={`/listings/${listingId}/activity`}
+              className="font-medium text-primary underline underline-offset-4"
+            >
+              View activity →
+            </Link>
+            <button
+              type="button"
+              onClick={() => setEditStarted(false)}
+              className="text-muted-foreground hover:text-foreground"
+              aria-label="Dismiss edit confirmation"
+            >
+              ×
+            </button>
+          </div>
+        </aside>
+      )}
       <section>
         <div className="mb-3 flex items-center justify-between gap-3">
           <h2 className="text-lg font-medium">
@@ -122,11 +169,13 @@ export function ListingWorkspace({
             {activeRoom !== ALL_ROOMS ? ` of ${photos.length}` : ""})
           </h2>
           {selectedIds.length > 0 && (
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <div className="flex items-center gap-3 text-xs text-muted-foreground">
               <span className="rounded-full border border-primary bg-accent px-2 py-0.5 font-ui uppercase tracking-wide text-accent-foreground">
-                {selectedIds.length} selected ·{" "}
-                {selectedIds.length === 1 ? "chat & markup" : "batch"}
+                {selectedIds.length} selected
               </span>
+              <Button size="sm" onClick={openSelection}>
+                {selectedIds.length === 1 ? "Edit photo" : `Edit ${selectedIds.length} photos`}
+              </Button>
               <button type="button" onClick={clear} className="underline hover:text-foreground">
                 Clear
               </button>
@@ -147,16 +196,6 @@ export function ListingWorkspace({
           </p>
         )}
       </section>
-      {/* inline composer drives BATCH runs (2+ photos checkbox-selected) */}
-      <Composer
-        listingId={listingId}
-        photos={photos}
-        samples={samples}
-        selectedIds={selectedIds}
-        onClearSelection={clear}
-        lastChain={lastChain}
-      />
-      <JobFeed listingId={listingId} photos={photos} floorPlans={floorPlans} jobs={jobs} />
 
       {/* full-screen single-photo editor — same Composer, scoped to one photo */}
       {openPhoto && (
@@ -166,7 +205,7 @@ export function ListingWorkspace({
           aria-modal="true"
         >
           <div className="flex items-center justify-between border-b px-4 py-2">
-            <span className="font-serif text-sm">Editing photo</span>
+            <span className="font-serif text-lg">Edit photo</span>
             <button
               type="button"
               onClick={() => setOpenId(null)}
@@ -181,7 +220,7 @@ export function ListingWorkspace({
                 // eslint-disable-next-line @next/next/no-img-element -- signed URLs expire; next/image caching fights that
                 <img
                   src={openPhoto.url}
-                  alt=""
+                  alt="Listing photo being edited"
                   className="max-h-[80vh] w-full rounded-lg object-contain"
                 />
               )}
@@ -192,8 +231,55 @@ export function ListingWorkspace({
                 photos={photos}
                 samples={samples}
                 selectedIds={[openPhoto.id]}
-                onClearSelection={() => setOpenId(null)}
+                onClearSelection={finishEdit}
                 lastChain={lastChain}
+                contextLabel="One photo"
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {batchOpen && selectedPhotos.length > 1 && (
+        <div
+          className="fixed inset-0 z-50 flex flex-col bg-background/95 backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+          aria-label={`Edit ${selectedPhotos.length} photos`}
+        >
+          <div className="flex items-center justify-between border-b px-4 py-2">
+            <span className="font-serif text-lg">Batch edit · {selectedPhotos.length} photos</span>
+            <button
+              type="button"
+              onClick={() => setBatchOpen(false)}
+              className="rounded-md border px-3 py-1 text-sm hover:bg-muted"
+            >
+              Close ✕
+            </button>
+          </div>
+          <div className="grid min-h-0 flex-1 gap-6 overflow-y-auto p-4 lg:grid-cols-[minmax(16rem,0.75fr)_minmax(30rem,1.25fr)]">
+            <div className="grid content-start grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-2">
+              {selectedPhotos.map((photo) =>
+                photo.url ? (
+                  // eslint-disable-next-line @next/next/no-img-element -- signed URLs expire; next/image caching fights that
+                  <img
+                    key={photo.id}
+                    src={photo.url}
+                    alt="Selected listing photo"
+                    className="aspect-[4/3] w-full object-cover"
+                  />
+                ) : null
+              )}
+            </div>
+            <div className="min-w-0">
+              <Composer
+                listingId={listingId}
+                photos={photos}
+                samples={samples}
+                selectedIds={selectedIds}
+                onClearSelection={finishEdit}
+                lastChain={lastChain}
+                contextLabel={`${selectedPhotos.length} photos`}
               />
             </div>
           </div>

@@ -151,6 +151,7 @@ function RoomPicker({
   }, [open])
 
   const selectedRoom = rooms.find((room) => room.id === value)
+  const selectedCount = value === ALL_ROOMS ? photos.length : counts.get(value) ?? 0
   const selectedLabel =
     value === ALL_ROOMS
       ? "All photos"
@@ -184,7 +185,7 @@ function RoomPicker({
       >
         <span className="truncate font-medium">{selectedLabel}</span>
         <span className="ml-3 shrink-0 text-xs text-muted-foreground">
-          {value === ALL_ROOMS ? photos.length : counts.get(value) ?? 0} photos&nbsp;⌄
+          {selectedCount} {selectedCount === 1 ? "photo" : "photos"}&nbsp;⌄
         </span>
       </button>
 

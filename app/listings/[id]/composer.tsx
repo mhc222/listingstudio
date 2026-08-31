@@ -27,6 +27,7 @@ export function Composer({
   selectedIds,
   onClearSelection,
   lastChain,
+  contextLabel = "Photo edit",
 }: {
   listingId: string
   photos: PhotoRow[]
@@ -39,6 +40,7 @@ export function Composer({
   // "apply last chain" accelerator for the repeat weekly workflow. Loose options
   // (JobRow's edit_chain has them optional) — applyChain fills defaults anyway.
   lastChain: ChainLike[] | null
+  contextLabel?: string
 }) {
   const router = useRouter()
   // batch (phase 10): multi-select; the chat path requires exactly one photo.
@@ -234,9 +236,9 @@ export function Composer({
         ...msgs,
         {
           role: "assistant",
-          content: `Exploring 4 directions: ${(data.directions as { label: string }[])
+        content: `Preparing 4 directions: ${(data.directions as { label: string }[])
             .map((d) => d.label)
-            .join(" / ")}. Review and Run.`,
+            .join(" / ")}. Review them, then start the edit.`,
         },
       ])
       return
@@ -259,9 +261,9 @@ export function Composer({
       {
         role: "assistant",
         content:
-          `Materialized: ${(data.edit_chain as ChainEdit[])
+          `Ready to edit: ${(data.edit_chain as ChainEdit[])
             .map((s) => EDIT_TYPES[s.edit_type]?.label ?? s.edit_type)
-            .join(" → ")}. Edit any step, then Run.` + noted,
+            .join(" → ")}. Review any details below, then start the edit.` + noted,
       },
     ])
   }
@@ -320,8 +322,13 @@ export function Composer({
   const canRun = photoIds.length > 0 && (chain.length > 0 || (!!ideas && ideas.length === 4))
 
   return (
-    <div className="rounded-lg border p-4">
-      <p className="mb-2 text-sm font-medium">New job</p>
+    <section>
+      <header className="mb-5 border-b border-border pb-4">
+        <p className="font-ui text-[0.65rem] uppercase tracking-[0.14em] text-muted-foreground">
+          {contextLabel}
+        </p>
+        <h2 className="mt-1 font-serif text-2xl">Describe the edit</h2>
+      </header>
       {photos.length === 0 ? (
         <p className="text-sm text-muted-foreground">Upload photos first.</p>
       ) : (
@@ -371,10 +378,9 @@ export function Composer({
             </div>
           )}
 
-          <div className="rounded-md border p-4">
-            <p className="font-serif text-base">Describe it</p>
+          <div>
             <p className="mt-0.5 text-xs text-muted-foreground">
-              Say what you want in plain words — the studio compiles the edit.
+              Say what should change. Listing Studio will turn it into an editable set of steps.
             </p>
             {chatMessages.length > 0 && (
               <div className="mt-3 grid gap-1.5">
@@ -413,7 +419,7 @@ export function Composer({
                 onClick={sendChat}
                 disabled={photoIds.length !== 1 || !chatText.trim() || interpreting}
               >
-                {interpreting ? "Thinking…" : "Send"}
+                {interpreting ? "Building…" : "Build edit"}
               </Button>
             </div>
             {chatError && <p className="mt-2 text-sm text-destructive">{chatError}</p>}
@@ -610,7 +616,11 @@ export function Composer({
               className="min-w-0 flex-1 rounded-md border bg-transparent px-2 py-1.5 text-sm"
             />
             <Button size="sm" onClick={run} disabled={!canRun || running}>
-              {running ? "Submitting…" : photoIds.length > 1 && !ideas ? `Run ×${photoIds.length}` : "Run"}
+              {running
+                ? "Starting…"
+                : photoIds.length > 1 && !ideas
+                  ? `Start edit on ${photoIds.length}`
+                  : "Start edit"}
             </Button>
           </div>
           {chain.length > 0 && photoIds.length > 0 && (() => {
@@ -643,6 +653,6 @@ export function Composer({
           {error && <p className="mt-2 text-sm text-destructive">{error}</p>}
         </>
       )}
-    </div>
+    </section>
   )
 }
