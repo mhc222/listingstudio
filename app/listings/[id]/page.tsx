@@ -6,26 +6,14 @@ import { UploadPanel } from "./upload-panel"
 import { PhotoGrid, type PhotoRow } from "./photo-grid"
 import { RoomPanel, type RoomRow } from "./room-panel"
 import { JobPanel, type JobRow, type SampleRow, type ComplianceNote } from "./job-panel"
-import { PlanPanel } from "./plan-panel"
-import { TourPanel, type TourRow } from "./tour-panel"
-import { AerialPanel } from "./aerial-panel"
-import { ReelPanel, type ReelRecord, type ReelSource } from "./reel-panel"
-import { MUSIC_DIR } from "@/lib/reel"
-import { promises as fs } from "node:fs"
+import { ToolsNav } from "./tools-nav"
 
 export default async function ListingPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const supabase = await createClient()
 
-  const [
-    { data: listing },
-    { data: rooms },
-    { data: photos },
-    { data: jobs },
-    { data: samples },
-    { data: tours },
-    { data: reels },
-  ] = await Promise.all([
+  const [{ data: listing }, { data: rooms }, { data: photos }, { data: jobs }, { data: samples }] =
+    await Promise.all([
       supabase.from("listings").select("id, address, mls_number").eq("id", id).single(),
       supabase.from("rooms").select("*").eq("listing_id", id).order("name"),
       supabase
@@ -48,24 +36,14 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
         .select("id, label, storage_path, use_count")
         .order("use_count", { ascending: false })
         .order("created_at", { ascending: false }),
-      supabase
-        .from("tours")
-        .select(
-          "id, title, slug, tour_scenes (id, name, storage_path, width, order_index, initial_yaw, hotspots)"
-        )
-        .eq("listing_id", id)
-        .order("created_at"),
-      supabase
-        .from("reels")
-        .select("id, status, format, error, music, clips")
-        .eq("listing_id", id)
-        .order("created_at", { ascending: false }),
     ])
   if (!listing) notFound()
 
   const urls = await getUrls("originals", (photos ?? []).map((p) => p.storage_path))
   const withUrls: PhotoRow[] = (photos ?? []).map((p) => ({ ...p, url: urls[p.storage_path] ?? null }))
   const regular = withUrls.filter((p) => !p.is_floor_plan)
+  // floorPlans still passed to JobPanel for plan-fg before-image lookup; the
+  // floor-plan grid + redraw tool now live on /plan.
   const floorPlans = withUrls.filter((p) => p.is_floor_plan)
 
   const outputPaths = (jobs ?? []).flatMap((j) =>
@@ -89,23 +67,6 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
       complianceById.set(r.id, (r.compliance as ComplianceNote) ?? null)
   }
   const sampleUrls = await getUrls("references", (samples ?? []).map((s) => s.storage_path))
-  const scenePaths = (tours ?? []).flatMap((t) => t.tour_scenes.map((s) => s.storage_path))
-  const sceneUrls = await getUrls("originals", scenePaths)
-  const tourRows: TourRow[] = (tours ?? []).map((t) => ({
-    id: t.id,
-    title: t.title,
-    slug: t.slug,
-    scenes: [...t.tour_scenes]
-      .sort((a, b) => a.order_index - b.order_index)
-      .map((s) => ({
-        id: s.id,
-        name: s.name,
-        url: sceneUrls[s.storage_path] ?? null,
-        width: s.width,
-        initial_yaw: s.initial_yaw,
-        hotspots: s.hotspots ?? [],
-      })),
-  }))
   const sampleRows: SampleRow[] = (samples ?? []).map((s) => ({
     id: s.id,
     label: s.label,
@@ -127,59 +88,19 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
     })),
   }))
 
-  // reel sources: latest output version per file group first, then originals
-  const latestOutputs: ReelSource[] = (jobs ?? []).flatMap((j) =>
-    j.file_groups.flatMap((fg) => {
-      if (fg.output_versions.length === 0) return []
-      const latest = [...fg.output_versions].sort((a, b) => b.version_number - a.version_number)[0]
-      return [
-        {
-          key: `output:${latest.id}`,
-          kind: "output" as const,
-          id: latest.id,
-          url: outputUrls[latest.storage_path] ?? null,
-          label: "edited",
-        },
-      ]
-    })
-  )
-  const reelSources: ReelSource[] = [
-    ...latestOutputs,
-    ...regular.map((p) => ({
-      key: `photo:${p.id}`,
-      kind: "photo" as const,
-      id: p.id,
-      url: p.url,
-      label: "original",
-    })),
-  ]
-  const reelRecords: ReelRecord[] = (reels ?? []).map((r) => ({
-    id: r.id,
-    status: r.status,
-    format: r.format,
-    error: r.error,
-    music: r.music,
-    clip_count: Array.isArray(r.clips) ? r.clips.length : 0,
-  }))
-  const musicTracks = await fs
-    .readdir(MUSIC_DIR)
-    .then((files) => files.filter((f) => /\.(mp3|m4a|wav)$/i.test(f)).sort())
-    .catch(() => [] as string[])
-
   return (
     <main className="mx-auto max-w-6xl p-6">
       <Link href="/listings" className="text-sm text-muted-foreground hover:underline">
         ← Listings
       </Link>
-      <div className="mt-2 flex items-baseline justify-between gap-4">
-        <h1 className="text-2xl font-semibold">{listing.address}</h1>
-        <Link href={`/listings/${id}/copy`} className="text-sm text-primary hover:underline">
-          Listing copy →
-        </Link>
-      </div>
+      <h1 className="mt-2 text-2xl font-semibold">{listing.address}</h1>
       {listing.mls_number && (
         <p className="text-sm text-muted-foreground">MLS {listing.mls_number}</p>
       )}
+
+      <div className="mt-6">
+        <ToolsNav listingId={id} />
+      </div>
 
       <div className="mt-6">
         <UploadPanel listingId={id} rooms={rooms ?? []} />
@@ -191,24 +112,6 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
             <h2 className="mb-3 text-lg font-medium">Photos ({regular.length})</h2>
             <PhotoGrid photos={regular} rooms={rooms ?? []} listingId={id} />
           </section>
-          {floorPlans.length > 0 && (
-            <section>
-              <h2 className="mb-3 text-lg font-medium">Floor plans ({floorPlans.length})</h2>
-              <PhotoGrid photos={floorPlans} rooms={rooms ?? []} listingId={id} />
-              <PlanPanel
-                listingId={id}
-                plans={floorPlans.filter((p) => !p.storage_path.endsWith(".pdf"))}
-              />
-            </section>
-          )}
-          <AerialPanel listingId={id} photos={regular} />
-          <ReelPanel
-            listingId={id}
-            sources={reelSources}
-            reels={reelRecords}
-            musicTracks={musicTracks}
-          />
-          <TourPanel listingId={id} tours={tourRows} />
           <JobPanel
             listingId={id}
             photos={regular}

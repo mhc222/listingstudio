@@ -3,7 +3,7 @@
 import { useState } from "react"
 import dynamic from "next/dynamic"
 import { useRouter } from "next/navigation"
-import type { PhotoRow } from "./photo-grid"
+import type { PhotoRow } from "../photo-grid"
 
 // Konva touches window at import time — client-only
 const AerialAnnotator = dynamic(

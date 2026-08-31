@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { PLAN_STYLES, PLAN_DISCLAIMER } from "@/lib/prompts"
 import { MODELS, AVG_GENERATIONS_PER_FILE_GROUP } from "@/config/models"
-import type { PhotoRow } from "./photo-grid"
+import type { PhotoRow } from "../photo-grid"
 
 // Floor plan redraw controls (phase 11). Input is always an image floor
 // plan/sketch — room photos never appear here (CLAUDE.md). For the 3D
