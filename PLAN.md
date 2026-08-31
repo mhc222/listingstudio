@@ -305,7 +305,19 @@ Spec of record: DECISIONS.md 2026-08-31 "UI REDESIGN DIRECTION LOCKED" (commit b
 
 ---
 
-## Phase 26 — Tools move to their own routes + subnav
+## Phase 26 — Homepage redesign + prices off every surface (Matt, 2026-08-31, post-phase-25 reaction)
+
+**Goal:** The dashboard becomes a luxury front door, not a cost report — and NO dollar figure renders anywhere in the app. Matt, verbatim: "we didnt do aynthing witht eh flow, the process etc... also remove the prices. WE were doing a full redsign of the flow, the homepage, etc no?" This kills the earlier "dashboard keeps $ spend" carve-out entirely; the spend ledger stays in the DB untouched (SpendLedger is a CLAUDE.md invariant), it just has no UI surface for now.
+
+**Files:** `app/page.tsx` — REMOVE the MTD spend card (and its admin-client ledger fetch), REMOVE the per-listing BoxBrownie comparison + `centsLabel`/`bbCents`/BOXBROWNIE imports; redesign the page: serif greeting header, Recent listings as PHOTO CARDS (cover photo = first non-floor-plan photo by created_at asc — same derivable rule as the phase-29 hero, needs a small photos fetch + signed URLs), photo count + MLS as quiet DM Sans metadata, jobs-in-progress and failed-jobs cards restyled compact (StatePill + title + listing, rerun button stays). Grep the whole app for remaining `$`/cents renders (job-panel estimate line renders dollars via simulateCents — swap to "~N generations · <provider>" now rather than waiting for phase 30; plan-panel/reel-panel estimate lines same). `config/models.ts` BOXBROWNIE data stays (data, not UI).
+
+**Not changed:** spend_ledger writes, cost tracking, /api anything; listing-page structure (phases 27–30 own that).
+**DoD:** build passes; zero `$` or cents figures anywhere in rendered UI (grep + eyeball); dashboard shows photo-card listings with cover images; failed-job rerun still works.
+**Manual test (Matt):** open the homepage — does it read as the product's front door; confirm nothing anywhere shows a price.
+
+---
+
+## Phase 27 — Tools move to their own routes + subnav
 
 **Goal:** Aerial/reel/tour/plan leave the listing page; listing page slims to upload/photos/rooms/jobs.
 
@@ -316,7 +328,7 @@ Spec of record: DECISIONS.md 2026-08-31 "UI REDESIGN DIRECTION LOCKED" (commit b
 
 ---
 
-## Phase 27 — FileGroup workspace route
+## Phase 28 — FileGroup workspace route
 
 **Goal:** Every FileGroup gets its own bookmarkable page; job cards become compact links.
 
@@ -327,7 +339,7 @@ Spec of record: DECISIONS.md 2026-08-31 "UI REDESIGN DIRECTION LOCKED" (commit b
 
 ---
 
-## Phase 28 — Shared photo tray + hero
+## Phase 29 — Shared photo tray + hero
 
 **Goal:** One selection surface feeds everything on the listing page; full-bleed photo hero.
 
@@ -338,7 +350,7 @@ Spec of record: DECISIONS.md 2026-08-31 "UI REDESIGN DIRECTION LOCKED" (commit b
 
 ---
 
-## Phase 29 — The composer (interpret → materialize → estimate → Run)
+## Phase 30 — The composer (interpret → materialize → estimate → Run)
 
 **Goal:** One composer; chat never blind-spends; manual builder demoted; job-panel.tsx deleted.
 
@@ -351,7 +363,7 @@ Spec of record: DECISIONS.md 2026-08-31 "UI REDESIGN DIRECTION LOCKED" (commit b
 
 ---
 
-## Phase 30 — Power accelerators + polish
+## Phase 31 — Power accelerators + polish
 
 **Goal:** Repeat-work speed for the 25-photos-weekly workflow.
 
@@ -362,7 +374,7 @@ Spec of record: DECISIONS.md 2026-08-31 "UI REDESIGN DIRECTION LOCKED" (commit b
 
 ---
 
-## Phase 31 — Output-artifact brand pass
+## Phase 32 — Output-artifact brand pass
 
 **Goal:** Downloads and reels match the brand; plan bands untouched.
 
