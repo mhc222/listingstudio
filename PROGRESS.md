@@ -142,4 +142,4 @@ Outstanding (Matt, manual):
 - Webhook signature verification still unexercised locally (needs deployed URL — phase 16).
 
 ## Next action
-UI redesign arc in progress: phase 25 done, **next = phase 26 (tools move to their own routes + subnav)** per PLAN.md. Still outstanding from before the arc (Matt): migrations 0006/0007/0008 in the SQL editor if not yet applied, prod deploy (`vercel deploy --prod --yes` — carries phases 23/24/25), and the manual tests for 19/20/21/23/24/25.
+UI redesign arc in progress: phase 25 done, **next = phase 26 (homepage redesign + prices off every UI surface — Matt's post-25 correction, see DECISIONS 2026-08-31 post-phase-25 entry; arc renumbered, tools-routes is now 27, composer 30, output artifacts 32)**. Framing note for the next session: lead with the flow change each phase delivers — the reskin-only phase read to Matt as "nothing changed". Still outstanding from before the arc (Matt): migrations 0006/0007/0008 in the SQL editor if not yet applied, prod deploy (`vercel deploy --prod --yes` — carries 23/24/25), manual tests for 19/20/21/23/24/25.
