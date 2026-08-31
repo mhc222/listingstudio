@@ -382,3 +382,20 @@ Spec of record: DECISIONS.md 2026-08-31 "UI REDESIGN DIRECTION LOCKED" (commit b
 
 **DoD:** build passes; a labeled staged download's pill and one reel caption frame eyeballed on-brand.
 **Manual test (Matt):** download a staged photo with the label ON; generate a short reel and check the caption.
+
+---
+
+## Phase 33 — Public product home page + route split (Matt, 2026-08-31)
+
+**Goal:** A logged-out visitor lands on a real **public product home page** — the product's front door — with login between it and the dashboard. Matt clarified the intended IA after phase 26: "the home page is the actual product home page, then there is a login, a dashboard etc." Today `/` IS the auth-gated dashboard and unauthenticated visitors are bounced straight to `/login`; there is no public landing. This phase adds the missing first layer: **public `/` → `/login` → `/dashboard`.** Chose "build it as a new phase" over a quick minimal one (AskUserQuestion, 2026-08-31) — do it properly, Editorial Luxury, no prices (consistent with phase 26). Sequencing: appended as 33 but **can be pulled ahead of 27** if the public front door is the priority — Matt's call at resume (tell the next session which phase to run).
+
+**Files:**
+- Move the dashboard: `app/page.tsx` → `app/dashboard/page.tsx` (the phase-26 luxury dashboard, unchanged); `app/dashboard-live.tsx` moves under `app/dashboard/` (or stays and is re-imported) — update its import path in the moved page.
+- New public `app/page.tsx` = the landing (server component, **no auth, no data fetch, no ledger, no `$`**): Editorial Luxury hero — brass Wordmark, Cormorant headline + tagline, a short what-it-does section, "Sign in" CTA → `/login`. Light-only tokens, mobile-legible, degrades with no images. Optional: `getUser()` — if already authed, the CTA reads "Go to dashboard" → `/dashboard` (don't force-redirect; the landing stays viewable).
+- `middleware.ts`: the unauthed guard (line 32, `pathname !== "/login"`) must also allow `/` — change to allow both `/` and `/login` (everything else still bounces to `/login`). The authed-on-`/login` redirect (line 39) target `/` → `/dashboard`. `/` does NOT need a matcher exemption (the guard change covers it); keep the matcher as-is. NOTE the terms-gate carve-out: `<TermsGate>` returns null on `/terms` and `/login` today — add `/` so the gate never covers the public landing (it should only gate authed app surfaces, now under `/dashboard`).
+- `app/auth/signout/route.ts` already redirects to `/login` — leave it (sign out → login is still right).
+- Sweep `/`-as-dashboard links: the Wordmark link and any `href="/"` / `router.push("/")` that meant "the dashboard" → `/dashboard`. Grep `href="/"`, `push("/")`, `redirect("/")` across app/components. (Landing → login uses `/login`; landing's own Wordmark can stay `/`.)
+
+**Not changed:** the dashboard's phase-26 design; `/login`, `/terms`, `/tour/[slug]`; any `/api`.
+**DoD:** build passes; incognito `/` renders the landing with NO redirect to login; "Sign in" → `/login` → after login lands on `/dashboard`; the dashboard is no longer served at `/`; every former `/`-means-dashboard link points at `/dashboard`; terms gate never shows on the public landing; zero `$` on the landing.
+**Manual test (Matt):** incognito → open `/` → the product landing shows (no login bounce); click Sign in, log in → dashboard at `/dashboard`; signed in, revisit `/` → landing still loads (CTA says "Go to dashboard").
