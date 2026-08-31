@@ -1,6 +1,7 @@
 "use client"
 
 import { useTransition } from "react"
+import { Select } from "@/components/ui/select"
 import { tagPhoto } from "../actions"
 
 export type PhotoRow = {
@@ -21,14 +22,17 @@ export function PhotoGrid({
   listingId,
   selectedIds = [],
   onSelect,
+  onOpen,
 }: {
   photos: PhotoRow[]
   rooms: Room[]
   listingId: string
-  // selection (phase 29): the grid is the one selection surface; clicking a
-  // photo toggles it, shift-click ranges. Omitted → plain read-only grid.
+  // selection (phase 29): shift/range batch-select via the corner checkbox.
+  // Omitted → plain read-only grid.
   selectedIds?: string[]
   onSelect?: (index: number, shift: boolean) => void
+  // clicking a photo opens the full-screen single-photo editor (Matt, 2026-08-31)
+  onOpen?: (index: number) => void
 }) {
   const [, startTransition] = useTransition()
 
@@ -54,14 +58,37 @@ export function PhotoGrid({
             {p.url && !p.storage_path.endsWith(".pdf") ? (
               <button
                 type="button"
-                onClick={(e) => onSelect?.(i, e.shiftKey)}
+                onClick={() => onOpen?.(i)}
                 className="relative block w-full"
+                title="Open full-screen editor"
               >
                 {/* eslint-disable-next-line @next/next/no-img-element -- signed URLs expire; next/image caching fights that */}
                 <img src={p.url} alt="" className="aspect-[4/3] w-full object-cover" />
-                {selected && (
-                  <span className="absolute left-1.5 top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[11px] font-medium text-primary-foreground">
-                    {order + 1}
+                {/* corner checkbox = batch selection (multi-photo run); the image
+                    itself opens the full-screen editor */}
+                {onSelect && (
+                  <span
+                    role="checkbox"
+                    aria-checked={selected}
+                    tabIndex={0}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onSelect(i, e.shiftKey)
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        onSelect(i, e.shiftKey)
+                      }
+                    }}
+                    className={`absolute left-1.5 top-1.5 flex h-5 w-5 items-center justify-center rounded-full border text-[11px] font-medium ${
+                      selected
+                        ? "border-primary bg-primary text-primary-foreground"
+                        : "border-white/80 bg-black/30 text-transparent hover:text-white/80"
+                    }`}
+                  >
+                    {selected ? order + 1 : "＋"}
                   </span>
                 )}
               </button>
@@ -75,12 +102,12 @@ export function PhotoGrid({
               </a>
             )}
             <div className="p-2">
-              <select
+              <Select
                 value={p.room_id ?? ""}
                 onChange={(e) =>
                   startTransition(() => tagPhoto(p.id, e.target.value || null, listingId))
                 }
-                className="w-full rounded-md border bg-transparent px-1 py-1 text-xs"
+                className="h-8 text-xs"
               >
                 <option value="">Untagged</option>
                 {rooms.map((r) => (
@@ -88,7 +115,7 @@ export function PhotoGrid({
                     {r.name}
                   </option>
                 ))}
-              </select>
+              </Select>
             </div>
           </div>
         )

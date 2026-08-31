@@ -15,6 +15,40 @@ export type RoomRow = {
   notes: string | null
 }
 
+// decimal feet (how the value is stored) → 13′9″ for display; metres pass through
+function fmtDim(v: number | null, units: string): string {
+  if (v == null) return ""
+  if (units === "m") return `${v} m`
+  const ft = Math.floor(v)
+  const inch = Math.round((v - ft) * 12)
+  return inch ? `${ft}′${inch}″` : `${ft}′`
+}
+
+// labeled, no-spinner number field so placeholders never truncate to "Lengt"
+function DimField({
+  name,
+  label,
+  defaultValue,
+}: {
+  name: string
+  label: string
+  defaultValue?: number | null
+}) {
+  return (
+    <label className="grid gap-1 text-xs text-muted-foreground">
+      {label}
+      <Input
+        name={name}
+        type="number"
+        step="any"
+        inputMode="decimal"
+        defaultValue={defaultValue ?? ""}
+        className="text-center tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+      />
+    </label>
+  )
+}
+
 function RoomFields({ room }: { room?: RoomRow }) {
   return (
     <div className="grid gap-2">
@@ -32,24 +66,17 @@ function RoomFields({ room }: { room?: RoomRow }) {
           ))}
         </Select>
       </div>
-      <div className="flex gap-2">
-        <Input name="length" type="number" step="any" placeholder="Length" defaultValue={room?.length ?? ""} />
-        <Input name="width" type="number" step="any" placeholder="Width" defaultValue={room?.width ?? ""} />
-        <Input
-          name="ceiling_height"
-          type="number"
-          step="any"
-          placeholder="Ceiling"
-          defaultValue={room?.ceiling_height ?? ""}
-        />
-        <Select
-          name="units"
-          defaultValue={room?.units ?? "ft"}
-          className="w-auto"
-        >
-          <option value="ft">ft</option>
-          <option value="m">m</option>
-        </Select>
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <DimField name="length" label="Length" defaultValue={room?.length} />
+        <DimField name="width" label="Width" defaultValue={room?.width} />
+        <DimField name="ceiling_height" label="Ceiling" defaultValue={room?.ceiling_height} />
+        <label className="grid gap-1 text-xs text-muted-foreground">
+          Units
+          <Select name="units" defaultValue={room?.units ?? "ft"}>
+            <option value="ft">ft</option>
+            <option value="m">m</option>
+          </Select>
+        </label>
       </div>
       <Input name="notes" placeholder="Notes" defaultValue={room?.notes ?? ""} />
     </div>
@@ -66,7 +93,7 @@ export function RoomPanel({ listingId, rooms }: { listingId: string; rooms: Room
             <span className="ml-2 text-muted-foreground">
               {ROOM_TYPES.find((t) => t.value === room.room_type)?.label}
               {room.length && room.width
-                ? ` · ${room.length} × ${room.width} ${room.units}`
+                ? ` · ${fmtDim(room.length, room.units)} × ${fmtDim(room.width, room.units)}`
                 : ""}
             </span>
           </summary>

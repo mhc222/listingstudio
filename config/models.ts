@@ -66,3 +66,21 @@ export function interpreterCostCents(inputTokens: number, outputTokens: number):
     1_000_000
   )
 }
+
+// Floor-plan parsing reads tiny printed dimension text — Haiku drops digits
+// (13'11" → 13'1"). A stronger vision model is worth the few cents on a rare,
+// once-per-plan call. Rates are cents per million tokens ($3 in / $15 out).
+export const VISION_PARSE_MODEL = {
+  id: "claude-sonnet-5",
+  label: "Claude Sonnet 5",
+  inputCentsPerMTok: 300,
+  outputCentsPerMTok: 1500,
+}
+
+export function visionParseCostCents(inputTokens: number, outputTokens: number): number {
+  return (
+    (inputTokens * VISION_PARSE_MODEL.inputCentsPerMTok +
+      outputTokens * VISION_PARSE_MODEL.outputCentsPerMTok) /
+    1_000_000
+  )
+}

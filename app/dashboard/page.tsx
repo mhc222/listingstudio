@@ -2,9 +2,11 @@ import Link from "next/link"
 import { createClient } from "@/lib/supabase/server"
 import { getUrls } from "@/lib/storage"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { Card, CardContent } from "@/components/ui/card"
 import { DashboardLive, RerunButton } from "./dashboard-live"
 import { StatePill, Wordmark } from "@/components/brand"
+import { createListing } from "@/app/listings/actions"
 
 type ChainStep = { edit_type: string }
 
@@ -94,6 +96,16 @@ export default async function Dashboard() {
           All listings →
         </Link>
       </div>
+
+      {/* create a listing right here — no need to detour to /listings first */}
+      <form
+        action={createListing}
+        className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center"
+      >
+        <Input name="address" placeholder="New listing address" required className="flex-1" />
+        <Input name="mls_number" placeholder="MLS # (optional)" className="sm:w-48" />
+        <Button type="submit">Create listing</Button>
+      </form>
 
       {listings.length === 0 ? (
         <p className="mt-4 text-sm text-muted-foreground">

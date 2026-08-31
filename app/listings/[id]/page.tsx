@@ -5,6 +5,7 @@ import { getUrls } from "@/lib/storage"
 import { UploadPanel } from "./upload-panel"
 import { type PhotoRow } from "./photo-grid"
 import { RoomPanel, type RoomRow } from "./room-panel"
+import { ExtractRooms } from "./extract-rooms"
 import { type JobRow, type SampleRow, type ComplianceNote } from "./job-feed"
 import { ListingWorkspace } from "./listing-workspace"
 import { ToolsNav } from "./tools-nav"
@@ -142,6 +143,10 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
         />
         <aside>
           <h2 className="mb-3 text-lg font-medium">Rooms</h2>
+          <ExtractRooms
+            listingId={id}
+            floorPlans={floorPlans.map((p) => ({ id: p.id, url: p.url }))}
+          />
           <RoomPanel listingId={id} rooms={(rooms ?? []) as RoomRow[]} />
         </aside>
       </div>

@@ -575,6 +575,25 @@ Extra named checks may be appended to the request — apply them strictly.
 - pass=true when the result is deliverable, even if imperfect; note the imperfection.
 - pass=false only for defects a client would reject; corrective_instruction must then be a concrete imperative fix for the image model ("straighten the warped window frame on the left wall"). corrective_instruction is null when pass=true.`
 
+// Floor-plan room parser (Matt, 2026-08-31): a vision pass that reads an
+// UPLOADED floor plan and extracts its labelled rooms + printed dimensions so
+// they can seed Room records (which then feed staging/renovation grounding).
+// This does NOT infer a plan from photos — it only transcribes what the plan
+// itself prints. Returns proposals for human review, never auto-commits.
+// room_type must be one of the enum values or "other".
+export const FLOOR_PLAN_PARSE_SYSTEM = `You are reading a single real estate FLOOR PLAN image. Transcribe the rooms it labels and the dimensions it prints — do not invent, infer, or guess rooms or measurements that are not written on the plan. Respond with a single JSON object and nothing else: {"units":"ft"|"m","rooms":[{"name":"...","room_type":"...","length_ft":number|null,"length_in":number|null,"width_ft":number|null,"width_in":number|null,"x":number,"y":number}]}.
+
+Rules:
+- Include EVERY labeled space on the plan — not just the main rooms. That means bedrooms, bathrooms, kitchen, living/dining, office, AND garage, closets, walk-in closets, laundry/utility, pantry, mudroom, foyer/entry, hallways, porch/patio/deck, basement, attic, and any other space the plan names. Only skip areas with no label at all. When in doubt, include it.
+- name: use the plan's own label verbatim (e.g. "Master Bedroom", "Bedroom 2", "2-Car Garage", "Walk-in Closet", "Laundry").
+- room_type: map to exactly one of living_room, kitchen, dining, main_bedroom, bedroom_2, bedroom_3, bedroom_4, bathroom_ensuite, office, outdoor_patio, other. The primary/master bedroom is main_bedroom; additional bedrooms are bedroom_2/3/4 in the order they appear; patios/decks/porches are outdoor_patio; garage, closets, laundry, pantry, hallways, foyer, basement, attic and anything else with no clean match use "other" (the verbatim name still identifies it).
+- length/width: read the two dimensions printed for the room and report FEET and INCHES separately. Example: 14'2" × 16'0" → length_ft 14, length_in 2, width_ft 16, width_in 0. Do NOT mash inches into a decimal (13'9" is length_ft 13, length_in 9 — never 13.9).
+- Read every digit carefully. Inches are 0–11 and are OFTEN TWO DIGITS (10 or 11) — do not drop the second digit: 13'11" is length_ft 13, length_in 11 (thirteen feet eleven inches), NOT 13'1". Zoom in mentally on the small dimension text and transcribe exactly what is printed. Use 0 inches only when the plan actually shows whole feet. If a dimension is missing, use null for both its _ft and _in. Do not calculate from scale bars.
+- Metric plans: put whole metres in _ft and leftover centimetres in _in is wrong — instead put the full metric value (e.g. 4.3) in _ft and null in _in, and set units "m".
+- units: "ft" if dimensions are in feet/inches, "m" if metric. Default "ft" when unclear.
+- x, y: the room label's position on the image as fractions from 0 to 1, where x=0 is the left edge, x=1 the right edge, y=0 the top, y=1 the bottom. Use the centre of the room's area. Always provide x and y (best estimate) so the room can be pinned on the plan.
+- If the image is not a readable floor plan, return {"units":"ft","rooms":[]}.`
+
 // The two named dusk checks (CLAUDE.md rule 5), appended to the QA request
 // when the chain contains a dusk conversion.
 export const DUSK_QA_CHECKS =

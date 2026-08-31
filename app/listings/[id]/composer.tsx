@@ -371,10 +371,13 @@ export function Composer({
             </div>
           )}
 
-          <div className="rounded-md border p-3">
-            <p className="text-sm font-medium">Describe it</p>
+          <div className="rounded-md border p-4">
+            <p className="font-serif text-base">Describe it</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              Say what you want in plain words — the studio compiles the edit.
+            </p>
             {chatMessages.length > 0 && (
-              <div className="mt-2 grid gap-1.5">
+              <div className="mt-3 grid gap-1.5">
                 {chatMessages.map((m, i) => (
                   <p
                     key={i}
@@ -389,86 +392,10 @@ export function Composer({
                 ))}
               </div>
             )}
-            <div className="mt-2 flex flex-wrap items-center gap-2">
-              <select
-                value={chipEdit}
-                onChange={(e) => setChipEdit(e.target.value)}
-                className="rounded-full border bg-transparent px-2 py-1 text-xs"
-              >
-                <option value="">Edit type…</option>
-                {Object.entries(EDIT_TYPES).map(([k, { label }]) => (
-                  <option key={k} value={k}>
-                    {label}
-                  </option>
-                ))}
-              </select>
-              <select
-                value={chipRoom}
-                onChange={(e) => setChipRoom(e.target.value)}
-                className="rounded-full border bg-transparent px-2 py-1 text-xs"
-              >
-                <option value="">Room type…</option>
-                {ROOM_TYPES.map((r) => (
-                  <option key={r.value} value={r.value}>
-                    {r.label}
-                  </option>
-                ))}
-              </select>
-              <select
-                value={chipStyle}
-                onChange={(e) => setChipStyle(e.target.value)}
-                className="rounded-full border bg-transparent px-2 py-1 text-xs"
-              >
-                <option value="">Style…</option>
-                {Object.entries(FURNITURE_STYLES).map(([k, { label }]) => (
-                  <option key={k} value={k}>
-                    {label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="mt-2 flex flex-wrap items-center gap-2">
-              <label className="cursor-pointer rounded-md border px-2 py-1 text-xs hover:bg-muted">
-                {uploadingRef ? "Uploading…" : "📎 Upload ref"}
-                <input
-                  type="file"
-                  accept="image/*,.heic,.heif"
-                  multiple
-                  className="hidden"
-                  onChange={(e) => uploadRefs(e.target.files)}
-                />
-              </label>
-              <input
-                value={urlText}
-                onChange={(e) => setUrlText(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && fetchUrlImages()}
-                placeholder="Paste an inspiration URL (Zillow, Pinterest…)"
-                className="min-w-0 flex-1 rounded-md border bg-transparent px-2 py-1 text-xs"
-              />
-              <Button size="sm" variant="outline" onClick={fetchUrlImages} disabled={urlBusy || !urlText.trim()}>
-                {urlBusy ? "Reading…" : "Fetch"}
-              </Button>
-            </div>
-            {urlError && <p className="mt-1 text-xs text-destructive">{urlError}</p>}
-            {urlImages.length > 0 && (
-              <div className="mt-2 flex gap-2 overflow-x-auto pb-1">
-                {urlImages.map((img) => (
-                  <button
-                    key={img}
-                    type="button"
-                    title={importedUrls[img] ? "added to library" : "add as reference"}
-                    onClick={() => importUrlImage(img)}
-                    className={`shrink-0 overflow-hidden rounded-md border-2 ${
-                      importedUrls[img] ? "border-state-complete" : "border-transparent hover:border-primary/50"
-                    }`}
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element -- external candidate images */}
-                    <img src={img} alt="" className="h-12 w-16 object-cover" />
-                  </button>
-                ))}
-              </div>
-            )}
-            <div className="mt-2 flex items-center gap-2">
+            {/* the conversation is the hero — one prominent input, not a wall of
+                dropdowns (Matt, 2026-08-31). Room/style/refs live under a quiet
+                "Add detail" toggle; the interpreter infers them from language. */}
+            <div className="mt-3 flex items-center gap-2">
               <input
                 value={chatText}
                 onChange={(e) => setChatText(e.target.value)}
@@ -480,10 +407,9 @@ export function Composer({
                       ? "Chat works one photo at a time — keep exactly one selected"
                       : "Select a photo first, then describe what you want"
                 }
-                className="min-w-0 flex-1 rounded-md border bg-transparent px-2 py-1.5 text-sm"
+                className="min-w-0 flex-1 rounded-md border border-input bg-transparent px-3 py-2.5 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
               />
               <Button
-                size="sm"
                 onClick={sendChat}
                 disabled={photoIds.length !== 1 || !chatText.trim() || interpreting}
               >
@@ -491,6 +417,81 @@ export function Composer({
               </Button>
             </div>
             {chatError && <p className="mt-2 text-sm text-destructive">{chatError}</p>}
+
+            <details className="mt-2">
+              <summary className="cursor-pointer text-xs text-muted-foreground hover:text-foreground">
+                Add detail — room, style, references
+              </summary>
+              <div className="mt-2 grid gap-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Select value={chipEdit} onChange={(e) => setChipEdit(e.target.value)} className="w-auto text-xs">
+                    <option value="">Edit type…</option>
+                    {Object.entries(EDIT_TYPES).map(([k, { label }]) => (
+                      <option key={k} value={k}>
+                        {label}
+                      </option>
+                    ))}
+                  </Select>
+                  <Select value={chipRoom} onChange={(e) => setChipRoom(e.target.value)} className="w-auto text-xs">
+                    <option value="">Room type…</option>
+                    {ROOM_TYPES.map((r) => (
+                      <option key={r.value} value={r.value}>
+                        {r.label}
+                      </option>
+                    ))}
+                  </Select>
+                  <Select value={chipStyle} onChange={(e) => setChipStyle(e.target.value)} className="w-auto text-xs">
+                    <option value="">Style…</option>
+                    {Object.entries(FURNITURE_STYLES).map(([k, { label }]) => (
+                      <option key={k} value={k}>
+                        {label}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <label className="cursor-pointer rounded-md border px-2 py-1 text-xs hover:bg-muted">
+                    {uploadingRef ? "Uploading…" : "📎 Upload ref"}
+                    <input
+                      type="file"
+                      accept="image/*,.heic,.heif"
+                      multiple
+                      className="hidden"
+                      onChange={(e) => uploadRefs(e.target.files)}
+                    />
+                  </label>
+                  <input
+                    value={urlText}
+                    onChange={(e) => setUrlText(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && fetchUrlImages()}
+                    placeholder="Paste an inspiration URL (Zillow, Pinterest…)"
+                    className="min-w-0 flex-1 rounded-md border bg-transparent px-2 py-1 text-xs"
+                  />
+                  <Button size="sm" variant="outline" onClick={fetchUrlImages} disabled={urlBusy || !urlText.trim()}>
+                    {urlBusy ? "Reading…" : "Fetch"}
+                  </Button>
+                </div>
+                {urlError && <p className="text-xs text-destructive">{urlError}</p>}
+                {urlImages.length > 0 && (
+                  <div className="flex gap-2 overflow-x-auto pb-1">
+                    {urlImages.map((img) => (
+                      <button
+                        key={img}
+                        type="button"
+                        title={importedUrls[img] ? "added to library" : "add as reference"}
+                        onClick={() => importUrlImage(img)}
+                        className={`shrink-0 overflow-hidden rounded-md border-2 ${
+                          importedUrls[img] ? "border-state-complete" : "border-transparent hover:border-primary/50"
+                        }`}
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element -- external candidate images */}
+                        <img src={img} alt="" className="h-12 w-16 object-cover" />
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </details>
           </div>
 
           {/* materialized ideas: 4 labeled mini-chains, one Run */}
