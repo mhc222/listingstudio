@@ -129,7 +129,7 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
       </div>
 
       <div className="mt-6">
-        <UploadPanel listingId={id} rooms={rooms ?? []} />
+        <UploadPanel listingId={id} />
       </div>
 
       <div className="mt-6 grid gap-8 lg:grid-cols-[1fr_320px]">

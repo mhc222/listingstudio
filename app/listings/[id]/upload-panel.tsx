@@ -3,16 +3,12 @@
 import { useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { Select } from "@/components/ui/select"
 
-type Room = { id: string; name: string }
-
-export function UploadPanel({ listingId, rooms }: { listingId: string; rooms: Room[] }) {
+export function UploadPanel({ listingId }: { listingId: string }) {
   const router = useRouter()
   const photoInput = useRef<HTMLInputElement>(null)
   const planInput = useRef<HTMLInputElement>(null)
   const hdrInput = useRef<HTMLInputElement>(null)
-  const [roomId, setRoomId] = useState("")
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState("")
   const [hdrEnhance, setHdrEnhance] = useState(true)
@@ -30,7 +26,6 @@ export function UploadPanel({ listingId, rooms }: { listingId: string; rooms: Ro
     setMessage(`Merging ${files.length} brackets…`)
     const form = new FormData()
     form.set("listingId", listingId)
-    if (roomId) form.set("roomId", roomId)
     for (const f of Array.from(files)) form.append("files", f)
     try {
       const res = await fetch("/api/hdr-merge", { method: "POST", body: form })
@@ -71,7 +66,6 @@ export function UploadPanel({ listingId, rooms }: { listingId: string; rooms: Ro
     setMessage(`Uploading ${files.length} file${files.length > 1 ? "s" : ""}…`)
     const form = new FormData()
     form.set("listingId", listingId)
-    if (!isFloorPlan && roomId) form.set("roomId", roomId)
     form.set("isFloorPlan", String(isFloorPlan))
     for (const f of Array.from(files)) form.append("files", f)
     try {
@@ -116,19 +110,6 @@ export function UploadPanel({ listingId, rooms }: { listingId: string; rooms: Ro
       <Button disabled={busy} onClick={() => photoInput.current?.click()}>
         Upload photos
       </Button>
-      <Select
-        value={roomId}
-        onChange={(e) => setRoomId(e.target.value)}
-        className="w-auto"
-        title="Quick-tag uploads to a room"
-      >
-        <option value="">No room tag</option>
-        {rooms.map((r) => (
-          <option key={r.id} value={r.id}>
-            tag: {r.name}
-          </option>
-        ))}
-      </Select>
       <Button variant="outline" disabled={busy} onClick={() => planInput.current?.click()}>
         Attach floor plan
       </Button>
