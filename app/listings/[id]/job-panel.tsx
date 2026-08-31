@@ -132,6 +132,8 @@ export function JobPanel({
   floorPlans = [],
   jobs,
   samples,
+  selectedIds,
+  onClearSelection,
 }: {
   listingId: string
   photos: PhotoRow[]
@@ -140,10 +142,15 @@ export function JobPanel({
   floorPlans?: PhotoRow[]
   jobs: JobRow[]
   samples: SampleRow[]
+  // selection now lives in the shared grid/tray (phase 29); the composer reads
+  // it and clears it on a successful run
+  selectedIds: string[]
+  onClearSelection: () => void
 }) {
   const router = useRouter()
-  // batch (phase 10): multi-select; the chat path requires exactly one photo
-  const [photoIds, setPhotoIds] = useState<string[]>([])
+  // batch (phase 10): multi-select; the chat path requires exactly one photo.
+  // The selection surface moved to the grid (phase 29) — read it via props.
+  const photoIds = selectedIds
   const [chain, setChain] = useState<ChainEdit[]>([])
   const [comment, setComment] = useState("")
   const [sizePreset, setSizePreset] = useState("original")
@@ -168,10 +175,6 @@ export function JobPanel({
   const [urlError, setUrlError] = useState<string | null>(null)
   const [importedUrls, setImportedUrls] = useState<Record<string, boolean>>({})
   const [uploadingRef, setUploadingRef] = useState(false)
-
-  function togglePhoto(id: string) {
-    setPhotoIds((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]))
-  }
 
   function toggleSample(id: string) {
     setSampleIds((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]))
@@ -240,7 +243,7 @@ export function JobPanel({
     }
     setChain([])
     setComment("")
-    setPhotoIds([])
+    onClearSelection()
     setSampleIds([])
     router.refresh()
   }
@@ -322,7 +325,7 @@ export function JobPanel({
     setChipEdit("")
     setChipRoom("")
     setChipStyle("")
-    setPhotoIds([])
+    onClearSelection()
     setSampleIds([])
     router.refresh()
   }
@@ -402,25 +405,17 @@ export function JobPanel({
           <p className="text-sm text-muted-foreground">Upload photos first.</p>
         ) : (
           <>
-            <div className="flex gap-2 overflow-x-auto pb-2">
-              {photos.map((p) => (
-                <button
-                  key={p.id}
-                  type="button"
-                  onClick={() => togglePhoto(p.id)}
-                  className={`shrink-0 overflow-hidden rounded-md border-2 ${
-                    photoIds.includes(p.id) ? "border-primary" : "border-transparent"
-                  }`}
-                >
-                  {p.url && (
-                    // eslint-disable-next-line @next/next/no-img-element -- signed URLs expire; next/image caching fights that
-                    <img src={p.url} alt="" className="h-16 w-24 object-cover" />
-                  )}
-                </button>
-              ))}
-            </div>
+            {/* selection lives in the grid above (phase 29) — the composer just
+                reflects the current arity */}
+            <p className="mb-2 text-xs text-muted-foreground">
+              {photoIds.length === 0
+                ? "Select photos above — one to describe/markup, several to batch."
+                : photoIds.length === 1
+                  ? "1 photo selected."
+                  : `${photoIds.length} photos selected — batch run.`}
+            </p>
 
-            <div className="mt-2 rounded-md border p-3">
+            <div className="rounded-md border p-3">
               <p className="text-sm font-medium">Describe it</p>
               {chatMessages.length > 0 && (
                 <div className="mt-2 grid gap-1.5">

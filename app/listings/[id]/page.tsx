@@ -3,9 +3,10 @@ import { notFound } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import { getUrls } from "@/lib/storage"
 import { UploadPanel } from "./upload-panel"
-import { PhotoGrid, type PhotoRow } from "./photo-grid"
+import { type PhotoRow } from "./photo-grid"
 import { RoomPanel, type RoomRow } from "./room-panel"
-import { JobPanel, type JobRow, type SampleRow, type ComplianceNote } from "./job-panel"
+import { type JobRow, type SampleRow, type ComplianceNote } from "./job-panel"
+import { ListingWorkspace } from "./listing-workspace"
 import { ToolsNav } from "./tools-nav"
 
 export default async function ListingPage({ params }: { params: Promise<{ id: string }> }) {
@@ -88,14 +89,38 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
     })),
   }))
 
+  // hero cover (phase 29): first non-floor-plan photo by created_at asc
+  const cover = regular.find((p) => p.url)
+
   return (
     <main className="mx-auto max-w-6xl p-6">
       <Link href="/listings" className="text-sm text-muted-foreground hover:underline">
         ← Listings
       </Link>
-      <h1 className="mt-2 text-2xl font-semibold">{listing.address}</h1>
-      {listing.mls_number && (
-        <p className="text-sm text-muted-foreground">MLS {listing.mls_number}</p>
+
+      {cover ? (
+        <div className="relative mt-3 overflow-hidden rounded-lg">
+          {/* eslint-disable-next-line @next/next/no-img-element -- signed URLs expire; next/image caching fights that */}
+          <img src={cover.url ?? ""} alt="" className="h-56 w-full object-cover sm:h-72" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+          <div className="absolute bottom-0 left-0 p-5">
+            <h1 className="text-3xl text-primary-foreground drop-shadow sm:text-4xl">
+              {listing.address}
+            </h1>
+            {listing.mls_number && (
+              <p className="mt-1 font-ui text-xs uppercase tracking-wide text-primary-foreground/80">
+                MLS {listing.mls_number}
+              </p>
+            )}
+          </div>
+        </div>
+      ) : (
+        <>
+          <h1 className="mt-2 text-2xl font-semibold">{listing.address}</h1>
+          {listing.mls_number && (
+            <p className="text-sm text-muted-foreground">MLS {listing.mls_number}</p>
+          )}
+        </>
       )}
 
       <div className="mt-6">
@@ -107,19 +132,14 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
       </div>
 
       <div className="mt-6 grid gap-8 lg:grid-cols-[1fr_320px]">
-        <div className="grid gap-8">
-          <section>
-            <h2 className="mb-3 text-lg font-medium">Photos ({regular.length})</h2>
-            <PhotoGrid photos={regular} rooms={rooms ?? []} listingId={id} />
-          </section>
-          <JobPanel
-            listingId={id}
-            photos={regular}
-            floorPlans={floorPlans}
-            jobs={jobRows}
-            samples={sampleRows}
-          />
-        </div>
+        <ListingWorkspace
+          listingId={id}
+          photos={regular}
+          floorPlans={floorPlans}
+          rooms={rooms ?? []}
+          jobs={jobRows}
+          samples={sampleRows}
+        />
         <aside>
           <h2 className="mb-3 text-lg font-medium">Rooms</h2>
           <RoomPanel listingId={id} rooms={(rooms ?? []) as RoomRow[]} />
