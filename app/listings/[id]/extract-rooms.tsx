@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select } from "@/components/ui/select"
 import { ROOM_TYPES } from "@/lib/roomTypes"
-import { createRoom } from "../actions"
+import { createRooms } from "../actions"
 
 type Proposal = {
   name: string
@@ -160,18 +160,16 @@ export function ExtractRooms({
     const chosen = proposals.filter((r) => r.include)
     if (chosen.length === 0) return
     setSaving(true)
-    for (const r of chosen) {
-      const length = toDecimal(r.length_ft, r.length_in, r.units)
-      const width = toDecimal(r.width_ft, r.width_in, r.units)
-      const fd = new FormData()
-      fd.set("listingId", listingId)
-      fd.set("name", r.name)
-      fd.set("room_type", r.room_type)
-      if (length != null) fd.set("length", String(length))
-      if (width != null) fd.set("width", String(width))
-      fd.set("units", r.units)
-      await createRoom(fd)
-    }
+    await createRooms(
+      listingId,
+      chosen.map((r) => ({
+        name: r.name,
+        room_type: r.room_type,
+        length: toDecimal(r.length_ft, r.length_in, r.units),
+        width: toDecimal(r.width_ft, r.width_in, r.units),
+        units: r.units,
+      }))
+    )
     setSaving(false)
     setProposals(null)
     setSelected(null)

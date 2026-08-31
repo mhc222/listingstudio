@@ -39,6 +39,36 @@ export async function createRoom(formData: FormData) {
   revalidatePath(`/listings/${listingId}`)
 }
 
+// Floor-plan extraction confirms many rooms at once. Insert the reviewed set
+// in one mutation and revalidate once; calling createRoom repeatedly caused
+// the server tree to change while the client was still reconciling successive
+// action responses, which surfaced as a RoomPanel hydration mismatch.
+export async function createRooms(
+  listingId: string,
+  rooms: {
+    name: string
+    room_type: string
+    length: number | null
+    width: number | null
+    units: string
+  }[]
+) {
+  if (!listingId || rooms.length === 0) return
+  const supabase = await createClient()
+  const { error } = await supabase.from("rooms").insert(
+    rooms.map((room) => ({
+      listing_id: listingId,
+      name: room.name?.trim() || "Room",
+      room_type: room.room_type || "other",
+      length: Number.isFinite(room.length) ? room.length : null,
+      width: Number.isFinite(room.width) ? room.width : null,
+      units: room.units === "m" ? "m" : "ft",
+    }))
+  )
+  if (error) throw error
+  revalidatePath(`/listings/${listingId}`)
+}
+
 export async function updateRoom(formData: FormData) {
   const supabase = await createClient()
   const listingId = formData.get("listingId") as string
