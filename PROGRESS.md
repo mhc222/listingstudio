@@ -38,10 +38,20 @@
 - [x] Phase 35 — Photo-first editing + separate Activity route (no migration)
 - [x] Phase 36 — End-to-end task studio UX + result workspace (no migration)
 - [x] Phase 37 — Staging direction + one-path studio UX (no migration)
+- [x] Phase 38 — Calm precision interface system (Apple-design pass; no migration)
 
-## ACTIVE HANDOFF — Interior-directed staging + Task Studio UX (2026-08-31, guided-QA session)
+## ACTIVE HANDOFF — Calm precision interface system (2026-09-01)
 
-**Read this first.** Phase 36 replaces the generic editor with a task-first split-screen studio and makes the exact FileGroup page the post-submit processing/result destination. Phase 37 removes its last duplicate edit picker and turns virtual staging into an interior-design-led compiler with restrained furnishing, focal-point/circulation rules, floor-plan reference roles, and staging-specific QA. The complete journey contract is in `UI-SPEC.md`; the Phase 37 audit is in `37-UI-REVIEW.md`. Browser QA: Elam Plan 5 OCR + 26-room creation; room search/filter; one-path task chooser + contextual Stage controls; Activity American-English labels; and a fully contained 50/50 result comparison with download, versions, refinement, QA, and details. TypeScript, targeted ESLint, and responsive browser checks pass. The >10 MB upload limit remains a separate planned fix.
+**Read this first.** Phase 38 replaces the remaining square, multi-font “AI form builder” treatment with a calm, system-font photo workspace guided by the installed `apple-design` skill. The warm brass identity, interpreter loop, edit chain, orchestration, prompt catalog, and all persisted data remain unchanged. Phase 36 still owns the end-to-end task-first workflow; Phase 37 still owns interior-directed staging and one-path edit selection. The complete journey contract is in `UI-SPEC.md`; the Phase 37 audit is in `37-UI-REVIEW.md`. The >10 MB upload limit remains a separate planned fix.
+
+**Phase 38 shipped:**
+- Removed all `next/font` Google font loading and the Cormorant/Public Sans/DM Sans/JetBrains Mono application hierarchy. Product UI now uses the platform system stack with tighter display tracking, clearer weights, and size-specific leading. The existing mark and warm brass character remain.
+- Replaced the 3px-square token with a deliberate control/panel radius scale, quieter warm neutrals, restrained depth, rare borders, translucent elevated chrome, instant pointer-down feedback, and explicit reduced-motion, reduced-transparency, and increased-contrast fallbacks.
+- The photo editor is canvas-first and side-by-side from the tablet breakpoint: dark image canvas on the left, independently scrolling control dock on the right, photo first when stacked on mobile. Common tasks are a calm outcome list instead of six boxed tiles. Stage keeps its room selector but exposes furniture style, furnishing level, and showcase as direct visible choices.
+- Listing navigation, room browsing, photo cards, dashboard, Activity typography, result comparison, download/refinement/version/QA controls, and shared primitives now use one component/material language. Before/after gained an explicit keyboard handler after browser QA caught the native range control not responding to Arrow/Home/End in the app harness.
+- Browser QA passed on the 11689 Elam Dr listing at mobile, tablet, and desktop sizes with no horizontal overflow, hydration errors, console warnings, or console errors. Verified reversible task switching, Stage selections (`Scandinavian`, `Standard staging`, `Fireplace`), secondary-edit disclosure, result comparison keyboard movement (50→51), and the full result action rail. `npm run lint` and the 24-route production build pass.
+
+**Next action:** Matt visually reviews the local listing, studio, dashboard, and result surfaces. Deploy Phase 38 after approval, or continue with one of the existing floor-plan/photo-matching/upload-limit prompts below.
 
 **Phase 37 shipped:**
 - The Task Studio has one selection path: six common outcomes plus All edit tools before selection; Add another edit appears only after the first step. The redundant visible/native `+ Add edit…` control and free-text edit-type chip are gone.
