@@ -272,7 +272,9 @@ export function PresetControls({
     >
       <div className="grid gap-3">
         <div className="rounded-lg bg-muted/55 p-3 text-xs">
-          <p className="font-semibold">Apply to {scopeLabel} · {targetCount} photo{targetCount === 1 ? "" : "s"}</p>
+          <p className="font-semibold">
+            Apply to {targetCount === 1 ? scopeLabel : "this exact batch"} · {targetCount} photo{targetCount === 1 ? "" : "s"}
+          </p>
           <p className="mt-1 text-muted-foreground">Review the included settings below. Applying only fills this draft; it never starts processing.</p>
         </div>
 
