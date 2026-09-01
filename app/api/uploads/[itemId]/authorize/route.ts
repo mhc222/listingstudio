@@ -2,7 +2,7 @@ import { NextResponse } from "next/server"
 import { getOwnedUploadItem } from "@/lib/intake-lifecycle"
 import { createClient } from "@/lib/supabase/server"
 
-export async function GET(
+export async function POST(
   _req: Request,
   { params }: { params: Promise<{ itemId: string }> }
 ) {
@@ -15,21 +15,25 @@ export async function GET(
 
   const item = await getOwnedUploadItem(supabase, itemId)
   if (!item) return NextResponse.json({ error: "upload item not found" }, { status: 404 })
+  if (!["reserved", "failed"].includes(item.status)) {
+    return NextResponse.json(
+      { error: `a ${item.status} upload cannot be reauthorized` },
+      { status: 409 }
+    )
+  }
+
+  const { data, error } = await supabase.storage
+    .from("intake")
+    .createSignedUploadUrl(item.intake_path)
+  if (error) {
+    return NextResponse.json({ error: "could not authorize direct upload" }, { status: 500 })
+  }
 
   return NextResponse.json({
-    item: {
-      id: item.id,
-      batchId: item.batch_id,
-      photoId: item.photo_id,
-      name: item.original_filename,
-      size: item.declared_byte_size,
-      contentType: item.declared_content_type,
-      isFloorPlan: item.is_floor_plan,
-      intakePath: item.intake_path,
-      status: item.status,
-      error: item.error,
-      finalizedAt: item.finalized_at,
-      cleanupPending: item.status === "complete" && !item.intake_deleted_at,
-    },
+    itemId: item.id,
+    intakePath: item.intake_path,
+    token: data.token,
+    expiresInSeconds: 7200,
   })
 }
+
