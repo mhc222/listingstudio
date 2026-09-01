@@ -4,7 +4,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { createClient } from "@/lib/supabase/server"
 
-export type Bucket = "originals" | "outputs" | "references"
+export type Bucket = "originals" | "outputs" | "references" | "intake"
 
 async function resolveClient(client?: SupabaseClient) {
   return client ?? (await createClient())
@@ -20,7 +20,10 @@ export async function upload(
   const supabase = await resolveClient(client)
   const { error } = await supabase.storage
     .from(bucket)
-    .upload(path, body, { contentType, upsert: bucket !== "originals" })
+    .upload(path, body, {
+      contentType,
+      upsert: bucket === "outputs" || bucket === "references",
+    })
   if (error) throw error
   return path
 }
@@ -66,4 +69,33 @@ export async function download(bucket: Bucket, path: string, client?: SupabaseCl
   const { data, error } = await supabase.storage.from(bucket).download(path)
   if (error) throw error
   return data
+}
+
+export async function info(bucket: Bucket, path: string, client?: SupabaseClient) {
+  const supabase = await resolveClient(client)
+  const { data, error } = await supabase.storage.from(bucket).info(path)
+  if (error) throw error
+  return data
+}
+
+export async function copy(
+  sourceBucket: Bucket,
+  sourcePath: string,
+  destinationBucket: Bucket,
+  destinationPath: string,
+  client?: SupabaseClient
+) {
+  const supabase = await resolveClient(client)
+  const { error } = await supabase.storage
+    .from(sourceBucket)
+    .copy(sourcePath, destinationPath, { destinationBucket })
+  if (error) throw error
+  return destinationPath
+}
+
+export async function remove(bucket: Bucket, paths: string[], client?: SupabaseClient) {
+  if (paths.length === 0) return
+  const supabase = await resolveClient(client)
+  const { error } = await supabase.storage.from(bucket).remove(paths)
+  if (error) throw error
 }
