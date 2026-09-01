@@ -117,6 +117,18 @@ The Photos route owns upload, room filtering/tagging, photo selection, and entry
 - Intake may prepare a server preset for the next draft. This stores only a temporary preset ID, states that target scope has not yet been chosen, and requires explicit application after exact photo selection. It never stores another browser-local chain or submits work.
 - **Apply last edit** remains a separate recent-action accelerator. The old `ls:defaultChain:<listingId>` value is offered only as a one-time validated import preview; **Not now** leaves it reversible, and a successful server save retires that browser value as source of truth.
 
+#### Listing-level progress truth
+
+- The listing and Activity routes share one **Current workflow** summary, and the dashboard consumes the same pure aggregation contract. No mutable listing-status row or second orchestration state machine exists.
+- Six counts remain literal and independently filterable: **Uploading**, **Organizing**, **Queued**, **Editing**, **Review pending**, and **Needs attention**. The sum always equals the visible drill-through items for the current derived read.
+- Uploading derives from reserved/finalizing upload items. Organizing derives from proposed HDR groups, the current active room-analysis run, and current pending room proposals. Queued/Editing derive from FileGroup state. Review pending requires a complete FileGroup with a stored output. Needs attention includes failed uploads, current failed/partial organization, failed generation, and complete work without a reviewable output record.
+- Terminal completed/canceled uploads, confirmed/dismissed organization, accepted/deferred room proposals, and stale room-analysis runs do not inflate active counts. The newest room-analysis run alone owns run-level progress or failure wording.
+- Headline priority is **Needs attention**, then **In progress**, then **Review pending**, then **No active work**. The interface never says a listing is complete; Phase 50 alone may add approval/final semantics.
+- Every item names its current human state, explains what happened, and links to its owning recovery surface: upload queue, HDR review, room review, or exact FileGroup workspace. Finished siblings remain openable while another sibling queues, edits, or fails.
+- Activity derives each parent edit label from child FileGroup/output truth. A stale complete Job cannot hide a failed or running child, and fully finished work says **Review pending**, not approved or delivered.
+- Durable changes refresh through realtime subscriptions. While generation is active, the authenticated listing reconcile endpoint runs on the same five-second local-development cadence as the edit workspace; reload and realtime both return to the same server-derived projection.
+- A browser-only signed-image load failure is recovered at the exact result workspace with a neutral original-photo frame and **Retry image**. It is not persisted as false listing workflow truth because a fresh secure URL/reload may resolve it.
+
 ### 5. Task Studio
 
 Desktop is a full-screen split surface:

@@ -691,6 +691,8 @@ The implementation arc below is approved for planning, not pre-authorized as one
 
 ## Phase 49 — Listing-level progress truth
 
+**Status (2026-09-01):** Complete in local code. No migration was required; the workflow is a pure read projection over existing durable rows. Nothing was pushed or deployed.
+
 **Goal:** Let the operator answer “What is happening, and what needs me?” from one surface before adding approval semantics.
 
 **Operational model:** derive listing counts from durable upload, organization, Job, FileGroup, output, and failure truth rather than maintain a second mutable listing state machine. Expose `Uploading / Organizing / Queued / Editing / Review pending / Needs attention` counts with exact item drill-through. Finished outputs become reviewable immediately while other work continues; failed items link to the correct upload, organization, generation, or signed-image recovery. Dashboard summary and Activity use the same pure aggregation contract.

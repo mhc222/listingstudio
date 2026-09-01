@@ -49,12 +49,28 @@
 - [x] Phase 46 — Room and same-view organization review
 - [x] Phase 47 — Safe batch scope (local complete; migration 0013 queued for final SQL batch)
 - [x] Phase 48 — Named persistent presets (local complete; migration 0014 queued for final SQL batch)
-- [ ] Phase 49 — Listing-level progress truth
+- [x] Phase 49 — Listing-level progress truth (local complete; no migration)
 - [ ] Phase 50 — Contact-sheet proofing and final selection
 - [ ] Phase 51 — Approved finals and MLS delivery
 - [ ] Phase 52 — Version naming and variation comparison
 - [ ] Phase 53 — Scoped conversational batch rework
 - [ ] Phase 54 — Mobile intake/proofing and workflow-state hardening
+
+## ACTIVE HANDOFF — Phase 49 listing-level progress truth complete in local code (2026-09-01)
+
+**Read this first.** Phase 49 is complete and committed in local code. Dashboard, Photos, and Activity now answer “what is happening, and what needs me?” through one pure derived contract. Stop here. Phase 50 alone owns proofing and explicit final selection; `Review pending` is not approval.
+
+**Derived contract:** `lib/listing-status.ts` maps existing durable upload, HDR/room organization, Job/FileGroup, and output rows into six literal buckets: Uploading, Organizing, Queued, Editing, Review pending, and Needs attention. Counts equal the exact drill-through items. Terminal intake/organization rows and stale room-analysis runs are ignored; only the newest room-analysis run owns run-level wording. Headline precedence is Needs attention → In progress → Review pending → No active work. No table, migration, mutable listing status, or second state machine was added.
+
+**Workflow shipped:** the listing and Activity routes share an independently filterable Current workflow panel. Every item links to its owning upload queue, HDR review, room review, or exact FileGroup workspace. Dashboard recent-listing cards and What needs you rows use the same server aggregation. Activity derives parent wording from child FileGroups/outputs, so stale Job status cannot hide partial/failed work and finished work says Review pending. Realtime covers all durable source tables; active generation also uses the authenticated five-second listing reconcile path. Finished siblings remain immediately reviewable during partial processing. Result-image load failure stays transient and exposes an item-local neutral frame plus Retry image rather than persisting false listing state.
+
+**Tested state matrix:** 23 focused assertions prove empty, upload active/failed/terminal, HDR proposal, newest room run, pending room proposal, queued/running/failed/complete generation, partial batch, missing/recovered image, orphan pending Job, exact recovery links, reconciled totals, and stale-parent Activity wording. All Phase 43–49 suites pass: intake 16, upload queue 24, shoot organization 21, room analysis 47, batch scope 34, presets 38, listing status 23 — 203 assertions total. TypeScript, lint, diff check, and the final clean 28-page production build pass.
+
+**Browser proof:** authenticated localhost QA used existing listings without data mutation or model calls. Dashboard, listing, and Activity agreed on five Review pending results for `11689 Elam Dr`; filtering returned exactly five drill-through rows, and Review result opened the exact FileGroup workspace. An empty listing showed No active work and six zeroes rather than “complete.” Desktop width had no overflow; at the browser's 433px effective phone width, document/body stayed 416/417px with no horizontal overflow. Browser logs had zero warnings/errors. The temporary tab was closed and viewport reset.
+
+**SQL/release/port state:** Phase 49 has no migration. Matt's final SQL batch remains `0013_batch_scope.sql` then `0014_edit_presets.sql`; live migrations remain through `0012`. Nothing was pushed, deployed, paid, or written to production data. Production remains the Phase 38–41 release. Port 3000 was stopped before the final build and restored on port 3000 against normal `.env.local`; `/` is healthy.
+
+**Next action:** run `/clear`, then say: `Execute Phase 50 from PLAN.md. Read the ACTIVE HANDOFF first.` Do not start Phase 51, push, deploy, apply live SQL, or run paid generation inside Phase 50 without a new explicit instruction.
 
 ## ACTIVE HANDOFF — Phase 48 named persistent presets complete in local code (2026-09-01)
 
