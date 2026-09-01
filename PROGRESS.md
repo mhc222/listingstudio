@@ -41,10 +41,17 @@
 - [x] Phase 38 — Calm precision interface system (Apple-design pass; no migration)
 - [x] Phase 39 — Studio interaction language completion (Radix selects/disclosures; no migration)
 - [x] Phase 40 — Photoreal staging style previews (nine local WebP assets; no migration)
+- [x] Phase 41 — Curated real-photography staging references (nine local Pexels WebPs + provenance; no migration)
 
-## ACTIVE HANDOFF — Photoreal staging previews complete (2026-09-01)
+## ACTIVE HANDOFF — Curated real staging photography complete (2026-09-01)
 
-**Read this first.** Phases 38–40 finish the visual and interaction-system response to Matt's “AI slop / form-builder” diagnosis. Phase 38 established the calm system-font, canvas-first material language; Phase 39 replaced the remaining operating-system selects and snapping details; Phase 40 replaces the deliberately schematic staging swatches with locally bundled photographic style previews. The warm brass identity, interpreter loop, edit chain, orchestration, prompt catalog, and persisted data remain unchanged. The complete journey contract is in `UI-SPEC.md`; the >10 MB upload limit remains a separate planned fix.
+**Read this first.** Phases 38–41 finish the visual and interaction-system response to Matt's “AI slop / form-builder” diagnosis. Phase 38 established the calm system-font, canvas-first material language; Phase 39 replaced the remaining operating-system selects and snapping details; Phase 40 proved the photographic staging-picker treatment; Phase 41 supersedes its generated previews with source-verified real interior photography. The warm brass identity, interpreter loop, edit chain, orchestration, prompt catalog, and persisted data remain unchanged. The complete journey contract is in `UI-SPEC.md`; the >10 MB upload limit remains a separate planned fix.
+
+**Phase 41 shipped:**
+- Replaced all nine generated Phase 40 staging thumbnails with real Pexels interior photographs. The picker keeps the same local filenames, visible authoritative labels, decorative alt treatment, and zero runtime third-party requests; none of the photographs enter fal.ai/Anthropic prompt or reference inputs.
+- Applied an interior-staging curation gate at the rendered 480 × 270 crop. The first search pass retained only Modern, Mid-Century Modern, and Hamptons; Contemporary, Farmhouse, Traditional, Urban/Industrial, Commercial, and Scandinavian were replaced. A final strict review approved every mapping after Industrial gained full brick/leather/steel/timber room context and Scandinavian gained pale timber, functional white furniture, and a distinct Nordic rug.
+- Added `public/staging-styles/SOURCES.md` with photographer, stable Pexels page, download date, license/policy links, and the design signals supporting each assignment. The local WebP set totals about 214 KB.
+- TypeScript, ESLint, and the production build pass all 24 routes. Port 3000 was stopped before the build and the dev server was restarted on port 3000 afterward.
 
 **Phase 40 shipped:**
 - Replaced all nine code-drawn sofa/lamp illustrations in the Stage furniture-style picker with locally served, AI-generated photographic interior vignettes. The labels remain authoritative and the images are decorative (`alt=""`), so selection does not depend on interpreting a picture.
