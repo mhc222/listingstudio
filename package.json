@@ -7,7 +7,8 @@
     "build": "next build --turbopack",
     "start": "next start",
     "lint": "eslint",
-    "test:intake": "node scripts/test-intake-contract.mjs"
+    "test:intake": "node scripts/test-intake-contract.mjs",
+    "test:upload-queue": "node scripts/test-upload-queue.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.122.0",
