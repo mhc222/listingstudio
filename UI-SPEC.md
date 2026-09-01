@@ -1,6 +1,6 @@
 # Listing Studio — End-to-End UX Contract
 
-Phase 44 · 2026-09-01 · implementation contract
+Phase 45 · 2026-09-01 · implementation contract
 
 ## Product promise
 
@@ -75,6 +75,16 @@ The Photos route owns upload, room filtering/tagging, photo selection, and entry
 - Reload rebuilds nonterminal work from owned durable upload rows. Browser-held file bytes cannot survive a reload, so an interrupted row asks the user to choose the exact same filename and byte size; the TUS fingerprint/URL resumes preserved chunks instead of reserving a duplicate photo.
 - Failure text names the file, the recoverable cause, what work remains preserved, and the next action. Raw TUS, Storage, token, bucket, or request vocabulary is not customer-facing.
 - The queue stacks controls below row detail at phone widths and must not create horizontal page overflow. Completed photos refresh into the existing shared tray; completed floor plans retain their floor-plan behavior.
+
+#### Shoot inventory and HDR organization
+
+- Intake preserves original filename, source batch, exact selection order, capture timestamp, dimensions, exposure time/bias, aperture, ISO, focal length, camera, and lens when present in the immutable source. Missing EXIF stays missing; the interface never invents capture facts.
+- **Shoot inventory** extends the shared photo workspace above Rooms & photos. It shows separate, reconcilable totals for **Source photos**, logical **Photos ready**, **Floor plans**, **Proposed stacks**, **Confirmed stacks**, and **Merged results**. The dashboard uses logical photo count and labels floor plans and source files separately.
+- **Find HDR brackets** is deliberate, never automatic on page load. A proposal contains 3–9 same-batch frames and shows confidence plus a short evidence sentence. Strong proposals use capture timing, dimensions, camera/lens/focal context, and exposure settings; brightness is a bounded low-confidence fallback only when capture timing exists and exposure EXIF is incomplete.
+- Every proposal remains visible until reviewed. The operator may reorder exposures, remove members to split a proposal, add an ungrouped missed exposure, create a manual stack, **Keep separate**, or **Confirm & merge**. A saved manual change says **Manual** and replaces stale detector evidence with a reviewed-source explanation.
+- **Keep separate** is durable: dismissed members remain normal photos and are not immediately reproposed. **Reopen stack** restores all source exposures as downstream photos and preserves the prior merged derivative as lineage. Reconfirming creates a new immutable merged result.
+- A confirmed stack preserves every source exposure but contributes exactly one current merged representative to Rooms & photos, selection, later proofing, approval, and delivery. Its members are inspectable in organization but cannot start a new edit directly. Proposed stacks continue to expose their individual source photos.
+- HDR fusion consumes owned stored group/photo IDs. The browser never reuploads bracket bytes, and the route never accepts multipart source files.
 
 ### 5. Task Studio
 
