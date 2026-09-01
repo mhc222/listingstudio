@@ -40,10 +40,19 @@
 - [x] Phase 37 — Staging direction + one-path studio UX (no migration)
 - [x] Phase 38 — Calm precision interface system (Apple-design pass; no migration)
 - [x] Phase 39 — Studio interaction language completion (Radix selects/disclosures; no migration)
+- [x] Phase 40 — Photoreal staging style previews (nine local WebP assets; no migration)
 
-## ACTIVE HANDOFF — Studio interaction language complete (2026-09-01)
+## ACTIVE HANDOFF — Photoreal staging previews complete (2026-09-01)
 
-**Read this first.** Phases 38–39 finish the visual and interaction-system response to Matt's “AI slop / form-builder” diagnosis. Phase 38 established the calm system-font, canvas-first material language; Phase 39 replaces the remaining operating-system selects and snapping details, keeps task modes spatially present, makes staging style visual, and puts truthful processing status on the image. The warm brass identity, interpreter loop, edit chain, orchestration, prompt catalog, and persisted data remain unchanged. The complete journey contract is in `UI-SPEC.md`; the >10 MB upload limit remains a separate planned fix.
+**Read this first.** Phases 38–40 finish the visual and interaction-system response to Matt's “AI slop / form-builder” diagnosis. Phase 38 established the calm system-font, canvas-first material language; Phase 39 replaced the remaining operating-system selects and snapping details; Phase 40 replaces the deliberately schematic staging swatches with locally bundled photographic style previews. The warm brass identity, interpreter loop, edit chain, orchestration, prompt catalog, and persisted data remain unchanged. The complete journey contract is in `UI-SPEC.md`; the >10 MB upload limit remains a separate planned fix.
+
+**Phase 40 shipped:**
+- Replaced all nine code-drawn sofa/lamp illustrations in the Stage furniture-style picker with locally served, AI-generated photographic interior vignettes. The labels remain authoritative and the images are decorative (`alt=""`), so selection does not depend on interpreting a picture.
+- Modern, Contemporary, and Farmhouse were regenerated individually after review found the first contact-sheet versions insufficiently differentiated. Modern is now rectilinear/architectural; Contemporary is sculptural/tonal; Farmhouse uses linen, reclaimed oak, vertical paneling, and blackened iron without themed décor. Traditional, Urban/Industrial, Mid-Century Modern, Hamptons, Commercial, and Scandinavian retain the coherent contact-sheet set.
+- The nine compressed WebP assets total under 180 KB, live in `public/staging-styles/`, and have no remote loading, tracking, availability, or third-party stock-license dependency. Longer labels wrap to two lines instead of truncating.
+- TypeScript and ESLint pass. The production build passes all 24 routes after the final three-image refinement.
+
+**Next action:** Matt visually reviews the open local Stage studio at desktop and phone width. Deploy after approval, or continue with the separate >10 MB upload phase / floor-plan pin persistence / photo→room matching / Gemini OCR A-B work.
 
 **Phase 39 shipped:**
 - Replaced the shared styled-native Select with a Radix Select adapter. Existing option call sites, controlled values, server-action names/defaults, disabled/required states, and `onChange(e.target.value)` behavior remain compatible, while every dropdown now has an anchored application popover, selected checkmark, collision handling, keyboard/typeahead support, optional descriptions, and controlled typography. There are no native `<select>` elements left in application source.
@@ -52,8 +61,6 @@
 - Stage presents nine deterministic visual material/mood swatches with selected checks, a quietly prefilled custom Room selector, Light/Standard segmented choice, full-width Showcase choices, and optional direction. The sticky completion bar now states photo/edit scope, exposes Output size directly, and gives Start edit the strongest weight.
 - Processing and rework status live as translucent material chrome over the source/current image. The completed result rail removes the remaining box stack: Download, Refine, Versions, QA, and Edit details are grouped by spacing and the shared disclosure language inside one real floating panel.
 - Browser QA passed on 11689 Elam Dr at mobile, tablet, and desktop widths: no document overflow; mobile task rail scrolls with no visible native scrollbar; custom listbox selection, server-action select values, task-draft preservation (Kitchen + Scandinavian through Dusk→Stage), More tools, secondary-edit disclosure, result controls, and Activity all verified. No new browser warnings/errors after the final reload. TypeScript, ESLint, and the 24-route production build pass.
-
-**Next action:** Matt visually reviews the open local Stage studio and a completed result. Deploy after approval, or continue with the separate >10 MB upload phase / floor-plan pin persistence / photo→room matching / Gemini OCR A-B work.
 
 **Phase 38 shipped:**
 - Removed all `next/font` Google font loading and the Cormorant/Public Sans/DM Sans/JetBrains Mono application hierarchy. Product UI now uses the platform system stack with tighter display tracking, clearer weights, and size-specific leading. The existing mark and warm brass character remain.
