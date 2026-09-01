@@ -4,6 +4,12 @@ import { createAdminClient } from "@/lib/supabase/admin"
 import { pickProvider, MODELS } from "@/config/models"
 import { submitStep } from "@/lib/orchestrator"
 import { EDIT_360_BASE, type EditStep } from "@/lib/prompts"
+import {
+  batchScopesEqual,
+  buildBatchScope,
+  type ExplicitScopeTarget,
+  type ScopePhoto,
+} from "@/lib/batch-scope"
 
 // Create a job (one file group per photo for a batch, or 4 for an ideas grid)
 // and submit each first step. Never awaits generation — fal queue +
@@ -16,7 +22,7 @@ export async function POST(req: Request) {
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 })
 
   const body = await req.json()
-  const { listingId, photoId, photoIds, editChain, comment, commentImperative, sizePreset, sampleImageIds, chat, kind, variants } =
+  const { listingId, photoId, photoIds, editChain, comment, commentImperative, sizePreset, sampleImageIds, chat, kind, variants, targetRequestId, selectionMethod, targets } =
     body as {
       listingId: string
       photoId?: string // back-compat single-photo form
@@ -33,12 +39,20 @@ export async function POST(req: Request) {
       // ideas grid (phase 9): 4 labeled variants, each its own chain
       kind?: string
       variants?: { label: string; editChain: EditStep[] }[]
+      targetRequestId?: string
+      selectionMethod?: string
+      targets?: ExplicitScopeTarget[]
     }
 
   const requestedPhotoIds = photoIds?.length ? [...new Set(photoIds)] : photoId ? [photoId] : []
   const isIdeas = kind === "ideas"
-  // each cell becomes one file group: (photo, label, chain)
-  const cells: { photoId: string; label: string | null; chain: EditStep[] }[] = isIdeas
+  const requestId = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(targetRequestId ?? "")
+    ? targetRequestId!
+    : crypto.randomUUID()
+  // Each cell becomes one file group: (photo, label, chain). Normal cells are
+  // rebuilt from the validated scope below so crafted target overrides cannot
+  // drift from the persisted snapshot.
+  let cells: { photoId: string; label: string | null; chain: EditStep[] }[] = isIdeas
     ? (variants ?? []).map((v) => ({ photoId: requestedPhotoIds[0], label: v.label, chain: v.editChain }))
     : requestedPhotoIds.map((pid) => ({ photoId: pid, label: null, chain: editChain ?? [] }))
   if (!listingId || requestedPhotoIds.length === 0 || cells.length === 0 || cells.some((c) => !c.chain?.length)) {
@@ -84,6 +98,65 @@ export async function POST(req: Request) {
     if ((currentRepresentatives ?? []).length !== mergedIds.length) {
       return NextResponse.json({ error: "This HDR result is no longer the active representative." }, { status: 409 })
     }
+  }
+
+  const roomIds = Array.from(new Set(ownedPhotos!.flatMap((item) => item.room_id ? [item.room_id] : [])))
+  const [{ data: ownedRooms }, { data: sameRoomMemberships }] = await Promise.all([
+    roomIds.length
+      ? supabase.from("rooms").select("id, name, room_type").eq("listing_id", listingId).in("id", roomIds)
+      : Promise.resolve({ data: [] }),
+    supabase
+      .from("same_room_group_members")
+      .select("photo_id, group_id, same_room_groups!inner(listing_id)")
+      .in("photo_id", requestedPhotoIds)
+      .eq("same_room_groups.listing_id", listingId),
+  ])
+  const roomById = new Map((ownedRooms ?? []).map((room) => [room.id, room]))
+  const groupByPhoto = new Map((sameRoomMemberships ?? []).map((member) => [member.photo_id, member.group_id]))
+  const scopePhotos: ScopePhoto[] = ownedPhotos!.map((item) => {
+    const room = item.room_id ? roomById.get(item.room_id) : null
+    return {
+      id: item.id,
+      roomId: item.room_id,
+      roomType: room?.room_type ?? null,
+      roomName: room?.name ?? null,
+      sameRoomGroupId: groupByPhoto.get(item.id) ?? null,
+      photoRole: item.photo_role === "hdr_merged" ? "hdr_merged" : "source",
+      hdrGroupId: item.hdr_group_id,
+    }
+  })
+  const scope = buildBatchScope({
+    requestedPhotoIds,
+    photos: scopePhotos,
+    commonChain: isIdeas ? (variants?.[0]?.editChain ?? []) : (editChain ?? []),
+    explicitTargets: isIdeas ? undefined : targets,
+    selectionMethod,
+    outputSize: sizePreset,
+    ideaVariants: isIdeas ? (variants ?? []) : undefined,
+  })
+  if (!scope.ok) return NextResponse.json({ error: scope.error }, { status: 409 })
+  if (!isIdeas) {
+    cells = scope.targets.map((target) => ({ photoId: target.photoId, label: null, chain: target.editChain }))
+  }
+
+  const { data: priorJob } = await supabase
+    .from("jobs")
+    .select("id, target_snapshot, file_groups(id)")
+    .eq("listing_id", listingId)
+    .eq("target_request_id", requestId)
+    .maybeSingle()
+  if (priorJob) {
+    if (!batchScopesEqual(priorJob.target_snapshot, scope.snapshot)) {
+      return NextResponse.json(
+        { error: "This retry identity belongs to a different target scope. Review the displayed targets and try again." },
+        { status: 409 }
+      )
+    }
+    return NextResponse.json({
+      jobId: priorJob.id,
+      fileGroupIds: priorJob.file_groups.map((group) => group.id),
+      idempotent: true,
+    })
   }
 
   // FLOOR_PLAN_REDRAW (phase 11): never infer plans from room photos
@@ -266,6 +339,8 @@ export async function POST(req: Request) {
       status: "processing",
       kind: isIdeas ? "ideas" : "normal",
       grounding_used: Object.keys(grounding).length ? grounding : null,
+      target_request_id: requestId,
+      target_snapshot: scope.snapshot,
       submitted_at: new Date().toISOString(),
     })
     .select("id")

@@ -30,6 +30,7 @@ export type ExplicitScopeTarget = {
 
 export type BatchScopeSnapshot = {
   version: typeof BATCH_SCOPE_VERSION
+  jobKind: "normal" | "ideas"
   selectionMethod: SelectionMethod
   targetCount: number
   roomIds: string[]
@@ -37,6 +38,7 @@ export type BatchScopeSnapshot = {
   outputSize: "original" | "under_10mb" | "under_5mb"
   estimatedGenerationCount: number
   usesPerTargetOverrides: boolean
+  ideaVariants?: Array<{ label: string; editChain: EditStep[] }>
   targets: Array<{
     position: number
     photoId: string
@@ -88,6 +90,7 @@ export function buildBatchScope({
   explicitTargets,
   selectionMethod,
   outputSize,
+  ideaVariants,
 }: {
   requestedPhotoIds: string[]
   photos: ScopePhoto[]
@@ -95,6 +98,7 @@ export function buildBatchScope({
   explicitTargets?: ExplicitScopeTarget[]
   selectionMethod?: unknown
   outputSize?: unknown
+  ideaVariants?: Array<{ label: string; editChain: EditStep[] }>
 }): BatchScopeResult {
   if (requestedPhotoIds.length === 0 || requestedPhotoIds.length !== photos.length) {
     return { ok: false, error: "The selected photo scope could not be reconciled. Refresh and select the photos again." }
@@ -156,13 +160,17 @@ export function buildBatchScope({
   )
   const snapshot: BatchScopeSnapshot = {
     version: BATCH_SCOPE_VERSION,
+    jobKind: ideaVariants ? "ideas" : "normal",
     selectionMethod: normalizedSelectionMethod(selectionMethod, requestedPhotoIds.length),
     targetCount: requestedPhotoIds.length,
     roomIds,
     sameRoomGroupIds,
     outputSize: normalizedOutputSize(outputSize),
-    estimatedGenerationCount: targets.reduce((sum, target) => sum + target.editChain.length, 0),
+    estimatedGenerationCount: ideaVariants
+      ? ideaVariants.reduce((sum, variant) => sum + variant.editChain.length, 0)
+      : targets.reduce((sum, target) => sum + target.editChain.length, 0),
     usesPerTargetOverrides,
+    ...(ideaVariants ? { ideaVariants } : {}),
     targets: orderedPhotos.map((photo, position) => ({
       position,
       photoId: photo.id,
@@ -175,6 +183,22 @@ export function buildBatchScope({
     })),
   }
   return { ok: true, snapshot, targets }
+}
+
+function canonicalJson(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(canonicalJson)
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>)
+        .sort(([left], [right]) => left.localeCompare(right))
+        .map(([key, child]) => [key, canonicalJson(child)])
+    )
+  }
+  return value
+}
+
+export function batchScopesEqual(left: unknown, right: unknown) {
+  return JSON.stringify(canonicalJson(left)) === JSON.stringify(canonicalJson(right))
 }
 
 export function withConfirmedRoomStaging(
