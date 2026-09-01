@@ -99,6 +99,15 @@ The Photos route owns upload, room filtering/tagging, photo selection, and entry
 - Manually changing or clearing a confirmed room removes stale same-room membership. Clearing the room returns its current proposal to the durable untagged/deferred state. Deleting a Room does the same before its accepted proposal reference is cleared.
 - Room proposals are organization evidence, not edit instructions. They do not apply image edits, promise cross-view furniture consistency, or hide untagged photos from selection.
 
+#### Safe batch scope
+
+- The existing corner control remains the one selection model. Its numbered state preserves selection order. Desktop Shift-click selects the inclusive range between the anchor and endpoint; **Choose range** exposes the same two-endpoint action for touch and keyboard users.
+- **Select all visible** means the current room and organization filters only. Room and same-room-group actions name their scope and exact visible count. **Clear** is always available after the first selection. No empty selection ever expands to the listing.
+- Opening a batch shows an **Exact batch scope** summary before outcome controls: logical representative count, room distribution including Untagged, durable same-room groups, ordered edits, output size, and estimated image passes. Confirmed HDR source exposures and stale merged derivatives cannot enter this scope.
+- A multi-photo Virtual Staging batch may share one chain only when every target belongs to the same confirmed room and the requested staging room type matches that room. Mixed confirmed rooms require the explicit **Use each photo's confirmed room settings** action, which materializes and persists one room-matched chain per target without changing the reusable draft. Untagged staging targets must be organized first.
+- The browser guidance and disabled Run action are not the security boundary. `/api/jobs` re-reads owned photos, current HDR representative identity, room type, and same-room membership; reconciles exact ordered targets; and rejects mismatched, reordered, mixed implicit, or untagged staging requests.
+- Every accepted job records one immutable scope snapshot with a retry identity, exact ordered target/room/group/lineage values, per-target chains, output size, and generation count. A network retry reuses that identity only for the same snapshot; later retries and orchestration continue from the stored Job/FileGroups rather than recomputing “current selection.”
+
 ### 5. Task Studio
 
 Desktop is a full-screen split surface:

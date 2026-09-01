@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Select } from "@/components/ui/select"
@@ -22,6 +22,7 @@ export function PlanPanel({ listingId, plans }: { listingId: string; plans: Phot
   const [disclaimer, setDisclaimer] = useState(PLAN_DISCLAIMER)
   const [running, setRunning] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const pendingRequestId = useRef<string | null>(null)
 
   if (plans.length === 0) return null
 
@@ -29,27 +30,38 @@ export function PlanPanel({ listingId, plans }: { listingId: string; plans: Phot
     if (!planId || running) return
     setRunning(true)
     setError(null)
-    const res = await fetch("/api/jobs", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        listingId,
-        photoId: planId,
-        editChain: [
-          {
-            edit_type: "FLOOR_PLAN_REDRAW",
-            options: {
-              style,
-              units,
-              furniture,
-              north_arrow: northArrow,
-              address_label: addressLabel,
-              disclaimer: disclaimer.trim(),
+    pendingRequestId.current ??= crypto.randomUUID()
+    let res: Response
+    try {
+      res = await fetch("/api/jobs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          listingId,
+          photoId: planId,
+          targetRequestId: pendingRequestId.current,
+          selectionMethod: "single",
+          editChain: [
+            {
+              edit_type: "FLOOR_PLAN_REDRAW",
+              options: {
+                style,
+                units,
+                furniture,
+                north_arrow: northArrow,
+                address_label: addressLabel,
+                disclaimer: disclaimer.trim(),
+              },
             },
-          },
-        ],
-      }),
-    })
+          ],
+        }),
+      })
+      pendingRequestId.current = null
+    } catch {
+      setRunning(false)
+      setError("The connection was interrupted. Try again; the same request will be reused safely.")
+      return
+    }
     setRunning(false)
     if (!res.ok) {
       const data = await res.json().catch(() => null)

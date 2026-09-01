@@ -14,6 +14,7 @@ import {
   type SameRoomGroupRow,
 } from "./room-organization"
 import { type JobRow, type SampleRow } from "./job-feed"
+import type { SelectionMethod } from "@/lib/batch-scope"
 import {
   ALL_ROOMS,
   RoomBrowser,
@@ -50,10 +51,13 @@ export function ListingWorkspace({
   samples: SampleRow[]
 }) {
   const [selectedIds, setSelectedIds] = useState<string[]>([])
+  const [selectionMethod, setSelectionMethod] = useState<SelectionMethod>("manual")
   const [activeRoom, setActiveRoom] = useState(ALL_ROOMS)
   const [organizationFilter, setOrganizationFilter] = useState<OrganizationFilter>("all")
   // anchor index for shift-click range select
   const [anchor, setAnchor] = useState<number | null>(null)
+  const [rangeMode, setRangeMode] = useState(false)
+  const [rangeStart, setRangeStart] = useState<number | null>(null)
   // full-screen single-photo editor (Matt, 2026-08-31): clicking a photo opens
   // it large with the Composer scoped to that one photo; the grid keeps the
   // corner-checkbox batch path. Esc closes.
@@ -65,7 +69,10 @@ export function ListingWorkspace({
   const returnFocusRef = useRef<HTMLElement | null>(null)
   const openPhoto = photos.find((p) => p.id === openId) ?? null
   const studioIds = openPhoto ? [openPhoto.id, ...additionalIds] : []
-  const selectedPhotos = photos.filter((photo) => selectedIds.includes(photo.id))
+  const selectedPhotos = selectedIds.flatMap((id) => {
+    const photo = photos.find((item) => item.id === id)
+    return photo ? [photo] : []
+  })
   const roomFilteredPhotos =
     activeRoom === ALL_ROOMS
       ? photos
@@ -154,20 +161,50 @@ export function ListingWorkspace({
   })()
 
   function selectPhoto(index: number, shift: boolean) {
+    if (rangeMode) {
+      if (rangeStart === null) {
+        const id = filteredPhotos[index].id
+        setRangeStart(index)
+        setAnchor(index)
+        setSelectionMethod("range")
+        setSelectedIds((previous) => previous.includes(id) ? previous : [...previous, id])
+        return
+      }
+      const [lo, hi] = rangeStart < index ? [rangeStart, index] : [index, rangeStart]
+      const range = filteredPhotos.slice(lo, hi + 1).map((photo) => photo.id)
+      setSelectedIds((previous) => Array.from(new Set([...previous, ...range])))
+      setSelectionMethod("range")
+      setRangeMode(false)
+      setRangeStart(null)
+      return
+    }
     if (shift && anchor !== null) {
       const [lo, hi] = anchor < index ? [anchor, index] : [index, anchor]
       const range = filteredPhotos.slice(lo, hi + 1).map((p) => p.id)
       setSelectedIds((prev) => Array.from(new Set([...prev, ...range])))
+      setSelectionMethod("range")
       return
     }
     const id = filteredPhotos[index].id
     setAnchor(index)
+    setSelectionMethod("manual")
     setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))
   }
 
   function clear() {
     setSelectedIds([])
     setAnchor(null)
+    setRangeMode(false)
+    setRangeStart(null)
+    setSelectionMethod("manual")
+  }
+
+  function selectGroup(ids: string[], method: SelectionMethod) {
+    setSelectedIds(ids)
+    setSelectionMethod(method)
+    setAnchor(null)
+    setRangeMode(false)
+    setRangeStart(null)
   }
 
   function changeRoomFilter(value: string) {
@@ -244,6 +281,50 @@ export function ListingWorkspace({
             </div>
           )}
         </div>
+        {filteredPhotos.length > 0 && (
+          <div className="mb-3 rounded-xl border border-border/70 bg-card/55 p-3" aria-label="Batch selection">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="mr-1 text-xs font-semibold">Batch selection</span>
+              <Button type="button" size="sm" variant="outline" onClick={() => selectGroup(filteredPhotos.map((photo) => photo.id), "visible")}>
+                Select all visible · {filteredPhotos.length}
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={rangeMode ? "default" : "outline"}
+                onClick={() => {
+                  setRangeMode((current) => !current)
+                  setRangeStart(null)
+                  setAnchor(null)
+                }}
+              >
+                {rangeMode ? rangeStart === null ? "Choose first photo" : "Choose last photo" : "Choose range"}
+              </Button>
+              {selectedIds.length > 0 && <Button type="button" size="sm" variant="ghost" onClick={clear}>Clear</Button>}
+            </div>
+            <div className="mt-2 flex max-w-full gap-2 overflow-x-auto pb-1">
+              {rooms.map((room) => {
+                const ids = filteredPhotos.filter((photo) => photo.room_id === room.id).map((photo) => photo.id)
+                return ids.length ? (
+                  <button key={room.id} type="button" onClick={() => selectGroup(ids, "room")} className="min-h-10 shrink-0 rounded-md bg-muted/60 px-3 text-xs font-medium hover:bg-accent">
+                    {roomLabels.get(room.id) ?? room.name} · {ids.length}
+                  </button>
+                ) : null
+              })}
+              {sameRoomGroups.map((group) => {
+                const ids = filteredPhotos.filter((photo) => group.memberPhotoIds.includes(photo.id)).map((photo) => photo.id)
+                return ids.length >= 2 ? (
+                  <button key={group.id} type="button" onClick={() => selectGroup(ids, "same_room_group")} className="min-h-10 shrink-0 rounded-md bg-muted/60 px-3 text-xs font-medium hover:bg-accent">
+                    {group.name} views · {ids.length}
+                  </button>
+                ) : null
+              })}
+            </div>
+            <p className="mt-2 text-xs text-muted-foreground">
+              Shift-click a first and last corner control on desktop, or use Choose range on touch screens. Group actions select only photos in the current view.
+            </p>
+          </div>
+        )}
         <PhotoGrid
           photos={filteredPhotos}
           rooms={roomOptions}
@@ -302,6 +383,9 @@ export function ListingWorkspace({
                 lastChain={lastChain}
                 contextLabel={roomLabels.get(openPhoto.room_id ?? "") ?? "One photo"}
                 initialRoomType={rooms.find((room) => room.id === openPhoto.room_id)?.room_type}
+                rooms={rooms}
+                sameRoomGroups={sameRoomGroups}
+                selectionMethod={studioIds.length === 1 ? "single" : "manual"}
                 onSubmittingChange={setEditorSubmitting}
                 additionalViews={photos
                   .filter((photo) => photo.id !== openPhoto.id)
@@ -367,6 +451,9 @@ export function ListingWorkspace({
                     ? rooms.find((room) => room.id === selectedPhotos[0]?.room_id)?.room_type
                     : null
                 }
+                rooms={rooms}
+                sameRoomGroups={sameRoomGroups}
+                selectionMethod={selectionMethod}
                 onSubmittingChange={setEditorSubmitting}
               />
             </div>

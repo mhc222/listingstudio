@@ -12,10 +12,17 @@ import { Select } from "@/components/ui/select"
 import { ROOM_TYPES } from "@/lib/roomTypes"
 import { FURNITURE_STYLES } from "@/lib/prompts"
 import { simulateCents } from "@/lib/simulate"
+import {
+  buildBatchScope,
+  withConfirmedRoomStaging,
+  type ScopePhoto,
+  type SelectionMethod,
+} from "@/lib/batch-scope"
 import { ChainStepEditor } from "./chain-step-editor"
 import { EDIT_TYPES, EDIT_360_TYPES, SIZE_PRESETS, type ChainEdit } from "./edit-types"
 import type { PhotoRow } from "./photo-grid"
 import type { SampleRow } from "./job-feed"
+import type { SameRoomGroupRow } from "./room-organization"
 
 // One composer (phase 30): chat interpret MATERIALIZES an editable chain (or 4
 // labeled ideas) instead of blind-firing a job; advanced choices use the shared
@@ -152,6 +159,9 @@ export function Composer({
   lastChain,
   contextLabel = "Photo edit",
   initialRoomType,
+  rooms,
+  sameRoomGroups,
+  selectionMethod = "manual",
   onSubmittingChange,
   additionalViews = [],
   onToggleAdditionalView,
@@ -168,6 +178,9 @@ export function Composer({
   lastChain: ChainLike[] | null
   contextLabel?: string
   initialRoomType?: string | null
+  rooms: { id: string; name: string; room_type: string }[]
+  sameRoomGroups: SameRoomGroupRow[]
+  selectionMethod?: SelectionMethod
   onSubmittingChange?: (submitting: boolean) => void
   additionalViews?: { id: string; url: string | null; label: string; sameRoom: boolean }[]
   onToggleAdditionalView?: (id: string) => void
@@ -186,6 +199,8 @@ export function Composer({
   const [running, setRunning] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const taskDrafts = useRef<Record<string, ChainEdit>>({})
+  const pendingRequest = useRef<{ scopeKey: string; requestId: string } | null>(null)
+  const [useConfirmedRoomSettings, setUseConfirmedRoomSettings] = useState(false)
 
   // interpreter chat (phase 7): conversation is ephemeral until a job is
   // created, then persisted to chat_messages on the new file group
@@ -205,6 +220,42 @@ export function Composer({
   const [uploadingRef, setUploadingRef] = useState(false)
 
   const photoById = useMemo(() => new Map(photos.map((p) => [p.id, p])), [photos])
+  const scopePhotos = useMemo<ScopePhoto[]>(() => {
+    const roomById = new Map(rooms.map((room) => [room.id, room]))
+    const groupByPhoto = new Map(
+      sameRoomGroups.flatMap((group) => group.memberPhotoIds.map((photoId) => [photoId, group.id] as const))
+    )
+    return selectedIds.flatMap((id) => {
+      const photo = photoById.get(id)
+      if (!photo) return []
+      const room = photo.room_id ? roomById.get(photo.room_id) : null
+      return [{
+        id,
+        roomId: photo.room_id,
+        roomType: room?.room_type ?? null,
+        roomName: room?.name ?? null,
+        sameRoomGroupId: groupByPhoto.get(id) ?? null,
+        photoRole: photo.photo_role === "hdr_merged" ? "hdr_merged" : "source",
+        hdrGroupId: photo.hdr_group_id ?? null,
+      }]
+    })
+  }, [photoById, rooms, sameRoomGroups, selectedIds])
+  const hasStaging = chain.some((step) => step.edit_type === "VIRTUAL_STAGING")
+  const explicitTargets = hasStaging && useConfirmedRoomSettings
+    ? withConfirmedRoomStaging(photoIds, scopePhotos, chain)
+    : undefined
+  const batchScope = chain.length > 0
+    ? buildBatchScope({
+        requestedPhotoIds: photoIds,
+        photos: scopePhotos,
+        commonChain: chain,
+        explicitTargets,
+        selectionMethod,
+        outputSize: sizePreset,
+      })
+    : null
+  const batchScopeError = photoIds.length > 1 && batchScope && !batchScope.ok ? batchScope.error : null
+  const canApplyConfirmedRooms = photoIds.length > 1 && hasStaging && scopePhotos.every((photo) => photo.roomId && photo.roomType)
 
   // phase 31: per-listing default chain in localStorage (single-user, no
   // migration); read once on mount (SSR-safe — localStorage is client-only)
@@ -293,6 +344,10 @@ export function Composer({
       setError("Ideas explore one photo — keep exactly one selected.")
       return
     }
+    if (!hasIdeas && batchScopeError) {
+      setError(batchScopeError)
+      return
+    }
     setRunning(true)
     onSubmittingChange?.(true)
     setError(null)
@@ -305,14 +360,27 @@ export function Composer({
       sampleImageIds: sampleIds.length ? sampleIds : undefined,
       chat,
     }
+    const scopeKey = JSON.stringify({ photoIds, chain, explicitTargets, sizePreset, selectionMethod, ideas })
+    if (!pendingRequest.current || pendingRequest.current.scopeKey !== scopeKey) {
+      pendingRequest.current = { scopeKey, requestId: crypto.randomUUID() }
+    }
     const body = hasIdeas
       ? {
           ...commonBody,
           photoId: photoIds[0],
           kind: "ideas",
           variants: ideas!.map((d) => ({ label: d.label, editChain: d.edit_chain })),
+          targetRequestId: pendingRequest.current.requestId,
+          selectionMethod: "single",
         }
-      : { ...commonBody, photoIds, editChain: chain }
+      : {
+          ...commonBody,
+          photoIds,
+          editChain: chain,
+          targets: explicitTargets,
+          targetRequestId: pendingRequest.current.requestId,
+          selectionMethod,
+        }
     let navigated = false
     try {
       const res = await fetch("/api/jobs", {
@@ -321,6 +389,7 @@ export function Composer({
         body: JSON.stringify(body),
       })
       const data = await res.json().catch(() => null)
+      pendingRequest.current = null
       if (!res.ok) {
         setError(data?.error ?? `Could not start the edit (${res.status}). Please try again.`)
         return
@@ -489,7 +558,7 @@ export function Composer({
     }
   }
 
-  const canRun = photoIds.length > 0 && (chain.length > 0 || (!!ideas && ideas.length === 4))
+  const canRun = photoIds.length > 0 && (chain.length > 0 || (!!ideas && ideas.length === 4)) && !batchScopeError
 
   return (
     <section>
@@ -518,6 +587,64 @@ export function Composer({
                 ? "Editing one photo"
                 : `Applying the same settings to ${photoIds.length} photos`}
           </p>
+          {photoIds.length > 1 && (
+            <div className="mb-4 rounded-xl border border-border/70 bg-card/65 p-3" aria-label="Exact batch scope">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-sm font-semibold">Exact batch scope</p>
+                <span className="rounded-full bg-accent px-2.5 py-1 text-[0.68rem] font-semibold text-accent-foreground">
+                  {photoIds.length} logical photos
+                </span>
+              </div>
+              <dl className="mt-2 grid gap-1 text-xs sm:grid-cols-[5.5rem_1fr]">
+                <dt className="font-medium text-muted-foreground">Rooms</dt>
+                <dd>
+                  {(() => {
+                    const counts = new Map<string, number>()
+                    for (const photo of scopePhotos) {
+                      const label = photo.roomName ?? "Untagged"
+                      counts.set(label, (counts.get(label) ?? 0) + 1)
+                    }
+                    return Array.from(counts).map(([label, count]) => `${label} (${count})`).join(", ")
+                  })()}
+                </dd>
+                <dt className="font-medium text-muted-foreground">View groups</dt>
+                <dd>
+                  {(() => {
+                    const ids = Array.from(new Set(scopePhotos.flatMap((photo) => photo.sameRoomGroupId ? [photo.sameRoomGroupId] : [])))
+                    return ids.length
+                      ? ids.map((id) => sameRoomGroups.find((group) => group.id === id)?.name ?? "Same-room group").join(", ")
+                      : "No same-room group"
+                  })()}
+                </dd>
+                <dt className="font-medium text-muted-foreground">Edits</dt>
+                <dd>{chain.length ? chainSummary(chain) : "Choose an outcome"}</dd>
+                <dt className="font-medium text-muted-foreground">Output</dt>
+                <dd>{SIZE_PRESETS[sizePreset] ?? SIZE_PRESETS.original}</dd>
+                <dt className="font-medium text-muted-foreground">Estimate</dt>
+                <dd>
+                  {batchScope?.ok ? batchScope.snapshot.estimatedGenerationCount : photoIds.length * chain.length} image pass{(batchScope?.ok ? batchScope.snapshot.estimatedGenerationCount : photoIds.length * chain.length) === 1 ? "" : "es"}
+                </dd>
+              </dl>
+              {batchScopeError && (
+                <div className="mt-3 rounded-lg bg-destructive/8 p-2.5 text-xs text-destructive">
+                  <p>{batchScopeError}</p>
+                  {canApplyConfirmedRooms && (
+                    <Button type="button" size="sm" variant="outline" className="mt-2" onClick={() => setUseConfirmedRoomSettings(true)}>
+                      Use each photo&apos;s confirmed room settings
+                    </Button>
+                  )}
+                </div>
+              )}
+              {hasStaging && useConfirmedRoomSettings && !batchScopeError && (
+                <p className="mt-3 text-xs text-emerald-700">
+                  Each target will use its own confirmed room type. The saved preset remains unchanged.
+                </p>
+              )}
+              <p className="mt-2 text-[0.68rem] leading-relaxed text-muted-foreground">
+                Only these displayed targets will run. Nothing selected never expands to the whole listing.
+              </p>
+            </div>
+          )}
           <TaskModeRail activeTask={chain[0]?.edit_type} onSelect={chooseTask} />
           {chain.length === 0 && !ideas && (
             <p className="mt-2 px-1 text-xs text-muted-foreground">
