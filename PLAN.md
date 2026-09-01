@@ -625,7 +625,7 @@ The implementation arc below is approved for planning, not pre-authorized as one
 
 ## Phase 46 — Room and same-view organization review
 
-**Status (2026-09-01):** Complete locally. Migration `0011_room_proposals.sql` is live; permanent targeted-cleanup migration `0012_room_proposal_cleanup.sql` is queued for Matt's end-of-project SQL batch, with an application compatibility path verified against the current live function.
+**Status (2026-09-01):** Complete. Migrations `0011_room_proposals.sql` and `0012_room_proposal_cleanup.sql` are live; no Phase 46 SQL remains pending.
 
 **Goal:** Reduce manual room clerical work while keeping the human authoritative. Propose room labels and same-room angle groups that later batch editing can trust; never silently commit uncertain semantics.
 
