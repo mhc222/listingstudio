@@ -1,6 +1,6 @@
 # Listing Studio — End-to-End UX Contract
 
-Phase 36 · 2026-08-31 · implementation contract
+Phase 44 · 2026-09-01 · implementation contract
 
 ## Product promise
 
@@ -64,6 +64,17 @@ The Photos route owns upload, room filtering/tagging, photo selection, and entry
 - One searchable room selector filters one shared photo tray. A photo has one room tag control.
 - Clicking the image opens Task Studio. The corner selection control builds an ordered batch without opening the photo.
 - Empty state says what to upload and provides the action. A filtered-empty state offers **Show all photos**.
+
+#### Full-shoot intake
+
+- **Upload photos** and **Attach floor plan** stay compact above the shared tray. They feed one queue, while PDF remains valid only through the floor-plan action.
+- Before reserving server work, validate every selected file independently against the published contract: JPG, PNG, WebP, HEIC/HEIF; floor-plan-only PDF; 50 MB per file; 100 files per selection. One invalid file becomes its own **Needs attention** row and never resets valid neighbors.
+- Each reserved item transfers directly to private intake storage in 6 MiB resumable chunks. No more than three file pipelines may be active at once; listing and floor-plan bytes never pass through a Next.js multipart request.
+- Every row shows filename, kind, byte size, determinate progress, and exactly one human state: **Waiting**, **Uploading**, **Finalizing**, **Uploaded**, **Needs attention**, or **Canceled**.
+- An uploading item offers **Pause** and **Cancel**. A paused item offers **Resume**. A failed item offers **Retry**; the queue also offers **Retry failed** without touching completed rows.
+- Reload rebuilds nonterminal work from owned durable upload rows. Browser-held file bytes cannot survive a reload, so an interrupted row asks the user to choose the exact same filename and byte size; the TUS fingerprint/URL resumes preserved chunks instead of reserving a duplicate photo.
+- Failure text names the file, the recoverable cause, what work remains preserved, and the next action. Raw TUS, Storage, token, bucket, or request vocabulary is not customer-facing.
+- The queue stacks controls below row detail at phone widths and must not create horizontal page overflow. Completed photos refresh into the existing shared tray; completed floor plans retain their floor-plan behavior.
 
 ### 5. Task Studio
 
@@ -169,6 +180,12 @@ Internal “chain” may appear only inside the Advanced disclosure as **Edit or
 | State | Required response |
 |---|---|
 | No listing photos | Explain accepted input and show Upload photos |
+| Upload waiting | Keep its place in the queue; show filename, bytes, and Waiting |
+| Upload active | Determinate per-file progress with Pause and Cancel; never a batch-only spinner |
+| Upload interrupted | Preserve successful neighbors and uploaded chunks; name the file and offer Retry or exact-file reselection |
+| Upload finalizing | Say Finalizing until the durable photo row exists; reload may safely re-enter finalization |
+| Upload complete | Say Uploaded and refresh the shared tray without clearing neighboring failures |
+| Upload canceled | Say Canceled; do not create a photo row |
 | Room filter has no photos | State the active filter and offer Show all photos |
 | Interpreter working | Keep input and photo visible; use “Understanding your edit…” |
 | Interpreter question | Show one question beside the answer field; preserve prior choices |
@@ -188,6 +205,7 @@ Internal “chain” may appear only inside the Advanced disclosure as **Edit or
 - Minimum pointer target is 40×40px for the task studio and photo selection.
 - Batch order is announced and not encoded only by colour.
 - Status uses text plus colour. Motion respects `prefers-reduced-motion`.
+- Upload progressbars have per-file accessible names and numeric values; status is never colour-only.
 - On mobile, the sticky footer never covers the last control and safe-area padding is included.
 
 ## Visual contract

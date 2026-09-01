@@ -44,7 +44,7 @@
 - [x] Phase 41 — Curated real-photography staging references (nine local Pexels WebPs + provenance; no migration)
 - [x] Phase 42 — Competitive end-to-end UX benchmark (research only; no application change or deployment)
 - [x] Phase 43 — Secure resumable-intake contract (migration 0009 applied live 2026-09-01; backend contract only, queue UI remains Phase 44)
-- [ ] Phase 44 — Full-shoot upload queue and recovery
+- [x] Phase 44 — Full-shoot upload queue and recovery
 - [ ] Phase 45 — Shoot inventory, counts, and HDR bracket organization
 - [ ] Phase 46 — Room and same-view organization review
 - [ ] Phase 47 — Safe batch scope
@@ -55,6 +55,24 @@
 - [ ] Phase 52 — Version naming and variation comparison
 - [ ] Phase 53 — Scoped conversational batch rework
 - [ ] Phase 54 — Mobile intake/proofing and workflow-state hardening
+
+## ACTIVE HANDOFF — Phase 44 full-shoot queue complete (2026-09-01)
+
+**Read this first.** Phase 44 is complete. Listing photo and floor-plan intake now uses the Phase 43 direct resumable contract; no selected intake bytes enter a Next.js multipart request. The >10 MB P0 is closed in local code and live-browser verification, but production still serves the Phase 38–41 release because nothing was pushed or deployed. Stop here; Phase 45 alone owns shoot inventory, honest counts, and HDR bracket organization.
+
+**Shipped queue:**
+- `tus-js-client` transfers directly to Supabase Storage in the currently required 6 MiB chunks, with at most three active file pipelines. The authenticated bearer and server-issued non-upsert signed token are both sent; live browser QA caught and corrected the missing-bearer failure before checkpointing.
+- Client preflight is per file against the centralized 50 MB / 100-file JPG, PNG, WebP, HEIC/HEIF and floor-plan-only PDF contract. The queue exposes filename, kind, bytes, determinate progress, `Waiting / Uploading / Finalizing / Uploaded / Needs attention / Canceled`, per-item pause/resume/cancel/retry, retry-failed, partial success, and compact phone-width rows.
+- Reload recovery merges open owned `upload_batches`/`upload_items` with the browser TUS fingerprint/URL record. Since browsers do not retain local `File` bytes across reload, interrupted rows truthfully request the same filename and byte size; signed access is renewed and the existing upload URL resumes without a duplicate reservation. Finalizing rows safely re-enter the idempotent Phase 43 finalizer.
+- `GET /api/uploads?listingId=…` exposes only open owned batches; `POST /api/uploads/[itemId]/authorize` renews only owned `reserved/failed` items. Stale nonterminal browser rows absent from the server are discarded. Terminal rows remain until **Clear finished**.
+
+**Live/browser proof:** On the previously empty `3d454ee8-fe7d-47a1-b40b-8a0074b40886` listing, a 50-file photo selection contained one 42.1 MB JPEG, 47 JPEGs, one synthetic HEIC, and one invalid text file. Exactly three transfers were observed active; the invalid item failed preflight independently; all 49 valid items completed. The HEIC kept `source.heic` plus `canonical.jpg`; the large JPEG remained a 44,139,546-byte source. A separate synthetic PDF completed as a floor plan. An isolated 42.1 MB upload paused at 14%, survived reload, requested the exact local file, resumed, and produced exactly one photo row. Desktop and 433px-wide phone QA showed no page overflow and zero browser warnings/errors. Phase 43 already live-proved the cancel endpoint and cleanup boundary; the Phase 44 queue wires that exact route per item.
+
+**Verification and cleanup:** `npm run test:upload-queue` (24 assertions), `npm run test:intake` (16 assertions), `npx tsc --noEmit --pretty false`, `npm run lint`, and the final production build pass. The port-3000 server was stopped before the build and restarted on port 3000 afterward (PID 66412). All 52 synthetic original/canonical objects, 51 synthetic photo rows across the main plus isolated reload probes, and their upload batches/items were removed; the test listing is back to zero photos and zero upload batches. Temporary test files are outside the repository and are removed before final handoff.
+
+**Old route / migration / release state:** Listing and floor-plan UI no longer call `/api/upload`. It remains only for the Aerial annotator's generated small PNG and the legacy `scripts/test-360.mjs` harness; removing or migrating that proven internal caller is not Phase 44 scope. Live migrations remain `0001`–`0009`; Phase 44 adds no migration. Commits: foundation `c2c4a7a`; queue/browser checkpoint `843529a`; final documentation checkpoint follows. Nothing was pushed, deployed, or paid.
+
+**Next action:** run `/clear`, then say: `Execute Phase 45 from PLAN.md. Read the ACTIVE HANDOFF first and resume from its committed checkpoint.` Phase 45 may add migration `0010_shoot_organization.sql` only with Matt's explicit live-SQL approval. Preserve the Phase 44 intake contract and do not reopen typography, radius, color, animation, or unrelated visual polish.
 
 ## ACTIVE HANDOFF — Phase 43 secure intake complete (2026-09-01)
 
