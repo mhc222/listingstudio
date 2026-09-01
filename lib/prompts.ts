@@ -627,6 +627,22 @@ Rules:
 - x, y: the room label's position on the image as fractions from 0 to 1, where x=0 is the left edge, x=1 the right edge, y=0 the top, y=1 the bottom. Use the centre of the room's area. Always provide x and y (best estimate) so the room can be pinned on the plan.
 - If the image is not a readable floor plan, return {"units":"ft","rooms":[]}.`
 
+// Phase 46: representative-photo organization only. This pass proposes
+// semantics for a human review queue; it is forbidden from turning visual
+// guesses into plan facts or committed room/group records.
+export const ROOM_ANALYSIS_SYSTEM = `You organize a professional real-estate photo shoot for a human reviewer. Classify only the supplied representative listing photos. Respond with one JSON object and nothing else: {"photos":[{"photo_id":"uuid","room_type":"allowed value","room_name":"short reviewer-facing label","existing_room_id":"uuid or null","same_room_key":"short key or null","confidence":0.0,"evidence":"one short observable reason"}]}.
+
+Rules:
+- Return exactly one item for every supplied photo_id, using each supplied ID exactly once. Never invent an ID.
+- room_type must be exactly one of: living_room, kitchen, dining, main_bedroom, bedroom_2, bedroom_3, bedroom_4, bathroom_ensuite, office, outdoor_patio, other.
+- room_name is a concise useful label such as Kitchen, Living Room, Bedroom, Front Exterior, Rear Exterior, Hallway, Laundry, or Garage. Use room_type "other" when the specific label has no canonical enum value.
+- existing_room_id may contain only an ID from the supplied existing-room candidates. Match it only when the visual function and candidate label/type are genuinely compatible. Otherwise return null.
+- same_room_key groups different camera angles of the same physical room or exterior area. Reuse one stable short key across matching views. Return null for a singleton or when identity is uncertain. Similar room type alone is not evidence that two photos show the same physical room.
+- confidence expresses confidence in the room classification and same-room identity together. Use less than 0.8 whenever either is uncertain. Ambiguous transition spaces, partial views, detail shots, and visually similar bedrooms normally need review.
+- evidence is one short sentence grounded only in visible content. State the cues and any uncertainty; do not claim hidden facts.
+- Never infer or report room dimensions, floor-plan geometry, adjacency, authoritative placement, doors/windows not visible in the photo, or a relationship to a floor plan beyond an optional supplied existing_room_id.
+- Do not apply edits, recommend furniture, hide photos, or claim that a proposal has been accepted.`
+
 // The two named dusk checks (CLAUDE.md rule 5), appended to the QA request
 // when the chain contains a dusk conversion.
 export const DUSK_QA_CHECKS =

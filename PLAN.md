@@ -625,6 +625,8 @@ The implementation arc below is approved for planning, not pre-authorized as one
 
 ## Phase 46 — Room and same-view organization review
 
+**Status (2026-09-01):** In progress. The proposal/prompt/schema checkpoint is complete locally; migration `0011_room_proposals.sql` is awaiting Matt's live SQL run before authenticated routes and the review UI continue.
+
 **Goal:** Reduce manual room clerical work while keeping the human authoritative. Propose room labels and same-room angle groups that later batch editing can trust; never silently commit uncertain semantics.
 
 **Proposal contract:** analyze representative single/merged photos and return a room type, optional match to an existing floor-plan room, same-room group key, confidence, and short evidence. Existing floor-plan rooms may be candidates, but photo vision must never invent dimensions, geometry, doors, windows, or authoritative plan placement. High confidence may preselect a review choice; all database changes occur only after explicit acceptance. The operator can accept all high-confidence items, correct a label, create/select another room, link or unlink same-room angles, defer an item, or leave it untagged.

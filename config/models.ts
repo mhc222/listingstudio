@@ -67,6 +67,12 @@ export function interpreterCostCents(inputTokens: number, outputTokens: number):
   )
 }
 
+// Phase 46 room organization is a bounded classification pass, not image
+// generation. It intentionally shares the cheapest adequate vision-capable
+// interpreter tier while retaining a distinct config name and ledger label.
+export const ROOM_ANALYSIS_MODEL = INTERPRETER_MODEL
+export const roomAnalysisCostCents = interpreterCostCents
+
 // Floor-plan parsing reads tiny printed dimension text — Haiku drops digits
 // (13'11" → 13'1"). A stronger vision model is worth the few cents on a rare,
 // once-per-plan call. Rates are cents per million tokens ($3 in / $15 out).
