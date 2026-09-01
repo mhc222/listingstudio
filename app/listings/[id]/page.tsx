@@ -15,6 +15,8 @@ import {
   type RoomProposalRow,
   type SameRoomGroupRow,
 } from "./room-organization"
+import { loadListingStatuses } from "@/lib/listing-status-server"
+import { ListingProgress } from "./listing-progress"
 
 export default async function ListingPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -63,6 +65,8 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
       supabase.from("edit_preset_defaults").select("id, preset_id, scope_type, listing_id, room_id, created_at, updated_at").order("created_at"),
     ])
   if (!listing) notFound()
+  const listingStatuses = await loadListingStatuses(supabase, [id])
+  const listingStatus = listingStatuses.get(id)!
 
   const urls = await getUrls("originals", (photos ?? []).map((p) => p.storage_path))
   const withUrls: PhotoRow[] = (photos ?? []).map((p) => ({
@@ -182,6 +186,10 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
 
       <div className="mt-6">
         <ToolsNav listingId={id} />
+      </div>
+
+      <div className="mt-6">
+        <ListingProgress listingId={id} summary={listingStatus} />
       </div>
 
       <div className="mt-6">

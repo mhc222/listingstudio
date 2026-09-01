@@ -103,7 +103,7 @@ export function ShootOrganization({
   }
 
   return (
-    <section className="ls-surface overflow-hidden" aria-labelledby="shoot-inventory-title">
+    <section id="shoot-organization" className="ls-surface scroll-mt-24 overflow-hidden" aria-labelledby="shoot-inventory-title">
       <div className="flex flex-col gap-3 border-b border-border/65 p-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h2 id="shoot-inventory-title" className="text-lg font-semibold tracking-[-0.02em]">Shoot inventory</h2>

@@ -1,11 +1,10 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
-import { Button } from "@/components/ui/button"
 
-// Refetch dashboard server data whenever job state changes anywhere.
+// Refetch the shared derived listing summaries whenever durable workflow truth changes.
 export function DashboardLive() {
   const router = useRouter()
   useEffect(() => {
@@ -18,26 +17,15 @@ export function DashboardLive() {
       .on("postgres_changes", { event: "*", schema: "public", table: "file_groups" }, () =>
         router.refresh()
       )
+      .on("postgres_changes", { event: "*", schema: "public", table: "output_versions" }, () => router.refresh())
+      .on("postgres_changes", { event: "*", schema: "public", table: "upload_items" }, () => router.refresh())
+      .on("postgres_changes", { event: "*", schema: "public", table: "photo_groups" }, () => router.refresh())
+      .on("postgres_changes", { event: "*", schema: "public", table: "room_analysis_runs" }, () => router.refresh())
+      .on("postgres_changes", { event: "*", schema: "public", table: "room_proposals" }, () => router.refresh())
       .subscribe()
     return () => {
       supabase.removeChannel(channel)
     }
   }, [router])
   return null
-}
-
-export function RerunButton({ fileGroupId }: { fileGroupId: string }) {
-  const router = useRouter()
-  const [busy, setBusy] = useState(false)
-  async function rerun() {
-    setBusy(true)
-    await fetch(`/api/file-groups/${fileGroupId}/rerun`, { method: "POST" })
-    setBusy(false)
-    router.refresh()
-  }
-  return (
-    <Button size="sm" variant="outline" onClick={rerun} disabled={busy}>
-      {busy ? "Re-running…" : "Re-run"}
-    </Button>
-  )
 }

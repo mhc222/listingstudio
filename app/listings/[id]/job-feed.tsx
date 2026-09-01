@@ -200,7 +200,7 @@ export function JobFeed({
               (group) => group.step_status === "complete"
             ).length
             return (
-            <article key={job.id} className="border-b border-border py-6">
+            <article id={`job-${job.id}`} key={job.id} className="scroll-mt-24 border-b border-border py-6">
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <h3 className="text-xl font-semibold tracking-[-0.025em]">{humanTitle(job.title)}</h3>

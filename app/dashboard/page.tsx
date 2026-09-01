@@ -4,18 +4,19 @@ import { getUrls } from "@/lib/storage"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent } from "@/components/ui/card"
-import { DashboardLive, RerunButton } from "./dashboard-live"
-import { StatePill, Wordmark } from "@/components/brand"
+import { DashboardLive } from "./dashboard-live"
+import { Wordmark } from "@/components/brand"
 import { createListing } from "@/app/listings/actions"
+import { loadListingStatuses } from "@/lib/listing-status-server"
 
-type ChainStep = { edit_type: string }
-
-function chainLabel(chain: ChainStep[]): string {
-  return chain
-    .filter((s) => s.edit_type !== "REWORK")
-    .map((s) => s.edit_type.replaceAll("_", " ").toLowerCase())
-    .join(" → ")
-}
+const STATUS_LABELS = {
+  uploading: "Uploading",
+  organizing: "Organizing",
+  queued: "Queued",
+  editing: "Editing",
+  review_pending: "Review pending",
+  needs_attention: "Needs attention",
+} as const
 
 export default async function Dashboard() {
   const supabase = await createClient()
@@ -23,33 +24,18 @@ export default async function Dashboard() {
     data: { user },
   } = await supabase.auth.getUser()
 
-  const [listingsQ, activeQ, failedQ] = await Promise.all([
-    supabase
-      .from("listings")
-      .select("id, address, mls_number, created_at")
-      .order("created_at", { ascending: false })
-      .limit(6),
-    supabase
-      .from("jobs")
-      .select("id, title, status, created_at, listings(address), file_groups(step_status)")
-      .in("status", ["pending", "processing"])
-      .order("created_at", { ascending: false })
-      .limit(12),
-    supabase
-      .from("file_groups")
-      .select("id, last_error, edit_chain, created_at, jobs(title, listings(address))")
-      .eq("step_status", "failed")
-      .order("created_at", { ascending: false })
-      .limit(12),
-  ])
+  const listingsQ = await supabase
+    .from("listings")
+    .select("id, address, mls_number, created_at")
+    .order("created_at", { ascending: false })
+    .limit(6)
 
   const listings = listingsQ.data ?? []
-  const activeJobs = activeQ.data ?? []
-  const failedGroups = failedQ.data ?? []
 
   // Counts use logical photos: confirmed HDR source exposures collapse behind
   // their one merged representative. Attachments remain a separate total.
   const listingIds = listings.map((l) => l.id)
+  const statusByListing = await loadListingStatuses(supabase, listingIds)
   const [{ data: photos }, { data: confirmedGroups }, { data: groupMembers }] = listingIds.length
     ? await Promise.all([
       supabase
@@ -141,7 +127,9 @@ export default async function Dashboard() {
             const plans = floorPlanCount.get(l.id) ?? 0
             const sources = sourceCount.get(l.id) ?? 0
             const sourceDetail = sources !== count ? ` · ${sources} source files` : ""
-            const meta = `${l.mls_number ? `MLS ${l.mls_number} · ` : ""}${count} photo${count === 1 ? "" : "s"} · ${plans} floor plan${plans === 1 ? "" : "s"}${sourceDetail}`
+            const status = statusByListing.get(l.id)
+            const workflow = status && status.total > 0 ? ` · ${status.headline}` : ""
+            const meta = `${l.mls_number ? `MLS ${l.mls_number} · ` : ""}${count} photo${count === 1 ? "" : "s"} · ${plans} floor plan${plans === 1 ? "" : "s"}${sourceDetail}${workflow}`
             return (
               <Link key={l.id} href={`/listings/${l.id}`} className="group">
                 <Card className="ls-pressable overflow-hidden p-0 hover:-translate-y-1 hover:shadow-[0_18px_46px_rgba(45,35,23,0.12)]">
@@ -176,66 +164,29 @@ export default async function Dashboard() {
         </div>
       )}
 
-      {(activeJobs.length > 0 || failedGroups.length > 0) && (
-        <div className="mt-10 grid gap-4 md:grid-cols-2">
-          {activeJobs.length > 0 && (
-            <Card>
-              <CardContent className="grid gap-3 py-4">
-                <div className="text-xs uppercase tracking-wide text-muted-foreground">
-                  In progress
-                </div>
-                {activeJobs.map((j) => {
-                  const fgs = j.file_groups as unknown as { step_status: string }[]
-                  const done = fgs.filter((f) => f.step_status === "complete").length
-                  const listing = j.listings as unknown as { address: string } | null
-                  return (
-                    <div key={j.id} className="text-sm">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="font-medium">{j.title}</span>
-                        <StatePill status={j.status} />
-                      </div>
-                      <div className="text-muted-foreground">
-                        {listing?.address} ·{" "}
-                        <span className="font-ui tabular-nums">
-                          {done}/{fgs.length}
-                        </span>{" "}
-                        outputs done
-                      </div>
+      {listings.some((listing) => (statusByListing.get(listing.id)?.total ?? 0) > 0) && (
+        <Card className="mt-10">
+          <CardContent className="py-4">
+            <div className="text-xs uppercase tracking-wide text-muted-foreground">What needs you</div>
+            <div className="mt-2 divide-y divide-border">
+              {listings
+                .flatMap((listing) =>
+                  (statusByListing.get(listing.id)?.items ?? []).map((item) => ({ listing, item }))
+                )
+                .sort((a, b) => Number(b.item.status === "needs_attention") - Number(a.item.status === "needs_attention"))
+                .slice(0, 12)
+                .map(({ listing, item }) => (
+                  <Link key={`${listing.id}:${item.key}`} href={item.href} className="flex min-h-14 items-center justify-between gap-4 py-3 transition-opacity hover:opacity-70">
+                    <div className="min-w-0">
+                      <div className="truncate text-sm font-medium">{item.title}</div>
+                      <div className="truncate text-xs text-muted-foreground">{listing.address} · {item.detail}</div>
                     </div>
-                  )
-                })}
-              </CardContent>
-            </Card>
-          )}
-
-          {failedGroups.length > 0 && (
-            <Card>
-              <CardContent className="grid gap-3 py-4">
-                <div className="text-xs uppercase tracking-wide text-muted-foreground">Failed</div>
-                {failedGroups.map((fg) => {
-                  const job = fg.jobs as unknown as {
-                    title: string
-                    listings: { address: string } | null
-                  } | null
-                  return (
-                    <div key={fg.id} className="flex items-start justify-between gap-3 text-sm">
-                      <div className="min-w-0">
-                        <div className="font-medium">{job?.title}</div>
-                        <div className="text-muted-foreground">
-                          {job?.listings?.address} · {chainLabel(fg.edit_chain as ChainStep[])}
-                        </div>
-                        {fg.last_error && (
-                          <div className="truncate text-xs text-destructive">{fg.last_error}</div>
-                        )}
-                      </div>
-                      <RerunButton fileGroupId={fg.id} />
-                    </div>
-                  )
-                })}
-              </CardContent>
-            </Card>
-          )}
-        </div>
+                    <span className="shrink-0 text-xs font-medium text-primary">{STATUS_LABELS[item.status]} →</span>
+                  </Link>
+                ))}
+            </div>
+          </CardContent>
+        </Card>
       )}
     </main>
   )

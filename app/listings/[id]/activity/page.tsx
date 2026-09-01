@@ -5,6 +5,8 @@ import { getUrls } from "@/lib/storage"
 import { JobFeed, type ComplianceNote, type JobRow } from "../job-feed"
 import { type PhotoRow } from "../photo-grid"
 import { ToolsNav } from "../tools-nav"
+import { loadListingStatuses } from "@/lib/listing-status-server"
+import { ListingProgress } from "../listing-progress"
 
 export default async function ActivityPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -28,6 +30,8 @@ export default async function ActivityPage({ params }: { params: Promise<{ id: s
       .order("created_at", { ascending: false }),
   ])
   if (!listing) notFound()
+  const listingStatuses = await loadListingStatuses(supabase, [id])
+  const listingStatus = listingStatuses.get(id)!
 
   const originalUrls = await getUrls("originals", (photos ?? []).map((photo) => photo.storage_path))
   const withUrls: PhotoRow[] = (photos ?? []).map((photo) => ({
@@ -80,6 +84,9 @@ export default async function ActivityPage({ params }: { params: Promise<{ id: s
       </p>
       <div className="mt-6">
         <ToolsNav listingId={id} />
+      </div>
+      <div className="mt-8">
+        <ListingProgress listingId={id} summary={listingStatus} />
       </div>
       <div className="mt-8">
         <JobFeed listingId={id} photos={regular} floorPlans={floorPlans} jobs={jobRows} />

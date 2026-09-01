@@ -126,7 +126,7 @@ export function RoomOrganization({
 
   const analyzing = latestRun?.status === "pending" || latestRun?.status === "running"
   return (
-    <section aria-labelledby="room-organization-title" className="ls-surface min-w-0 p-4 sm:p-5">
+    <section id="room-organization" aria-labelledby="room-organization-title" className="ls-surface min-w-0 scroll-mt-24 p-4 sm:p-5">
       <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-start">
         <div>
           <p className="ls-section-label text-muted-foreground">Organize the shoot</p>

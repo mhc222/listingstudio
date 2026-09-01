@@ -702,7 +702,7 @@ export function UploadQueue({ listingId }: { listingId: string }) {
   )
 
   return (
-    <section aria-labelledby="upload-heading" className="space-y-3">
+    <section id="upload-queue" aria-labelledby="upload-heading" className="scroll-mt-24 space-y-3">
       <div className="flex flex-wrap items-center gap-2">
         <input
           ref={photoInput}
