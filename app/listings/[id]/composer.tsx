@@ -11,6 +11,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Select } from "@/components/ui/select"
 import { ROOM_TYPES } from "@/lib/roomTypes"
 import { FURNITURE_STYLES } from "@/lib/prompts"
+import type { EditPresetDefaultRow, EditPresetRow, PresetSizePreset } from "@/lib/edit-presets"
 import { simulateCents } from "@/lib/simulate"
 import {
   buildBatchScope,
@@ -20,6 +21,7 @@ import {
 } from "@/lib/batch-scope"
 import { ChainStepEditor } from "./chain-step-editor"
 import { EDIT_TYPES, EDIT_360_TYPES, SIZE_PRESETS, type ChainEdit } from "./edit-types"
+import { PresetControls } from "./preset-controls"
 import type { PhotoRow } from "./photo-grid"
 import type { SampleRow } from "./job-feed"
 import type { SameRoomGroupRow } from "./room-organization"
@@ -161,6 +163,8 @@ export function Composer({
   initialRoomType,
   rooms,
   sameRoomGroups,
+  presets,
+  presetDefaults,
   selectionMethod = "manual",
   onSubmittingChange,
   additionalViews = [],
@@ -180,6 +184,8 @@ export function Composer({
   initialRoomType?: string | null
   rooms: { id: string; name: string; room_type: string }[]
   sameRoomGroups: SameRoomGroupRow[]
+  presets: EditPresetRow[]
+  presetDefaults: EditPresetDefaultRow[]
   selectionMethod?: SelectionMethod
   onSubmittingChange?: (submitting: boolean) => void
   additionalViews?: { id: string; url: string | null; label: string; sameRoom: boolean }[]
@@ -261,40 +267,24 @@ export function Composer({
     : null
   const batchScopeError = photoIds.length > 1 && batchScope && !batchScope.ok ? batchScope.error : null
   const canApplyConfirmedRooms = photoIds.length > 1 && hasStaging && scopePhotos.every((photo) => photo.roomId && photo.roomType)
-
-  // phase 31: per-listing default chain in localStorage (single-user, no
-  // migration); read once on mount (SSR-safe — localStorage is client-only)
-  const defaultKey = `ls:defaultChain:${listingId}`
-  const [defaultChain, setDefaultChain] = useState<ChainEdit[] | null>(null)
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(defaultKey)
-      if (raw) setDefaultChain(JSON.parse(raw) as ChainEdit[])
-    } catch {
-      // corrupt/blocked storage — no default, no crash
-    }
-  }, [defaultKey])
+  const oneRoomId = scopePhotos.length > 0 && scopePhotos.every((photo) => photo.roomId === scopePhotos[0].roomId)
+    ? scopePhotos[0].roomId
+    : null
+  const oneRoomName = oneRoomId ? rooms.find((room) => room.id === oneRoomId)?.name ?? null : null
 
   // apply a saved/derived chain into the editable draft (deep-cloned over
   // catalog defaults so option edits never mutate the source)
-  function applyChain(next: ChainLike[]) {
+  function applyChain(next: ChainLike[], nextSizePreset?: PresetSizePreset) {
     setIdeas(null)
+    setUseConfirmedRoomSettings(false)
     setChain(
       next.map((s) => ({
         edit_type: s.edit_type,
         options: { ...(EDIT_TYPES[s.edit_type]?.defaults ?? {}), ...(s.options ?? {}) },
       }))
     )
-  }
-
-  function saveDefault() {
-    if (chain.length === 0) return
-    try {
-      localStorage.setItem(defaultKey, JSON.stringify(chain))
-      setDefaultChain(chain)
-    } catch {
-      // blocked storage — best-effort, no default persisted
-    }
+    if (nextSizePreset) setSizePreset(nextSizePreset)
+    setError(null)
   }
 
   const chainSummary = (c: ChainLike[]) =>
@@ -657,47 +647,19 @@ export function Composer({
             </p>
           )}
 
-          {/* phase 31 accelerators: reuse a chain without rebuilding it */}
-          {(lastChain || defaultChain || chain.length > 0) && (
-            <Disclosure
-              className="mb-4 mt-3"
-              summary="Saved edits"
-              triggerClassName="px-1 text-xs font-semibold"
-              contentClassName="px-1"
-            >
-              <div className="flex flex-wrap items-center gap-1.5">
-                {lastChain && (
-                  <button
-                    type="button"
-                    onClick={() => applyChain(lastChain)}
-                    title={chainSummary(lastChain)}
-                    className="ls-pressable rounded-full bg-muted px-2.5 py-1.5 text-xs font-medium hover:bg-accent"
-                  >
-                    ↻ Apply last edit
-                  </button>
-                )}
-                {defaultChain && (
-                  <button
-                    type="button"
-                    onClick={() => applyChain(defaultChain)}
-                    title={chainSummary(defaultChain)}
-                    className="ls-pressable rounded-full bg-muted px-2.5 py-1.5 text-xs font-medium hover:bg-accent"
-                  >
-                    ★ Apply listing default
-                  </button>
-                )}
-                {chain.length > 0 && (
-                  <button
-                    type="button"
-                    onClick={saveDefault}
-                    className="ls-pressable rounded-full px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
-                  >
-                    Save current edit as default
-                  </button>
-                )}
-              </div>
-            </Disclosure>
-          )}
+          <PresetControls
+            listingId={listingId}
+            roomId={oneRoomId}
+            roomName={oneRoomName}
+            scopeLabel={contextLabel}
+            targetCount={photoIds.length}
+            initialPresets={presets}
+            initialDefaults={presetDefaults}
+            currentChain={chain}
+            currentSizePreset={sizePreset}
+            lastChain={lastChain}
+            onApply={(next, nextSizePreset) => applyChain(next, nextSizePreset)}
+          />
 
           {(chain.length === 0 || chatMessages.length > 0) && <div className="mt-4">
             <label htmlFor="describe-edit" className="text-xs font-semibold">

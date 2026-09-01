@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
+import { createAdminClient } from "@/lib/supabase/admin"
 import { validatePresetInput } from "@/lib/edit-presets"
 
 export async function GET() {
@@ -38,7 +39,7 @@ export async function POST(req: Request) {
     )
   }
 
-  const { data, error } = await supabase
+  const { data, error } = await createAdminClient()
     .from("edit_presets")
     .insert({
       user_id: user.id,

@@ -8,6 +8,7 @@ import { type JobRow, type SampleRow, type ComplianceNote } from "./job-feed"
 import { ListingWorkspace } from "./listing-workspace"
 import { ToolsNav } from "./tools-nav"
 import { logicalPhotoIds } from "@/lib/hdr-groups"
+import type { EditPresetDefaultRow, EditPresetRow } from "@/lib/edit-presets"
 import { type PhotoGroupRow } from "./shoot-organization"
 import {
   type RoomAnalysisRunRow,
@@ -19,7 +20,7 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
   const { id } = await params
   const supabase = await createClient()
 
-  const [{ data: listing }, { data: rooms }, { data: photos }, { data: groups }, { data: members }, { data: jobs }, { data: samples }, { data: analysisRuns }, { data: roomProposals }, { data: sameRoomGroups }, { data: sameRoomMembers }] =
+  const [{ data: listing }, { data: rooms }, { data: photos }, { data: groups }, { data: members }, { data: jobs }, { data: samples }, { data: analysisRuns }, { data: roomProposals }, { data: sameRoomGroups }, { data: sameRoomMembers }, { data: presets }, { data: presetDefaults }] =
     await Promise.all([
       supabase.from("listings").select("id, address, mls_number").eq("id", id).single(),
       supabase.from("rooms").select("*").eq("listing_id", id).order("name"),
@@ -58,6 +59,8 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
       supabase.from("room_proposals").select("id, run_id, photo_id, proposed_room_type, proposed_room_name, proposed_room_id, proposed_same_room_key, confidence, evidence, review_state, decision, accepted_room_id").eq("listing_id", id).eq("is_current", true),
       supabase.from("same_room_groups").select("id, room_id, name").eq("listing_id", id).order("created_at"),
       supabase.from("same_room_group_members").select("group_id, photo_id, position, same_room_groups!inner(listing_id)").eq("same_room_groups.listing_id", id).order("position"),
+      supabase.from("edit_presets").select("id, name, edit_chain, size_preset, settings_summary, created_at, updated_at").order("name"),
+      supabase.from("edit_preset_defaults").select("id, preset_id, scope_type, listing_id, room_id, created_at, updated_at").order("created_at"),
     ])
   if (!listing) notFound()
 
@@ -182,7 +185,11 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
       </div>
 
       <div className="mt-6">
-        <UploadPanel listingId={id} />
+        <UploadPanel
+          listingId={id}
+          presets={(presets ?? []) as EditPresetRow[]}
+          presetDefaults={(presetDefaults ?? []) as EditPresetDefaultRow[]}
+        />
       </div>
 
       <div className="mt-6">
@@ -198,6 +205,8 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
           rooms={rooms ?? []}
           jobs={jobRows}
           samples={sampleRows}
+          presets={(presets ?? []) as EditPresetRow[]}
+          presetDefaults={(presetDefaults ?? []) as EditPresetDefaultRow[]}
         />
       </div>
     </main>

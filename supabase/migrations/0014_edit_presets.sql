@@ -87,24 +87,13 @@ for each row execute function touch_edit_preset_updated_at();
 alter table edit_presets enable row level security;
 alter table edit_preset_defaults enable row level security;
 
-create policy "own edit presets" on edit_presets for all to authenticated
-  using (user_id = auth.uid()) with check (user_id = auth.uid());
+create policy "read own edit presets" on edit_presets for select to authenticated
+  using (user_id = auth.uid());
 
-create policy "own edit preset defaults" on edit_preset_defaults for all to authenticated
+create policy "read own edit preset defaults" on edit_preset_defaults for select to authenticated
   using (
     user_id = auth.uid()
     and exists (select 1 from edit_presets p where p.id = preset_id and p.user_id = auth.uid())
-  )
-  with check (
-    user_id = auth.uid()
-    and exists (select 1 from edit_presets p where p.id = preset_id and p.user_id = auth.uid())
-    and (listing_id is null or exists (
-      select 1 from listings l where l.id = listing_id and l.user_id = auth.uid()
-    ))
-    and (room_id is null or exists (
-      select 1 from rooms r join listings l on l.id = r.listing_id
-      where r.id = room_id and r.listing_id = listing_id and l.user_id = auth.uid()
-    ))
   );
 
 comment on table edit_presets is 'Validated reusable edit-chain definitions copied into immutable Job scope at submission.';

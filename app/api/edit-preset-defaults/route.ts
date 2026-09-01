@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
+import { createAdminClient } from "@/lib/supabase/admin"
 import type { PresetDefaultScope } from "@/lib/edit-presets"
 
 type DefaultBody = {
@@ -64,7 +65,8 @@ export async function POST(req: Request) {
   ])
   if (!preset || !scopeOwned) return NextResponse.json({ error: "Preset or scope not found." }, { status: 404 })
 
-  let existingQuery = supabase
+  const admin = createAdminClient()
+  let existingQuery = admin
     .from("edit_preset_defaults")
     .select("id")
     .eq("user_id", user.id)
@@ -84,8 +86,8 @@ export async function POST(req: Request) {
     room_id: scope.roomId,
   }
   const mutation = existing
-    ? supabase.from("edit_preset_defaults").update(values).eq("id", existing.id)
-    : supabase.from("edit_preset_defaults").insert(values)
+    ? admin.from("edit_preset_defaults").update(values).eq("id", existing.id).eq("user_id", user.id)
+    : admin.from("edit_preset_defaults").insert(values)
   const { data, error } = await mutation
     .select("id, preset_id, scope_type, listing_id, room_id, created_at, updated_at")
     .single()
@@ -104,7 +106,10 @@ export async function DELETE(req: Request) {
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Invalid default scope." }, { status: 400 })
   }
-  let query = supabase
+  if (!await ownedScope(supabase, user.id, scope.listingId, scope.roomId)) {
+    return NextResponse.json({ error: "Preset scope not found." }, { status: 404 })
+  }
+  let query = createAdminClient()
     .from("edit_preset_defaults")
     .delete()
     .eq("user_id", user.id)

@@ -15,6 +15,7 @@ import {
 } from "./room-organization"
 import { type JobRow, type SampleRow } from "./job-feed"
 import type { SelectionMethod } from "@/lib/batch-scope"
+import type { EditPresetDefaultRow, EditPresetRow } from "@/lib/edit-presets"
 import {
   ALL_ROOMS,
   RoomBrowser,
@@ -37,6 +38,8 @@ export function ListingWorkspace({
   rooms,
   jobs,
   samples,
+  presets,
+  presetDefaults,
 }: {
   listingId: string
   photos: PhotoRow[]
@@ -49,6 +52,8 @@ export function ListingWorkspace({
   rooms: RoomRow[]
   jobs: JobRow[]
   samples: SampleRow[]
+  presets: EditPresetRow[]
+  presetDefaults: EditPresetDefaultRow[]
 }) {
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [selectionMethod, setSelectionMethod] = useState<SelectionMethod>("manual")
@@ -385,6 +390,8 @@ export function ListingWorkspace({
                 initialRoomType={rooms.find((room) => room.id === openPhoto.room_id)?.room_type}
                 rooms={rooms}
                 sameRoomGroups={sameRoomGroups}
+                presets={presets}
+                presetDefaults={presetDefaults}
                 selectionMethod={studioIds.length === 1 ? "single" : "manual"}
                 onSubmittingChange={setEditorSubmitting}
                 additionalViews={photos
@@ -453,6 +460,8 @@ export function ListingWorkspace({
                 }
                 rooms={rooms}
                 sameRoomGroups={sameRoomGroups}
+                presets={presets}
+                presetDefaults={presetDefaults}
                 selectionMethod={selectionMethod}
                 onSubmittingChange={setEditorSubmitting}
               />

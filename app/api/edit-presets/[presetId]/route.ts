@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
+import { createAdminClient } from "@/lib/supabase/admin"
 import { validatePresetName } from "@/lib/edit-presets"
 
 export async function PATCH(
@@ -20,7 +21,14 @@ export async function PATCH(
       { status: 400 }
     )
   }
-  const { data, error } = await supabase
+  const { data: owned } = await supabase
+    .from("edit_presets")
+    .select("id")
+    .eq("id", presetId)
+    .eq("user_id", user.id)
+    .maybeSingle()
+  if (!owned) return NextResponse.json({ error: "preset not found" }, { status: 404 })
+  const { data, error } = await createAdminClient()
     .from("edit_presets")
     .update({ name })
     .eq("id", presetId)
@@ -34,7 +42,7 @@ export async function PATCH(
       { status: duplicate ? 409 : 500 }
     )
   }
-  if (!data) return NextResponse.json({ error: "preset not found" }, { status: 404 })
+  if (!data) return NextResponse.json({ error: "preset changed; refresh and try again" }, { status: 409 })
   return NextResponse.json({ preset: data })
 }
 
@@ -46,7 +54,14 @@ export async function DELETE(
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 })
-  const { data, error } = await supabase
+  const { data: owned } = await supabase
+    .from("edit_presets")
+    .select("id")
+    .eq("id", presetId)
+    .eq("user_id", user.id)
+    .maybeSingle()
+  if (!owned) return NextResponse.json({ error: "preset not found" }, { status: 404 })
+  const { data, error } = await createAdminClient()
     .from("edit_presets")
     .delete()
     .eq("id", presetId)
@@ -54,6 +69,6 @@ export async function DELETE(
     .select("id")
     .maybeSingle()
   if (error) return NextResponse.json({ error: "Could not delete the preset." }, { status: 500 })
-  if (!data) return NextResponse.json({ error: "preset not found" }, { status: 404 })
+  if (!data) return NextResponse.json({ error: "preset changed; refresh and try again" }, { status: 409 })
   return NextResponse.json({ deleted: true })
 }
