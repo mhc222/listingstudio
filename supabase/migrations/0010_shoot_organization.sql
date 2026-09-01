@@ -248,7 +248,11 @@ begin
     return v_group.representative_photo_id;
   end if;
 
-  select count(*), case when count(distinct p.room_id) = 1 then min(p.room_id) else null end
+  select count(*),
+    case when count(distinct p.room_id) = 1
+      then (array_agg(distinct p.room_id) filter (where p.room_id is not null))[1]
+      else null
+    end
   into v_member_count, v_room_id
   from photo_group_members m
   join photos p on p.id = m.photo_id
