@@ -54,13 +54,19 @@
 - TypeScript, ESLint, and the production build pass all 24 routes. Port 3000 was stopped before the build and the dev server was restarted on port 3000 afterward.
 - Pushed the complete 15-commit Phases 38–41 release through `feea1cd` to GitHub `main` and deployed it to Vercel production as `dpl_BQqSg9iYha9UZ1vsWqwYHSfAoBUV`. The canonical alias `https://listing-studio-three.vercel.app` is Ready; live smoke checks return 200 for `/` and `/login`, and the unauthenticated `/dashboard` boundary correctly redirects to `/login`.
 
+**Design freeze / next research:**
+- Matt approved a focused competitive UX audit before any further visual redesign. Freeze the current Phase 38–41 interface while researching; do not start another font/radius/animation polish pass from taste alone.
+- Benchmark the same complete workflow—full-shoot upload, organization, choosing edits, batching, progress, review, rework/versioning, and download/delivery—across direct products (BoxBrownie, Autoenhance, ApplyDesign, Virtual Staging AI, REimagineHome) and strong adjacent workflow products (Lightroom, Frame.io, Canva, Photoroom).
+- Produce an evidence-backed `steal / adapt / reject` matrix with click count, decision count, unclear states, mobile behavior, error recovery, and the highest-impact Listing Studio gaps. Pay special attention to full-shoot intake, presets, batch application, and review. Treat the known >10 MB upload failure as a core UX defect, not a visual-polish item.
+- This audit is brand-new work: append Phase 42 to `PLAN.md` before beginning. Research and recommend first; do not implement changes until the audit identifies and ranks them.
+
 **Phase 40 shipped:**
 - Replaced all nine code-drawn sofa/lamp illustrations in the Stage furniture-style picker with locally served, AI-generated photographic interior vignettes. The labels remain authoritative and the images are decorative (`alt=""`), so selection does not depend on interpreting a picture.
 - Modern, Contemporary, and Farmhouse were regenerated individually after review found the first contact-sheet versions insufficiently differentiated. Modern is now rectilinear/architectural; Contemporary is sculptural/tonal; Farmhouse uses linen, reclaimed oak, vertical paneling, and blackened iron without themed décor. Traditional, Urban/Industrial, Mid-Century Modern, Hamptons, Commercial, and Scandinavian retain the coherent contact-sheet set.
 - The nine compressed WebP assets total under 180 KB, live in `public/staging-styles/`, and have no remote loading, tracking, availability, or third-party stock-license dependency. Longer labels wrap to two lines instead of truncating.
 - TypeScript and ESLint pass. The production build passes all 24 routes after the final three-image refinement.
 
-**Next action:** Matt visually reviews the production Stage studio at desktop and phone width. Then continue with the separate >10 MB upload phase / floor-plan pin persistence / photo→room matching / Gemini OCR A-B work.
+**Next action:** append Phase 42 for a competitive end-to-end UX audit, perform the audit without changing application UI, and return the ranked `steal / adapt / reject` recommendations. After Matt chooses the changes, plan implementation separately. The >10 MB upload defect remains the leading known workflow risk.
 
 **Phase 39 shipped:**
 - Replaced the shared styled-native Select with a Radix Select adapter. Existing option call sites, controlled values, server-action names/defaults, disabled/required states, and `onChange(e.target.value)` behavior remain compatible, while every dropdown now has an anchored application popover, selected checkmark, collision handling, keyboard/typeahead support, optional descriptions, and controlled typography. There are no native `<select>` elements left in application source.
