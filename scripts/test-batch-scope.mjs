@@ -21,7 +21,7 @@ const untagged = { id: "d", roomId: null, roomType: null, roomName: null, sameRo
 
 const compatible = buildBatchScope({
   requestedPhotoIds: ["a", "b"], photos: [livingA, livingB], commonChain: stageLiving,
-  selectionMethod: "same_room_group", outputSize: "under_10mb",
+  selectionMethod: "same_room_group", outputSize: "under_10mb", estimatedGenerationCount: 5,
 })
 equal(compatible.ok, true, "one confirmed room can share its matching staging chain")
 if (compatible.ok) {
@@ -29,7 +29,7 @@ if (compatible.ok) {
   equal(compatible.snapshot.roomIds, ["living"], "snapshot records room identity")
   equal(compatible.snapshot.sameRoomGroupIds, ["views"], "snapshot records same-room identity")
   equal(compatible.snapshot.outputSize, "under_10mb", "snapshot records output size")
-  equal(compatible.snapshot.estimatedGenerationCount, 2, "snapshot records exact generation count")
+  equal(compatible.snapshot.estimatedGenerationCount, 5, "snapshot records the configured generation estimate")
   equal(compatible.snapshot.targets[1].photoRole, "hdr_merged", "logical HDR representative identity survives")
   equal(compatible.snapshot.targets[1].hdrGroupId, "hdr-1", "HDR lineage survives")
 }
@@ -73,13 +73,13 @@ if (!untaggedBatch.ok) includes(untaggedBatch.error, /organize 1 untagged photo/
 
 const nonStaging = buildBatchScope({
   requestedPhotoIds: ["a", "c", "d"], photos: [livingA, kitchen, untagged], commonChain: enhance,
-  selectionMethod: "visible", outputSize: "bogus",
+  selectionMethod: "visible", outputSize: "bogus", estimatedGenerationCount: 7.5,
 })
 equal(nonStaging.ok, true, "compatible non-staging batches do not require room tags")
 if (nonStaging.ok) {
   equal(nonStaging.snapshot.outputSize, "original", "invalid output size normalizes safely")
   equal(nonStaging.snapshot.selectionMethod, "visible", "selection method persists")
-  equal(nonStaging.snapshot.estimatedGenerationCount, 3, "generation count reconciles across targets")
+  equal(nonStaging.snapshot.estimatedGenerationCount, 8, "generation estimate reconciles across targets")
 }
 
 const single = buildBatchScope({

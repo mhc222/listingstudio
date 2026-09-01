@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
-import { pickProvider, MODELS } from "@/config/models"
+import { AVG_GENERATIONS_PER_FILE_GROUP, pickProvider, MODELS } from "@/config/models"
 import { submitStep } from "@/lib/orchestrator"
 import { EDIT_360_BASE, type EditStep } from "@/lib/prompts"
 import {
@@ -133,6 +133,9 @@ export async function POST(req: Request) {
     selectionMethod,
     outputSize: sizePreset,
     ideaVariants: isIdeas ? (variants ?? []) : undefined,
+    estimatedGenerationCount: isIdeas
+      ? (variants ?? []).reduce((sum, variant) => sum + variant.editChain.length, 0)
+      : AVG_GENERATIONS_PER_FILE_GROUP * requestedPhotoIds.length,
   })
   if (!scope.ok) return NextResponse.json({ error: scope.error }, { status: 409 })
   if (!isIdeas) {

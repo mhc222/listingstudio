@@ -91,6 +91,7 @@ export function buildBatchScope({
   selectionMethod,
   outputSize,
   ideaVariants,
+  estimatedGenerationCount,
 }: {
   requestedPhotoIds: string[]
   photos: ScopePhoto[]
@@ -99,6 +100,7 @@ export function buildBatchScope({
   selectionMethod?: unknown
   outputSize?: unknown
   ideaVariants?: Array<{ label: string; editChain: EditStep[] }>
+  estimatedGenerationCount?: number
 }): BatchScopeResult {
   if (requestedPhotoIds.length === 0 || requestedPhotoIds.length !== photos.length) {
     return { ok: false, error: "The selected photo scope could not be reconciled. Refresh and select the photos again." }
@@ -166,9 +168,12 @@ export function buildBatchScope({
     roomIds,
     sameRoomGroupIds,
     outputSize: normalizedOutputSize(outputSize),
-    estimatedGenerationCount: ideaVariants
-      ? ideaVariants.reduce((sum, variant) => sum + variant.editChain.length, 0)
-      : targets.reduce((sum, target) => sum + target.editChain.length, 0),
+    estimatedGenerationCount:
+      typeof estimatedGenerationCount === "number" && Number.isFinite(estimatedGenerationCount)
+        ? Math.max(0, Math.round(estimatedGenerationCount))
+        : ideaVariants
+          ? ideaVariants.reduce((sum, variant) => sum + variant.editChain.length, 0)
+          : targets.reduce((sum, target) => sum + target.editChain.length, 0),
     usesPerTargetOverrides,
     ...(ideaVariants ? { ideaVariants } : {}),
     targets: orderedPhotos.map((photo, position) => ({

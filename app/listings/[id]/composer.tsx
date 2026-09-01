@@ -252,6 +252,11 @@ export function Composer({
         explicitTargets,
         selectionMethod,
         outputSize: sizePreset,
+        estimatedGenerationCount: simulateCents(
+          chain.length,
+          photoIds.length,
+          sampleIds.length > 0 || chain.some((step) => step.edit_type === "MARKUP_EDIT")
+        ).expectedGenerations,
       })
     : null
   const batchScopeError = photoIds.length > 1 && batchScope && !batchScope.ok ? batchScope.error : null
