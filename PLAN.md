@@ -733,6 +733,8 @@ The implementation arc below is approved for planning, not pre-authorized as one
 
 ## Phase 51 — Approved finals and MLS delivery
 
+**Status (2026-09-01):** Complete in local code. Migration `0016_delivery_profiles.sql` is verified and queued after pending `0013_batch_scope.sql`, `0014_edit_presets.sql`, and `0015_proofing_and_finals.sql` for Matt's end-of-run SQL batch; live migrations remain through `0012`. Nothing was pushed or deployed.
+
 **Goal:** Replace the unsafe “latest completed edits” ZIP with a previewable, reproducible MLS/client package containing only explicitly approved source finals.
 
 **Delivery contract:** add account-owned named delivery profiles covering file format, dimensions/quality or size ceiling, watermark/virtual-staging disclosure, naming pattern, and ordering. Build a package preview from Phase 50's explicit source-final selections. Show included/omitted photos, original versus edited source, chosen version, room/order, generated filename, expected warnings, and missing finals before download. Block missing/duplicate selections; require acknowledgement for QA/compliance warnings; never silently fall back to the latest version.

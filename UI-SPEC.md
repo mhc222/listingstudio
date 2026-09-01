@@ -1,6 +1,6 @@
 # Listing Studio — End-to-End UX Contract
 
-Phase 50 · 2026-09-01 · implementation contract
+Phase 51 · 2026-09-01 · implementation contract
 
 ## Product promise
 
@@ -26,6 +26,7 @@ Public home → Sign in → Dashboard → Listing
                                    ├─ Photos → Task Studio → Edit Workspace → Download
                                    │                          └─ Refine → new version
                                    ├─ Proofing → explicit final selection
+                                   ├─ Delivery → approved-only package preview → ZIP
                                    ├─ Aerial
                                    ├─ Reel
                                    ├─ Tour
@@ -139,7 +140,17 @@ The Photos route owns upload, room filtering/tagging, photo selection, and entry
 - **Needs changes** applies to the exact selected output version and accepts an optional note. It clears approval only when that exact version is the current final; reviewing an alternate experiment does not silently unset a different approved final.
 - Background realtime/reconciliation refresh preserves a deliberate alternate-version selection. A newly replaced final becomes selected, but an unchanged final cannot snap the reviewer away from the version they are inspecting.
 - Creating a later version never moves the final pointer. The FileGroup workspace identifies the exact approved version, and Activity may say **Approved final** only for the completed group containing that exact output. An approved untouched original does not falsely approve a generated group.
-- The listing-wide latest-output ZIP is unavailable until Phase 51. Individual owned version/original downloads remain; future delivery must read only explicit finals and may never fall back to latest output.
+- The listing-wide latest-output ZIP no longer exists. Phase 51 delivery requires a named profile, exact approved-final preview, and current fingerprint; individual owned version/original downloads remain.
+
+#### Approved finals and MLS/client delivery
+
+- **Delivery** is a focused listing route reached from Proofing, Activity, or listing tools. It never chooses a final. It reads the current logical-photo set and Phase 50's explicit final pointer for every source; a selected untouched original and an older approved revision remain first-class package inputs.
+- Named account profiles cover JPEG/WebP/PNG, maximum width/height, quality and optional enforceable byte ceiling, staging disclosure, filename pattern, and shoot/room order. PNG may use dimension limits but cannot promise a byte ceiling. Applying, editing, or deleting a profile never changes a final.
+- The package preview lists included and omitted photos, untouched versus edited source, exact version, room and stable order, generated filename, expected dimensions/size/disclosure, and every current QA/compliance warning. Missing-final rows link back to the exact Proofing photo.
+- Missing, duplicate, invalid, or needs-changes-conflicted selections block delivery. QA/compliance warnings remain viewable and require one explicit acknowledgement before download. The acknowledgement belongs to the exact preview fingerprint, not the listing forever.
+- A download recomputes the current logical-photo/final set and profile. A final/profile change after preview returns to review; no stale preview and no “latest” output fallback may create a package.
+- Filenames are deterministic, traversal-safe, and collision-free. Virtual staging/renovation uses the selected profile's watermark, disclosure companion, or both. The archive includes a human-readable manifest with source, selected version, transformation/disclosure, dimensions, bytes, generation time, and archive contents.
+- The approved package streams with bounded backpressure. It may hold one source/transformed photo at a time but must not buffer the whole shoot. `/download-all` is acceptable only as the authenticated approved-package URL requiring profile/fingerprint semantics; its prior latest-output behavior is permanently invalid.
 
 ### 5. Task Studio
 
@@ -268,6 +279,10 @@ Internal “chain” may appear only inside the Advanced disclosure as **Edit or
 | Proofing failed | Keep the item in sequence, show Needs attention, and preserve other review work |
 | Proofing needs changes | Keep the exact version/note durable and offer its refinement workspace |
 | Proofing approved | Name Approved final and preserve the exact original/version across reload and later outputs |
+| Delivery has missing final | Block download, list every omission, and link each source to exact Proofing |
+| Delivery has warnings | Keep the package preview visible; require explicit acknowledgement before enabling download |
+| Delivery preview becomes stale | Refuse download and require a refreshed preview; never substitute current latest output |
+| Delivery package fails | Preserve profile/final selections, state that nothing was changed, and offer preview/retry |
 | QA warning | Keep output viewable; explain what needs visual review |
 | Signed URL/image fails | Neutral frame, Retry image, never collapse controls |
 
@@ -280,6 +295,7 @@ Internal “chain” may appear only inside the Advanced disclosure as **Edit or
 - Minimum pointer target is 40×40px for the task studio and photo selection.
 - Batch order is announced and not encoded only by colour.
 - Proofing order/status is announced in text; contact-sheet buttons expose selection state, and Left/Right Arrow navigation never steals input/select editing keys.
+- Delivery profile controls have persistent labels; included order, source/version, filename, dimensions, size, and disclosure are text, not colour. The desktop grid becomes stacked records at phone widths without page overflow.
 - Status uses text plus colour. Motion respects `prefers-reduced-motion`.
 - Upload progressbars have per-file accessible names and numeric values; status is never colour-only.
 - On mobile, the sticky footer never covers the last control and safe-area padding is included.

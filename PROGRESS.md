@@ -51,10 +51,26 @@
 - [x] Phase 48 — Named persistent presets (local complete; migration 0014 queued for final SQL batch)
 - [x] Phase 49 — Listing-level progress truth (local complete; no migration)
 - [x] Phase 50 — Contact-sheet proofing and final selection
-- [ ] Phase 51 — Approved finals and MLS delivery
+- [x] Phase 51 — Approved finals and MLS delivery
 - [ ] Phase 52 — Version naming and variation comparison
 - [ ] Phase 53 — Scoped conversational batch rework
 - [ ] Phase 54 — Mobile intake/proofing and workflow-state hardening
+
+## ACTIVE HANDOFF — Phase 51 approved-finals delivery complete in local code (2026-09-01)
+
+**Read this first.** Phase 51 is complete and committed in local code. `/listings/[id]/delivery` now creates named account-owned output profiles, previews the exact current approved set, and streams a reproducible package containing only Phase 50 finals. Missing finals, invalid/duplicate selections, stale previews, and unacknowledged QA/compliance warnings cannot download. Stop here. Phase 52 alone owns version naming and comparison.
+
+**Delivery/profile contract:** verified migration `0016_delivery_profiles.sql` adds authenticated-read-only profiles for JPEG/WebP/PNG, bounded dimensions and/or byte ceiling, quality, staging disclosure, deterministic naming, and shoot/room ordering. Strict authenticated server routes own create/update/delete after validation. Profile/final fingerprints force a fresh preview when either changes. The server recomputes the current logical-photo set and exact `photo_finals` at download time, supports approved untouched originals and older revisions, never reads a latest fallback, and refuses cross-owner listing/profile combinations.
+
+**Preview/workflow:** Delivery sits beside Proofing and Activity links into it. The preview names included/omitted photos, untouched versus edited source, exact version, room/order, generated traversal-safe collision-free filename, expected dimensions/size/disclosure, missing-final links, and QA/compliance warnings. Warning acknowledgement is explicit and fingerprint-bound. Saved profiles support create, edit, delete, file format, dimensions, quality/ceiling, watermark or disclosure companion, naming pattern, and ordering. The old `/download-all` URL now has approved-only semantics; requests without a profile plus preview fingerprint fail instead of using stale behavior.
+
+**Package/browser proof:** authenticated isolated QA used `51 Delivery Lane`: four logical photos; Kitchen had approved older v1 plus abandoned newer v2; a second Kitchen approved the untouched original; one edited Bedroom had QA/compliance warnings; the fourth original began without a final. The preview showed `3 included / 1 omitted / 2 warnings`, blocked download, and deep-linked to the missing photo. After explicit original approval it showed `4 / 0 / 2`; acknowledgement enabled download. `51-Delivery-Lane-MLS-delivery.zip` contained `001-Kitchen.jpg`, `002-Kitchen.jpg`, `003-Main-Bedroom.jpg`, `004-Main-Bedroom.jpg`, and `manifest.txt`. The first image visibly said Kitchen version 1 and carried the Virtually Staged watermark; v2 was absent. All images were JPEG 1200×800 and under 10 MB; the manifest recorded exact source/version, transformation/disclosure, dimensions, bytes, generation time, and all archive entries. A second account received 404. Desktop and the browser's phone minimum (534 CSS px after a requested 481px override) had all controls and no horizontal overflow (`518 ≤ 534`); browser warnings/errors were empty. No model/generation call ran.
+
+**Bounded archive/database verification:** production no longer imports JSZip for listing delivery. The store-only ZIP generator materializes one transformed source at a time and yields at most 64 KiB per pull; the 64-photo synthetic fixture streamed more than 64 MB with exactly 64 source materializations and the same 64 KiB maximum. A separate parsed archive verified CRC/readability and exact bytes. Migrations `0001`–`0016` applied from scratch in an isolated Supabase stack; database lint was clean. SQL proved own-only profile reads, direct authenticated insert rejection, and database rejection of invalid formats and unenforceable PNG byte ceilings. Focused delivery has 49 assertions; proofing remains 42; TypeScript, lint, diff check, and the full Phase 43–51 suites pass. The final production build passes after stopping port 3000.
+
+**SQL/release/port state:** Matt asked to run remaining SQL at the end. Live migrations remain through `0012`; apply `0013_batch_scope.sql`, `0014_edit_presets.sql`, `0015_proofing_and_finals.sql`, then `0016_delivery_profiles.sql` before using Phases 47–51 against live data. Nothing was pushed, deployed, paid, or written to production. Production remains the Phase 38–41 release. The isolated stack/fixture and downloaded QA archive were removed after verification. Port 3000 was restored against normal `.env.local`; `/` returns 200.
+
+**Next action:** run `/clear`, then say: `Execute Phase 52 from PLAN.md. Read the ACTIVE HANDOFF first.` Do not start Phase 53, push, deploy, apply live SQL, or run paid generation inside Phase 52 without a new explicit instruction.
 
 ## ACTIVE HANDOFF — Phase 50 contact-sheet proofing and final selection complete in local code (2026-09-01)
 
