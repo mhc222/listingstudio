@@ -37,6 +37,23 @@ export function initialProofingSelection(input: ProofingStateInput): string {
   return sortedProofingVersions(input.versions)[0]?.id ?? ORIGINAL_SELECTION
 }
 
+export function proofingFinalKey(input: ProofingStateInput): string {
+  return input.finalExists ? input.finalOutputVersionId ?? ORIGINAL_SELECTION : ""
+}
+
+export function reconcileProofingSelection(
+  current: string | undefined,
+  input: ProofingStateInput,
+  previousFinalKey: string
+): string {
+  const finalKey = proofingFinalKey(input)
+  const currentExists = current === ORIGINAL_SELECTION
+    || input.versions.some((version) => version.id === current)
+  if (!current || !currentExists) return initialProofingSelection(input)
+  if (finalKey && previousFinalKey !== finalKey) return finalKey
+  return current
+}
+
 export function deriveProofingStatus(
   input: ProofingStateInput,
   selectedId = initialProofingSelection(input)
@@ -66,4 +83,3 @@ export function proofingApprovalCounts(items: ProofingStateInput[]) {
   const approved = items.filter((item) => item.finalExists).length
   return { approved, total: items.length, remaining: items.length - approved }
 }
-

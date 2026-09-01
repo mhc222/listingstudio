@@ -14,6 +14,8 @@ import {
   deriveProofingStatus,
   initialProofingSelection,
   proofingApprovalCounts,
+  proofingFinalKey,
+  reconcileProofingSelection,
   sortedProofingVersions,
   type ProofingStateInput,
   type ProofingStatus,
@@ -71,13 +73,21 @@ export function ProofingWorkspace({
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const retryRef = useRef<{ key: string; id: string } | null>(null)
+  const finalByPhotoRef = useRef<Record<string, string>>(
+    Object.fromEntries(items.map((item) => [item.id, proofingFinalKey(stateInput(item))]))
+  )
 
   useEffect(() => {
     setVersionByPhoto((current) => {
       const next = { ...current }
       for (const item of items) {
-        const durableSelection = initialProofingSelection(stateInput(item))
-        if (!next[item.id] || item.final) next[item.id] = durableSelection
+        const input = stateInput(item)
+        const finalKey = proofingFinalKey(input)
+        next[item.id] = reconcileProofingSelection(next[item.id], input, finalByPhotoRef.current[item.id] ?? "")
+        // A newly approved/replaced final becomes the selected proof target.
+        // Unchanged realtime/reconcile refreshes must never overwrite a
+        // deliberate choice to inspect another version.
+        finalByPhotoRef.current[item.id] = finalKey
       }
       return next
     })
@@ -155,7 +165,7 @@ export function ProofingWorkspace({
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null
-      if (target?.closest("input, textarea, button, [role='listbox'], [role='option'], [contenteditable='true']")) return
+      if (target?.closest("input, textarea, select, [role='combobox'], [role='listbox'], [role='option'], [contenteditable='true']")) return
       if (event.key === "ArrowLeft") {
         event.preventDefault()
         move(-1)

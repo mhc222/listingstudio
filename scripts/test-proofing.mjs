@@ -5,7 +5,9 @@ import {
   deriveProofingQaStatus,
   deriveProofingStatus,
   initialProofingSelection,
+  proofingFinalKey,
   proofingApprovalCounts,
+  reconcileProofingSelection,
 } from "../lib/proofing.ts"
 
 let assertions = 0
@@ -38,6 +40,11 @@ equal(proofingApprovalCounts([
   { finalExists: true, finalOutputVersionId: null, versions: [], groupStatuses: [] },
   { finalExists: false, finalOutputVersionId: null, versions, groupStatuses: [] },
 ]), { approved: 1, total: 2, remaining: 1 }, "approval count uses logical sources, not outputs")
+const approvedInput = { finalExists: true, finalOutputVersionId: "old", versions, groupStatuses: ["running"] }
+equal(proofingFinalKey(approvedInput), "old", "final key identifies the exact durable version")
+equal(reconcileProofingSelection("new", approvedInput, "old"), "new", "unchanged realtime refresh preserves a deliberate alternate-version selection")
+equal(reconcileProofingSelection("new", { ...approvedInput, finalOutputVersionId: "new" }, "old"), "new", "a newly replaced final selects the new durable target")
+equal(reconcileProofingSelection("new", { ...approvedInput, finalExists: false, finalOutputVersionId: null }, "old"), "new", "clearing a matching final preserves the needs-changes target")
 
 const migration = readFileSync(new URL("../supabase/migrations/0015_proofing_and_finals.sql", import.meta.url), "utf8")
 for (const invariant of [
@@ -57,6 +64,8 @@ const workspace = readFileSync(new URL("../app/listings/[id]/proofing/proofing-w
 const page = readFileSync(new URL("../app/listings/[id]/proofing/page.tsx", import.meta.url), "utf8")
 const route = readFileSync(new URL("../app/api/listings/[id]/proofing/route.ts", import.meta.url), "utf8")
 const oldZip = readFileSync(new URL("../app/api/listings/[id]/download-all/route.ts", import.meta.url), "utf8")
+const activity = readFileSync(new URL("../app/listings/[id]/activity/page.tsx", import.meta.url), "utf8")
+const individualDownload = readFileSync(new URL("../app/api/file-groups/[id]/download/route.ts", import.meta.url), "utf8")
 for (const invariant of [
   "logicalPhotoIds",
   "photo_finals",
@@ -73,6 +82,9 @@ for (const invariant of [
 ]) matches(workspace, new RegExp(invariant), `proofing workspace contains ${invariant}`)
 matches(page, /Opening a photo never approves it/, "proofing page makes passive viewing semantics explicit")
 matches(route, /set_photo_review/, "authenticated route uses the validated atomic review RPC")
+matches(activity, /final\.output_version_id !== null[\s\S]*group\.output_versions\.some/, "activity marks only the file group containing the exact approved output")
+matches(server, /createAdminClient[\s\S]*storageClient/, "owned proofing rows support legacy output storage paths")
+matches(individualDownload, /download\("outputs", version\.storage_path, storageClient\)/, "individual downloads retain legacy output compatibility after ownership proof")
 matches(oldZip, /status: 410/, "unsafe latest-output archive is disabled")
 equal(/JSZip|generateAsync|output_versions/.test(oldZip), false, "disabled archive cannot collect latest output versions")
 

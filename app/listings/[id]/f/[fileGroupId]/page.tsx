@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { notFound } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
+import { createAdminClient } from "@/lib/supabase/admin"
 import { getUrls } from "@/lib/storage"
 import type { ComplianceNote } from "../../job-feed"
 import { EDIT_TYPES } from "../../edit-types"
@@ -39,6 +40,9 @@ export default async function FileGroupPage({
 
   const job = fg?.jobs as unknown as { id: string; title: string; kind: string; listing_id: string } | null
   if (!fg || !job || job.listing_id !== id) notFound()
+  // The RLS-scoped file-group read above proves ownership. Server-only signing
+  // preserves access to legacy output paths as well as owner-prefixed paths.
+  const storageClient = createAdminClient()
 
   const [{ data: listing }, { data: siblings }] = await Promise.all([
     supabase.from("listings").select("address").eq("id", id).single(),
@@ -59,12 +63,14 @@ export default async function FileGroupPage({
   const siblingPhotoById = new Map((siblingPhotos ?? []).map((photo) => [photo.id, photo]))
   const siblingOriginalUrls = await getUrls(
     "originals",
-    (siblingPhotos ?? []).map((photo) => photo.storage_path)
+    (siblingPhotos ?? []).map((photo) => photo.storage_path),
+    3600,
+    storageClient
   )
   const primary = siblingPhotoById.get(fg.primary_photo_id)
 
   const beforeUrls = primary
-    ? await getUrls("originals", [primary.storage_path])
+    ? await getUrls("originals", [primary.storage_path], 3600, storageClient)
     : {}
   const before = {
     url: primary ? beforeUrls[primary.storage_path] ?? null : null,
@@ -73,7 +79,9 @@ export default async function FileGroupPage({
 
   const outputUrls = await getUrls(
     "outputs",
-    fg.output_versions.map((v) => v.storage_path)
+    fg.output_versions.map((v) => v.storage_path),
+    3600,
+    storageClient
   )
 
   // compliance jsonb (phase 21, migration 0008) fetched separately, fail-open —

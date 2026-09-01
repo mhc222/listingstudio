@@ -3,6 +3,7 @@ import "server-only"
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { logicalPhotoIds } from "@/lib/hdr-groups"
 import { getUrls } from "@/lib/storage"
+import { createAdminClient } from "@/lib/supabase/admin"
 import type { ComplianceNote } from "@/app/listings/[id]/job-feed"
 
 export type ProofingVersionRow = {
@@ -88,6 +89,9 @@ export async function loadProofingListing(
       jobsQ.error?.message || finalsQ.error?.message || "Could not load proofing data"
     )
   }
+  // The listing query above is RLS-scoped. Sign only the paths discovered
+  // through those owned rows, while retaining support for legacy output paths.
+  const storageClient = createAdminClient()
 
   const membersByGroup = new Map<string, string[]>()
   for (const member of membersQ.data ?? []) {
@@ -103,11 +107,16 @@ export async function loadProofingListing(
   const logicalPhotos = (photosQ.data ?? []).filter((photo) => logicalIds.has(photo.id))
   const roomNames = new Map((roomsQ.data ?? []).map((room) => [room.id, room.name]))
 
-  const originalUrls = await getUrls("originals", logicalPhotos.map((photo) => photo.storage_path))
+  const originalUrls = await getUrls(
+    "originals",
+    logicalPhotos.map((photo) => photo.storage_path),
+    3600,
+    storageClient
+  )
   const outputPaths = (jobsQ.data ?? []).flatMap((job) =>
     job.file_groups.flatMap((group) => group.output_versions.map((version) => version.storage_path))
   )
-  const outputUrls = await getUrls("outputs", outputPaths)
+  const outputUrls = await getUrls("outputs", outputPaths, 3600, storageClient)
   const finalsByPhoto = new Map((finalsQ.data ?? []).map((final) => [final.source_photo_id, final]))
 
   const groupsByPhoto = new Map<string, ProofingItemRow["groups"]>()
@@ -163,4 +172,3 @@ export async function loadProofingListing(
     }),
   }
 }
-

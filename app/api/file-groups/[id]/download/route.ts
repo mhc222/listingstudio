@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
+import { createAdminClient } from "@/lib/supabase/admin"
 import { download } from "@/lib/storage"
 import {
   applyVariant,
@@ -39,6 +40,9 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     .eq("id", id)
     .single()
   if (!fg) return NextResponse.json({ error: "not found" }, { status: 404 })
+  // The RLS-scoped file-group read proves ownership before the service client
+  // touches storage. This keeps individual downloads working for legacy paths.
+  const storageClient = createAdminClient()
 
   const search = new URL(req.url).searchParams
 
@@ -50,7 +54,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       | null
     if (!photo) return NextResponse.json({ error: "original not found" }, { status: 404 })
     const ext = photo.storage_path.split(".").pop()?.toLowerCase() ?? "jpg"
-    const blob = await download("originals", photo.storage_path)
+    const blob = await download("originals", photo.storage_path, storageClient)
     return new NextResponse(new Uint8Array(await blob.arrayBuffer()), {
       headers: {
         "Content-Type": ORIGINAL_TYPES[ext] ?? "application/octet-stream",
@@ -96,7 +100,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     }
   }
 
-  const blob = await download("outputs", version.storage_path)
+  const blob = await download("outputs", version.storage_path, storageClient)
   let buf: Buffer = Buffer.from(await blob.arrayBuffer())
   if (watermark) buf = await applyWatermark(buf) // before the quality ladder
   buf = await applyVariant(buf, variant)

@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { notFound } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
+import { createAdminClient } from "@/lib/supabase/admin"
 import { getUrls } from "@/lib/storage"
 import { JobFeed, type ComplianceNote, type JobRow } from "../job-feed"
 import { type PhotoRow } from "../photo-grid"
@@ -28,13 +29,17 @@ export default async function ActivityPage({ params }: { params: Promise<{ id: s
       )
       .eq("listing_id", id)
       .order("created_at", { ascending: false }),
-    supabase.from("photo_finals").select("source_photo_id").eq("listing_id", id),
+    supabase.from("photo_finals").select("source_photo_id, output_version_id").eq("listing_id", id),
   ])
   if (!listing) notFound()
+  // Every row above was RLS-scoped to this listing. Use the server-only storage
+  // client after that ownership proof so both legacy and owner-prefixed objects
+  // remain reviewable while the path contract converges.
+  const storageClient = createAdminClient()
   const listingStatuses = await loadListingStatuses(supabase, [id])
   const listingStatus = listingStatuses.get(id)!
 
-  const originalUrls = await getUrls("originals", (photos ?? []).map((photo) => photo.storage_path))
+  const originalUrls = await getUrls("originals", (photos ?? []).map((photo) => photo.storage_path), 3600, storageClient)
   const withUrls: PhotoRow[] = (photos ?? []).map((photo) => ({
     ...photo,
     url: originalUrls[photo.storage_path] ?? null,
@@ -45,7 +50,7 @@ export default async function ActivityPage({ params }: { params: Promise<{ id: s
   const outputPaths = (jobs ?? []).flatMap((job) =>
     job.file_groups.flatMap((group) => group.output_versions.map((version) => version.storage_path))
   )
-  const outputUrls = await getUrls("outputs", outputPaths)
+  const outputUrls = await getUrls("outputs", outputPaths, 3600, storageClient)
   const versionIds = (jobs ?? []).flatMap((job) =>
     job.file_groups.flatMap((group) => group.output_versions.map((version) => version.id))
   )
@@ -63,7 +68,11 @@ export default async function ActivityPage({ params }: { params: Promise<{ id: s
     ...job,
     file_groups: job.file_groups.map((group) => ({
       ...group,
-      approved: (finals ?? []).some((final) => final.source_photo_id === group.primary_photo_id),
+      approved: (finals ?? []).some(
+        (final) => final.source_photo_id === group.primary_photo_id
+          && final.output_version_id !== null
+          && group.output_versions.some((version) => version.id === final.output_version_id)
+      ),
       output_versions: group.output_versions.map((version) => ({
         id: version.id,
         version_number: version.version_number,
