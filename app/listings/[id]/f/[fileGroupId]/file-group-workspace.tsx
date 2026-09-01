@@ -138,6 +138,8 @@ export function FileGroupWorkspace({ listingId, fg, before, siblings, initialVer
   const settled = ["complete", "failed"].includes(latest?.group_status ?? fg.step_status)
   const currentSettled = ["complete", "failed"].includes(fg.step_status)
   const currentActive = !currentSettled
+  const currentFailed = fg.step_status === "failed"
+  const currentOwnsStatus = currentActive || currentFailed
   const selectedChain = latest?.edit_chain ?? fg.edit_chain
   const isPlan = selectedChain.some((step) => step.edit_type === "FLOOR_PLAN_REDRAW")
   const isDusk = selectedChain.some(
@@ -147,7 +149,7 @@ export function FileGroupWorkspace({ listingId, fg, before, siblings, initialVer
   const staged = selectedChain.some((step) => STAGED_TYPES.includes(step.edit_type))
   const thread = [...(fg.chat_messages ?? [])].sort((a, b) => a.created_at.localeCompare(b.created_at))
   const selectedIsFinal = Boolean(latest && fg.final?.output_version_id === latest.id)
-  const copy = currentActive
+  const copy = currentOwnsStatus
     ? statusCopy(fg.step_status, Boolean(latest?.url))
     : selectedIsFinal
       ? { label: "Approved final", heading: "This version is the approved final" }
@@ -438,7 +440,7 @@ export function FileGroupWorkspace({ listingId, fg, before, siblings, initialVer
         </section>
 
         <aside className="ls-surface min-w-0 p-4 sm:p-5 lg:sticky lg:top-5">
-          <StatePill status={currentActive ? fg.step_status : latest?.group_status ?? fg.step_status} label={copy.label} />
+          <StatePill status={currentOwnsStatus ? fg.step_status : latest?.group_status ?? fg.step_status} label={copy.label} />
           <h2 className="mt-2 text-2xl font-semibold tracking-[-0.03em]">{copy.heading}</h2>
 
           {fg.step_status === "failed" && (

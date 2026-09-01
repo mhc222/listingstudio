@@ -755,6 +755,8 @@ The implementation arc below is approved for planning, not pre-authorized as one
 
 ## Phase 52 — Version naming and variation comparison
 
+**Status (2026-09-01):** Complete in local code. Migration `0017_version_labels.sql` is verified and queued after pending `0013_batch_scope.sql` through `0016_delivery_profiles.sql` for Matt's end-of-run SQL batch; live migrations remain through `0012`. No paid variation, push, or deployment occurred.
+
 **Goal:** Make immutable history decision-useful without mixing it with batch orchestration. Let the operator name, understand, and compare branches while approved-final state remains stable.
 
 **Version workflow:** add meaningful version labels, explicit parent/branch context, hover/list previews, and side-by-side comparison of any two lineage-compatible versions. Preserve branch-from-any-version and every current output. A variation request creates clearly labeled sibling outputs from one source/version with exact generation count/cost shown before submission; successful siblings remain usable if another fails.

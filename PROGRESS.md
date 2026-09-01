@@ -52,9 +52,27 @@
 - [x] Phase 49 — Listing-level progress truth (local complete; no migration)
 - [x] Phase 50 — Contact-sheet proofing and final selection
 - [x] Phase 51 — Approved finals and MLS delivery
-- [ ] Phase 52 — Version naming and variation comparison
+- [x] Phase 52 — Version naming and variation comparison
 - [ ] Phase 53 — Scoped conversational batch rework
 - [ ] Phase 54 — Mobile intake/proofing and workflow-state hardening
+
+## ACTIVE HANDOFF — Phase 52 named versions and variation comparison complete in local code (2026-09-01)
+
+**Read this first.** Phase 52 is complete and committed in local code. One logical photo's immutable outputs are now a named, branch-aware history across Jobs/FileGroups. The FileGroup workspace shows compact previews, exact parent context, the approved marker, durable rename, and named two-version comparison. Proofing uses the same names. Naming, viewing, comparing, refining, and preparing variations do not move Phase 50's final. Stop here. Phase 53 alone owns multi-photo scoped conversational rework.
+
+**Schema/security contract:** verified migration `0017_version_labels.sql` adds optional server-managed 1–80 character `output_versions.version_label`, a `variation` Job kind, authenticated-read-only `variation_requests`, and ordered variation identity/labels on FileGroups. A database trigger rejects cross-listing/cross-photo parents. `create_variation_request` is service-role-only, transactionally validates one owned exact source and 2–4 unique labels, serializes the request UUID, stores the immutable source/direction/count/initial-cost scope, and returns the same sibling IDs for exact retries. Direct authenticated label mutation is rejected; another account sees zero variation request rows.
+
+**Variation/orchestration contract:** each requested variation is an independent FileGroup starting on one REWORK step from the exact selected output, while retaining the source edit chain for staging/download semantics. The preview shows requested generations and exact configured initial generation cost; provider retries, only if needed, are separately counted. Variation jobs skip auto-QA so a requested count cannot silently expand. Completion copies each requested name to the immutable output. One sibling failure leaves successful siblings usable, and the failed workspace truthfully says Needs attention with Try again. No variation endpoint was invoked during browser QA and no paid generation ran.
+
+**Database proof:** migrations `0001`–`0017` apply cleanly from scratch in isolated Supabase and `supabase db lint --level warning` is clean. SQL created one approved root and a three-option variation request: first call returned 3 sibling IDs, exact retry returned the same request with `was_existing=true`, every child carried the root parent and name, and the approved final remained the root. Cross-photo parenting and direct authenticated rename were rejected; owner variation visibility was 1 row and another user saw 0.
+
+**Browser fixture/proof:** authenticated isolated fixture `52 Version Lane` used one 1200×800 source, approved root `22b89170-0e10-4138-8f07-d0fc2f5edf83` (**Approved warm oak**), child `3b63da77-59ea-491e-bc98-5b210932b8a5` renamed **Client favorite**, and three simulated siblings from the approved root: **Linen direction** complete, **Failed option** failed, and **Contrast direction** complete. The workspace displayed all four saved outputs with exact branch context and only the root marked Approved. Named comparison showed Approved warm oak versus Linen direction on the keyboard slider. Rename survived reload and appeared in Proofing; Proofing stayed `1 of 1 approved` on the old root. The variation disclosure showed `2 requested generations · $0.04` before submission. The failed sibling route said Needs attention/another try while both successful siblings remained selectable. Desktop and the in-app browser's 433 CSS px phone minimum had no horizontal overflow (`416 = document/client width`); browser warning/error logs were empty.
+
+**Automated verification:** focused versioning has 47 assertions. The complete Phase 43–52 suite passes with 344 assertions total (16 intake + 24 queue + 21 shoot organization + 47 room analysis + 34 batch scope + 38 presets + 26 listing status + 42 proofing + 49 delivery + 47 versioning). TypeScript, full lint, diff check, database reset/lint/SQL invariants, browser QA, and the 29-page production build all pass. Port 3000 was stopped before the build.
+
+**SQL/release/port state:** Matt asked to run remaining SQL at the end. Live migrations remain through `0012`; apply `0013_batch_scope.sql`, `0014_edit_presets.sql`, `0015_proofing_and_finals.sql`, `0016_delivery_profiles.sql`, then `0017_version_labels.sql`. Nothing was pushed, deployed, paid, or written to production. Production remains the Phase 38–41 release. The isolated stack was stopped and its fixture moved to `/Users/mattcronin/.Trash/listing-studio-p52-Y6kbaM-20260901`. Port 3000 is restored against normal `.env.local` (PID `46829`); `/` returns 200.
+
+**Next action:** run `/clear`, then say: `Execute Phase 53 from PLAN.md. Read the ACTIVE HANDOFF first.` Do not start Phase 54, push, deploy, apply live SQL, or run paid generation inside Phase 53 without a new explicit instruction.
 
 ## ACTIVE HANDOFF — Phase 51 approved-finals delivery complete in local code (2026-09-01)
 

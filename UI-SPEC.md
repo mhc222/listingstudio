@@ -1,6 +1,6 @@
 # Listing Studio — End-to-End UX Contract
 
-Phase 51 · 2026-09-01 · implementation contract
+Phase 52 · 2026-09-01 · implementation contract
 
 ## Product promise
 
@@ -152,6 +152,19 @@ The Photos route owns upload, room filtering/tagging, photo selection, and entry
 - Filenames are deterministic, traversal-safe, and collision-free. Virtual staging/renovation uses the selected profile's watermark, disclosure companion, or both. The archive includes a human-readable manifest with source, selected version, transformation/disclosure, dimensions, bytes, generation time, and archive contents.
 - The approved package streams with bounded backpressure. It may hold one source/transformed photo at a time but must not buffer the whole shoot. `/download-all` is acceptable only as the authenticated approved-package URL requiring profile/fingerprint semantics; its prior latest-output behavior is permanently invalid.
 
+#### Version naming, branches, and variations
+
+- A version is decision history for one logical source photo. The workspace loads every owned output for that same listing/photo across FileGroups; database lineage rejects a parent from another listing or photo.
+- Every output has a useful fallback name and may receive one normalized 1–80 character custom name. Names survive reload and appear in the workspace and Proofing. Naming, selecting, hovering, comparing, and downloading never change review state or the approved final.
+- The version list includes a compact image preview, custom/fallback name, explicit **Branched from …** context, and an **Approved** marker only on the exact Phase 50 final. Missing historical parent data is described honestly rather than guessed.
+- **Compare any two** accepts two distinct lineage-compatible versions and reuses the keyboard-operable comparison slider with both version names as visible and accessible labels. Returning to the original comparison is explicit.
+- A normal **Create new version** branches from the exact selected version, including a version stored in another FileGroup. Its source and approved final remain unchanged.
+- **Create several variations** is an explicit disclosure for 2–4 independently named siblings from one exact output version. Before submission it shows the requested generation count and configured initial generation cost; provider names stay hidden, and the copy states that any retry is counted separately.
+- One idempotent request record owns the exact source, direction, ordered labels, count, initial cost, Job, and sibling FileGroups. Every sibling has its own state machine. Successful siblings remain viewable/refinable when another fails, while the failed sibling keeps **Needs attention**, its error, and **Try again**.
+- Exploratory variation siblings do not run auto-QA, because auto-correction would silently expand the promised variation count. Provider failure retry remains the existing separately counted reliability behavior.
+- Creating variations never writes `photo_finals`. Replacing an approved branch remains the separate **Replace approved final** action; delivery continues to use the old exact final until that action succeeds.
+- On phones, the named two-version comparison stays above a stacked control surface, every name/cost/control remains readable, and no horizontal page overflow is introduced.
+
 ### 5. Task Studio
 
 Desktop is a full-screen split surface:
@@ -283,6 +296,10 @@ Internal “chain” may appear only inside the Advanced disclosure as **Edit or
 | Delivery has warnings | Keep the package preview visible; require explicit acknowledgement before enabling download |
 | Delivery preview becomes stale | Refuse download and require a refreshed preview; never substitute current latest output |
 | Delivery package fails | Preserve profile/final selections, state that nothing was changed, and offer preview/retry |
+| Version parent unavailable | Keep the version usable and say it branched from an earlier saved version; never invent a parent label |
+| Variation sibling active | Keep existing versions usable and say the new option is preparing/editing |
+| Variation sibling failed | Show Needs attention and Try again for that sibling while retaining every successful sibling |
+| Variation retry | Reuse the same request identity only for identical source, direction, labels, count, and cost; reject changed payloads |
 | QA warning | Keep output viewable; explain what needs visual review |
 | Signed URL/image fails | Neutral frame, Retry image, never collapse controls |
 
@@ -296,6 +313,7 @@ Internal “chain” may appear only inside the Advanced disclosure as **Edit or
 - Batch order is announced and not encoded only by colour.
 - Proofing order/status is announced in text; contact-sheet buttons expose selection state, and Left/Right Arrow navigation never steals input/select editing keys.
 - Delivery profile controls have persistent labels; included order, source/version, filename, dimensions, size, and disclosure are text, not colour. The desktop grid becomes stacked records at phone widths without page overflow.
+- Version names and branch context are visible text, not hover-only. Named comparison labels both sides and its slider for keyboard and assistive technology; variation count, labels, and cost all have persistent controls/text.
 - Status uses text plus colour. Motion respects `prefers-reduced-motion`.
 - Upload progressbars have per-file accessible names and numeric values; status is never colour-only.
 - On mobile, the sticky footer never covers the last control and safe-area padding is included.
