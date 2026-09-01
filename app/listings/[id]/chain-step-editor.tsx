@@ -1,6 +1,7 @@
 "use client"
 
 import dynamic from "next/dynamic"
+import { Check } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select } from "@/components/ui/select"
@@ -21,6 +22,33 @@ const MarkupCanvas = dynamic(
   () => import("@/components/markup-canvas").then((m) => m.MarkupCanvas),
   { ssr: false }
 )
+
+const STAGING_SWATCHES: Record<string, { wall: string; floor: string; sofa: string; accent: string; wood: string }> = {
+  modern: { wall: "#e8e7e3", floor: "#c8b494", sofa: "#4b4d4e", accent: "#f7f5ef", wood: "#b99768" },
+  contemporary: { wall: "#e8e1d8", floor: "#b59675", sofa: "#a79a8c", accent: "#d9d2c8", wood: "#735a43" },
+  farmhouse: { wall: "#f0ede4", floor: "#b78f61", sofa: "#ded6c6", accent: "#8d9b7b", wood: "#8f6946" },
+  traditional: { wall: "#eee5d8", floor: "#8d6548", sofa: "#d4c3aa", accent: "#a57c3f", wood: "#5e382b" },
+  urban_industrial: { wall: "#c7c3bb", floor: "#75553d", sofa: "#9a5d36", accent: "#414141", wood: "#6e4b31" },
+  mid_century_modern: { wall: "#e7dccb", floor: "#9b6d48", sofa: "#b88b35", accent: "#427c79", wood: "#815532" },
+  hamptons: { wall: "#f4f2ec", floor: "#d2c7b7", sofa: "#e3ded2", accent: "#405a78", wood: "#b89b72" },
+  commercial: { wall: "#e5e6e5", floor: "#aaa9a4", sofa: "#777b7d", accent: "#f3f3f1", wood: "#a5a39d" },
+  scandinavian: { wall: "#f1eee7", floor: "#c9ad81", sofa: "#d8d5cd", accent: "#b6a681", wood: "#b89463" },
+}
+
+function StyleSwatch({ styleKey }: { styleKey: string }) {
+  const colors = STAGING_SWATCHES[styleKey] ?? STAGING_SWATCHES.modern
+  return (
+    <span className="relative block h-12 overflow-hidden rounded-lg" style={{ background: `linear-gradient(to bottom, ${colors.wall} 0 62%, ${colors.floor} 62% 100%)` }}>
+      <span className="absolute bottom-2 left-2 h-4 w-10 rounded-[4px_4px_2px_2px] shadow-sm" style={{ background: colors.sofa }} />
+      <span className="absolute bottom-1.5 left-3 h-1 w-0.5" style={{ background: colors.wood }} />
+      <span className="absolute bottom-1.5 left-10 h-1 w-0.5" style={{ background: colors.wood }} />
+      <span className="absolute bottom-2 right-2 h-3 w-4 rounded-sm" style={{ background: colors.wood }} />
+      <span className="absolute bottom-5 right-[0.65rem] size-2 rounded-full" style={{ background: colors.accent }} />
+      <span className="absolute right-[0.83rem] top-2 h-5 w-px bg-black/25" />
+      <span className="absolute right-[0.55rem] top-1.5 h-2 w-2 rounded-full" style={{ background: colors.accent }} />
+    </span>
+  )
+}
 
 // The editable chain of edits with their per-type option forms. Shared by the
 // interpreter-materialized path and the manual builder (phase 30).
@@ -186,7 +214,7 @@ export function ChainStepEditor({
               </label>
               <fieldset className="grid gap-2">
                 <legend className="text-xs font-medium text-muted-foreground">Furniture style</legend>
-                <div className="flex flex-wrap gap-1.5">
+                <div className="grid grid-cols-3 gap-1.5">
                   {Object.entries(FURNITURE_STYLES).map(([k, { label }]) => {
                     const selected = String(edit.options.furniture_style) === k
                     return (
@@ -195,9 +223,15 @@ export function ChainStepEditor({
                         type="button"
                         aria-pressed={selected}
                         onClick={() => onOption(i, "furniture_style", k)}
-                        className={`ls-pressable rounded-full px-2.5 py-1.5 text-xs font-medium ${selected ? "bg-foreground text-background shadow-sm" : "bg-card text-muted-foreground hover:bg-accent hover:text-foreground"}`}
+                        className={`ls-pressable relative min-w-0 rounded-xl p-1.5 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring/40 ${selected ? "bg-card text-foreground shadow-[0_0_0_2px_var(--primary),var(--shadow-surface)]" : "bg-card/65 text-muted-foreground hover:bg-card hover:text-foreground"}`}
                       >
-                        {label}
+                        <StyleSwatch styleKey={k} />
+                        <span className="mt-1.5 block truncate text-[0.68rem] font-semibold" title={label}>{label}</span>
+                        {selected && (
+                          <span className="absolute right-2 top-2 flex size-4 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm">
+                            <Check aria-hidden="true" className="size-2.5" />
+                          </span>
+                        )}
                       </button>
                     )
                   })}

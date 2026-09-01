@@ -1,11 +1,13 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { Armchair, ChevronRight, Eraser, Hammer, Moon, Paintbrush, Plus, Sparkles } from "lucide-react"
+import { Armchair, Eraser, Hammer, MoreHorizontal, Moon, Paintbrush, Plus, Sparkles } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Disclosure } from "@/components/ui/disclosure"
 import { Input } from "@/components/ui/input"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Select } from "@/components/ui/select"
 import { ROOM_TYPES } from "@/lib/roomTypes"
 import { FURNITURE_STYLES } from "@/lib/prompts"
@@ -16,8 +18,8 @@ import type { PhotoRow } from "./photo-grid"
 import type { SampleRow } from "./job-feed"
 
 // One composer (phase 30): chat interpret MATERIALIZES an editable chain (or 4
-// labeled ideas) instead of blind-firing a job; the manual builder is demoted
-// to a <details>; a single Run posts the possibly-edited chain + persisted chat.
+// labeled ideas) instead of blind-firing a job; advanced choices use the shared
+// disclosure language; a single Run posts the possibly-edited chain + persisted chat.
 type IdeaDir = { label: string; edit_chain: ChainEdit[] }
 type InterpreterResponse = {
   kind: "question" | "ideas" | "job"
@@ -50,6 +52,96 @@ const TASK_HEADINGS: Record<string, string> = {
   ITEM_REMOVAL: "Remove items",
   VIRTUAL_RENOVATION: "Renovate this space",
   COLOUR_CHANGE: "Change a color",
+}
+
+function TaskModeRail({ activeTask, onSelect }: { activeTask?: string; onSelect: (editType: string) => void }) {
+  const rail = useRef<HTMLDivElement>(null)
+  const buttons = useRef(new Map<string, HTMLButtonElement>())
+  const [indicator, setIndicator] = useState({ left: 0, width: 0, visible: false })
+  const [moreOpen, setMoreOpen] = useState(false)
+  const activeKey = activeTask && PRIMARY_TASK_TYPES.has(activeTask) ? activeTask : activeTask ? "__more" : undefined
+
+  useLayoutEffect(() => {
+    function measure() {
+      const button = activeKey ? buttons.current.get(activeKey) : undefined
+      if (!button) return setIndicator((current) => ({ ...current, visible: false }))
+      setIndicator({ left: button.offsetLeft, width: button.offsetWidth, visible: true })
+    }
+    measure()
+    const observer = new ResizeObserver(measure)
+    if (rail.current) observer.observe(rail.current)
+    return () => observer.disconnect()
+  }, [activeKey])
+
+  function setButton(key: string, node: HTMLButtonElement | null) {
+    if (node) buttons.current.set(key, node)
+    else buttons.current.delete(key)
+  }
+
+  return (
+    <div className="-mx-1 overflow-x-auto px-1 pb-1" aria-label="Edit task">
+      <div ref={rail} className="relative flex min-w-max items-center gap-1 rounded-xl bg-muted/72 p-1">
+        <span
+          aria-hidden="true"
+          className="absolute inset-y-1 rounded-lg bg-card shadow-sm transition-[transform,width,opacity] duration-200 ease-[var(--ease-fluid)]"
+          style={{
+            width: indicator.width,
+            opacity: indicator.visible ? 1 : 0,
+            transform: `translateX(${indicator.left - 4}px)`,
+          }}
+        />
+        {PRIMARY_TASKS.map((task) => {
+          const selected = activeTask === task.editType
+          return (
+            <button
+              key={task.editType}
+              ref={(node) => setButton(task.editType, node)}
+              type="button"
+              aria-pressed={selected}
+              title={task.description}
+              onClick={() => onSelect(task.editType)}
+              className={`ls-pressable relative z-10 flex min-h-10 shrink-0 items-center gap-1.5 rounded-lg px-2.5 text-xs font-semibold outline-none focus-visible:ring-2 focus-visible:ring-ring/40 ${selected ? "text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+            >
+              <task.icon aria-hidden="true" className="size-3.5" />
+              {task.label}
+            </button>
+          )
+        })}
+        <Popover open={moreOpen} onOpenChange={setMoreOpen}>
+          <PopoverTrigger asChild>
+            <button
+              ref={(node) => setButton("__more", node)}
+              type="button"
+              aria-pressed={Boolean(activeTask && !PRIMARY_TASK_TYPES.has(activeTask))}
+              className={`ls-pressable relative z-10 flex min-h-10 shrink-0 items-center gap-1.5 rounded-lg px-2.5 text-xs font-semibold outline-none focus-visible:ring-2 focus-visible:ring-ring/40 ${activeTask && !PRIMARY_TASK_TYPES.has(activeTask) ? "text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+            >
+              <MoreHorizontal aria-hidden="true" className="size-4" /> More
+            </button>
+          </PopoverTrigger>
+          <PopoverContent className="w-64" align="end">
+            <p className="px-2 pb-1 pt-1 text-xs font-semibold text-muted-foreground">More edit tools</p>
+            <div className="grid gap-0.5">
+              {Object.entries(EDIT_TYPES)
+                .filter(([editType]) => !PRIMARY_TASK_TYPES.has(editType))
+                .map(([editType, { label }]) => (
+                  <button
+                    key={editType}
+                    type="button"
+                    onClick={() => {
+                      onSelect(editType)
+                      setMoreOpen(false)
+                    }}
+                    className="ls-pressable min-h-10 rounded-lg px-2.5 text-left text-sm font-medium outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring/35"
+                  >
+                    {label}
+                  </button>
+                ))}
+            </div>
+          </PopoverContent>
+        </Popover>
+      </div>
+    </div>
+  )
 }
 
 export function Composer({
@@ -402,18 +494,6 @@ export function Composer({
               ? "Review this edit"
               : "What should we do?"}
         </h2>
-        {chain.length > 0 && (
-          <button
-            type="button"
-            onClick={() => {
-              setChain([])
-              setIdeas(null)
-            }}
-            className="ls-pressable mt-2 rounded-full px-2 py-1 text-xs font-medium text-primary hover:bg-accent/60"
-          >
-            Choose a different task
-          </button>
-        )}
       </header>
       {photos.length === 0 ? (
         <p className="text-sm text-muted-foreground">Upload photos first.</p>
@@ -428,60 +508,21 @@ export function Composer({
                 ? "Editing one photo"
                 : `Applying the same settings to ${photoIds.length} photos`}
           </p>
-
+          <TaskModeRail activeTask={chain[0]?.edit_type} onSelect={chooseTask} />
           {chain.length === 0 && !ideas && (
-            <div className="mb-1">
-              <div className="grid gap-1">
-                {PRIMARY_TASKS.map((task) => (
-                  <button
-                    key={task.editType}
-                    type="button"
-                    onClick={() => chooseTask(task.editType)}
-                    className="ls-pressable group flex min-h-14 w-full items-center gap-3 rounded-xl px-2.5 py-2 text-left hover:bg-card hover:shadow-[0_1px_2px_rgba(45,35,23,0.06)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
-                  >
-                    <span className="flex size-9 shrink-0 items-center justify-center rounded-[0.7rem] bg-muted text-muted-foreground transition-colors group-hover:bg-accent group-hover:text-primary">
-                      <task.icon aria-hidden="true" className="size-4" />
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block text-sm font-semibold">{task.label}</span>
-                      <span className="mt-0.5 block text-xs leading-snug text-muted-foreground">{task.description}</span>
-                    </span>
-                    <ChevronRight aria-hidden="true" className="size-4 text-muted-foreground/55 transition-transform group-hover:translate-x-0.5 group-hover:text-primary" />
-                  </button>
-                ))}
-              </div>
-              <details className="group mt-1.5">
-                <summary className="ls-pressable cursor-pointer list-none rounded-xl px-3 py-2.5 text-sm font-medium text-muted-foreground hover:bg-card hover:text-foreground">
-                  <span className="flex items-center justify-between">
-                    All edit tools
-                    <ChevronRight aria-hidden="true" className="size-4 transition-transform group-open:rotate-90" />
-                  </span>
-                </summary>
-                <div className="mt-1 grid gap-1 rounded-xl bg-card/65 p-1.5 sm:grid-cols-2">
-                  {Object.entries(EDIT_TYPES)
-                    .filter(([editType]) => !PRIMARY_TASK_TYPES.has(editType))
-                    .map(([editType, { label }]) => (
-                      <button
-                        key={editType}
-                        type="button"
-                        onClick={() => chooseTask(editType)}
-                        className="ls-pressable min-h-10 rounded-lg px-2.5 py-2 text-left text-xs font-medium hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
-                      >
-                        {label}
-                      </button>
-                    ))}
-                </div>
-              </details>
-            </div>
+            <p className="mt-2 px-1 text-xs text-muted-foreground">
+              Choose an outcome above, or describe the result in your own words.
+            </p>
           )}
 
           {/* phase 31 accelerators: reuse a chain without rebuilding it */}
           {(lastChain || defaultChain || chain.length > 0) && (
-            <details className="mb-4 rounded-xl bg-card/55 px-3 py-2.5">
-              <summary className="cursor-pointer text-xs font-semibold text-muted-foreground hover:text-foreground">
-                Saved edits
-              </summary>
-              <div className="mt-2 flex flex-wrap items-center gap-1.5">
+            <Disclosure
+              className="mb-4 mt-3 rounded-xl bg-card/45 p-1"
+              summary="Saved edits"
+              triggerClassName="text-xs font-semibold"
+            >
+              <div className="flex flex-wrap items-center gap-1.5">
                 {lastChain && (
                   <button
                     type="button"
@@ -512,7 +553,7 @@ export function Composer({
                   </button>
                 )}
               </div>
-            </details>
+            </Disclosure>
           )}
 
           {(chain.length === 0 || chatMessages.length > 0) && <div className="mt-4">
@@ -565,11 +606,12 @@ export function Composer({
             </div>
             {chatError && <p className="mt-2 text-sm text-destructive">{chatError}</p>}
 
-            <details className="mt-3 rounded-xl bg-card/55 px-3 py-2.5">
-              <summary className="cursor-pointer text-xs font-medium text-muted-foreground hover:text-foreground">
-                Add detail — room, style, references
-              </summary>
-              <div className="mt-2 grid gap-2">
+            <Disclosure
+              className="mt-3 rounded-xl bg-card/45 p-1"
+              summary="Add detail — room, style, references"
+              triggerClassName="text-xs"
+            >
+              <div className="grid gap-2">
                 <div className="flex flex-wrap items-center gap-2">
                   <Select value={chipRoom} onChange={(e) => setChipRoom(e.target.value)} className="w-auto text-xs">
                     <option value="">Room type…</option>
@@ -630,7 +672,7 @@ export function Composer({
                   </div>
                 )}
               </div>
-            </details>
+            </Disclosure>
           </div>}
 
           {/* materialized ideas: 4 labeled mini-chains, one Run */}
@@ -662,20 +704,23 @@ export function Composer({
           )}
 
           {/* materialized / manually-built chain */}
-          <ChainStepEditor
-            chain={chain}
-            photoIds={photoIds}
-            photoById={photoById}
-            onOption={setOption}
-            onRemove={removeEdit}
-          />
+          <div key={chain[0]?.edit_type ?? "no-task"} className="ls-mode-panel">
+            <ChainStepEditor
+              chain={chain}
+              photoIds={photoIds}
+              photoById={photoById}
+              onOption={setOption}
+              onRemove={removeEdit}
+            />
+          </div>
 
           {chain.length > 0 && additionalViews.length > 0 && onToggleAdditionalView && (
-            <details className="mt-4 rounded-xl bg-card/55 px-3 py-2.5">
-              <summary className="cursor-pointer text-xs font-semibold text-muted-foreground hover:text-foreground">
-                Apply these settings to another view
-              </summary>
-              <p className="mt-2 text-xs text-muted-foreground">
+            <Disclosure
+              className="mt-4 rounded-xl bg-card/45 p-1"
+              summary="Apply these settings to another view"
+              triggerClassName="text-xs font-semibold"
+            >
+              <p className="text-xs text-muted-foreground">
                 Each photo is edited separately with the same settings. Same-room views are shown first.
               </p>
               <div className="mt-3 grid grid-cols-3 gap-2">
@@ -702,20 +747,18 @@ export function Composer({
                   )
                 })}
               </div>
-            </details>
+            </Disclosure>
           )}
 
           {/* The ordered chain is powerful, but only appears after the first
               outcome has been chosen. There is no second empty-state picker. */}
           {chain.length > 0 && (
-            <details className="group mt-4 rounded-xl bg-card/55 px-3 py-2.5">
-              <summary className="cursor-pointer list-none text-xs font-semibold text-muted-foreground hover:text-foreground">
-                <span className="flex items-center justify-between">
-                  Add another edit
-                  <Plus aria-hidden="true" className="size-4 transition-transform group-open:rotate-45" />
-                </span>
-              </summary>
-              <div className="mt-3 grid gap-1 sm:grid-cols-2">
+            <Disclosure
+              className="mt-4 rounded-xl bg-card/45 p-1"
+              summary={<span className="flex items-center gap-2"><Plus aria-hidden="true" className="size-3.5" />Add another edit</span>}
+              triggerClassName="text-xs font-semibold"
+            >
+              <div className="grid gap-1 sm:grid-cols-2">
                 {Object.entries(EDIT_TYPES).map(([editType, { label }]) => (
                   <button
                     key={editType}
@@ -727,7 +770,7 @@ export function Composer({
                   </button>
                 ))}
               </div>
-            </details>
+            </Disclosure>
           )}
 
           <div className="mt-3">
@@ -783,26 +826,23 @@ export function Composer({
             </div>
           )}
           <div className="ls-scroll-edge -mx-4 mt-5 bg-background/88 px-4 py-4 backdrop-blur-xl sm:-mx-5 sm:px-5 md:sticky md:bottom-0 md:z-10">
+            <p className="mb-2 text-[0.68rem] font-semibold text-muted-foreground">
+              {photoIds.length > 1 ? `${photoIds.length} photos` : "1 photo"} · {chain.length || (ideas ? 4 : 0)} {chain.length === 1 ? "edit" : "edits"}
+            </p>
             <div className="flex items-center gap-3">
-              <details className="relative">
-                <summary className="cursor-pointer list-none text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground">
-                  Output size
-                </summary>
-                <div className="ls-material absolute bottom-[calc(100%+0.5rem)] left-0 z-20 w-48 p-2">
-                  <Select
-                    aria-label="Output size"
-                    value={sizePreset}
-                    onChange={(e) => setSizePreset(e.target.value)}
-                  >
-                    {Object.entries(SIZE_PRESETS).map(([k, label]) => (
-                      <option key={k} value={k}>
-                        {label}
-                      </option>
-                    ))}
-                  </Select>
-                </div>
-              </details>
-              <Button className="ml-auto min-w-36" size="lg" onClick={run} disabled={!canRun || running}>
+              <Select
+                aria-label="Output size"
+                value={sizePreset}
+                onChange={(e) => setSizePreset(e.target.value)}
+                className="w-auto min-w-32 bg-transparent shadow-none"
+              >
+                {Object.entries(SIZE_PRESETS).map(([k, label]) => (
+                  <option key={k} value={k} data-description={k === "original" ? "Keep maximum detail" : "Ready for common portals"}>
+                    {label}
+                  </option>
+                ))}
+              </Select>
+              <Button className="ml-auto min-w-40 shadow-[0_8px_24px_color-mix(in_oklch,var(--primary)_24%,transparent)]" size="lg" onClick={run} disabled={!canRun || running}>
                 {running
                   ? "Starting edit…"
                   : photoIds.length > 1 && !ideas

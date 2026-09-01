@@ -5,6 +5,7 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { StatePill } from "@/components/brand"
+import { Disclosure } from "@/components/ui/disclosure"
 import { EDIT_TYPES } from "./edit-types"
 import type { PhotoRow } from "./photo-grid"
 
@@ -229,9 +230,13 @@ export function JobFeed({
                 ) : null
               })()}
               {job.grounding_used && (
-                <details className="mt-3 max-w-3xl text-xs text-muted-foreground">
-                  <summary className="cursor-pointer hover:text-foreground">Edit context</summary>
-                  <p className="mt-1 leading-relaxed">
+                <Disclosure
+                  className="mt-3 max-w-3xl"
+                  summary="Edit context"
+                  triggerClassName="min-h-8 px-0 text-xs"
+                  contentClassName="px-0 pb-0"
+                >
+                  <p className="text-xs leading-relaxed text-muted-foreground">
                     {feetAndInches(
                       [
                         job.grounding_used.dimension_sentence,
@@ -241,7 +246,7 @@ export function JobFeed({
                         .join(" · ")
                     )}
                   </p>
-                </details>
+                </Disclosure>
               )}
               {job.file_groups.length > 1 && (
                 <p className="mt-3 text-xs text-muted-foreground">

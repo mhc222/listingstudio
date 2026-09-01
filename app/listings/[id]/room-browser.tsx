@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
+import { Disclosure } from "@/components/ui/disclosure"
 import { Input } from "@/components/ui/input"
 import { Select } from "@/components/ui/select"
 import { ROOM_TYPES } from "@/lib/roomTypes"
@@ -308,11 +309,13 @@ export function RoomBrowser({
             </p>
             {room.notes && <p className="mt-2 max-w-2xl text-sm text-muted-foreground">{room.notes}</p>}
           </div>
-          <details className="group sm:min-w-24">
-            <summary className="cursor-pointer list-none text-sm font-medium text-primary hover:underline">
-              Edit room
-            </summary>
-            <form action={updateRoom} className="mt-3 grid gap-3 bg-muted/35 p-3 sm:min-w-[34rem]">
+          <Disclosure
+            className="sm:min-w-24"
+            summary="Edit room"
+            triggerClassName="text-primary"
+            contentClassName="px-0 pb-0"
+          >
+            <form action={updateRoom} className="grid gap-3 rounded-xl bg-card/70 p-3 sm:min-w-[34rem]">
               <input type="hidden" name="listingId" value={listingId} />
               <input type="hidden" name="roomId" value={room.id} />
               <RoomFields room={room} />
@@ -323,7 +326,7 @@ export function RoomBrowser({
                 </Button>
               </div>
             </form>
-          </details>
+          </Disclosure>
         </div>
       ) : (
         <p className="mt-3 text-sm text-muted-foreground">
@@ -334,16 +337,17 @@ export function RoomBrowser({
       )}
 
       <div className="mt-3 flex flex-wrap items-start gap-x-4 gap-y-2">
-        <details>
-          <summary className="cursor-pointer list-none text-sm text-muted-foreground hover:text-foreground">
-            + Add room
-          </summary>
-          <form action={createRoom} className="mt-3 grid max-w-2xl gap-3 bg-muted/35 p-3">
+        <Disclosure
+          summary="+ Add room"
+          triggerClassName="px-1"
+          contentClassName="px-0 pb-0"
+        >
+          <form action={createRoom} className="grid max-w-2xl gap-3 rounded-xl bg-card/70 p-3">
             <input type="hidden" name="listingId" value={listingId} />
             <RoomFields />
             <Button type="submit" size="sm" className="justify-self-start">Add room</Button>
           </form>
-        </details>
+        </Disclosure>
         <ExtractRooms listingId={listingId} floorPlans={floorPlans} compact />
       </div>
     </section>

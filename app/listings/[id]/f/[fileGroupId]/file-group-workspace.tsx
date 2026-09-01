@@ -5,6 +5,7 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
+import { Disclosure } from "@/components/ui/disclosure"
 import { Select } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { StatePill } from "@/components/brand"
@@ -208,27 +209,37 @@ export function FileGroupWorkspace({ listingId, fg, before, siblings }: {
       <div className="grid min-w-0 items-start gap-5 lg:grid-cols-[minmax(0,1fr)_21rem]">
         <section aria-label="Photo result" className="min-w-0">
           {latest?.url ? (
-            is360 && preview360 ? (
-              <div className="h-[62vh] min-h-96 w-full overflow-hidden bg-black">
-                <TourViewer scenes={[{ id: fg.id, name: "360 result", url: latest.url, width: before.width ?? 4096, initial_yaw: 0, hotspots: [] }]} activeSceneId={fg.id} />
-              </div>
-            ) : <BeforeAfter beforeUrl={before.url} afterUrl={latest.url} />
+            <div className="relative">
+              {is360 && preview360 ? (
+                <div className="h-[62vh] min-h-96 w-full overflow-hidden rounded-2xl bg-black">
+                  <TourViewer scenes={[{ id: fg.id, name: "360 result", url: latest.url, width: before.width ?? 4096, initial_yaw: 0, hotspots: [] }]} activeSceneId={fg.id} />
+                </div>
+              ) : <BeforeAfter beforeUrl={before.url} afterUrl={latest.url} />}
+              {!settled && (
+                <div className="absolute inset-x-4 bottom-4 rounded-xl border border-white/20 bg-black/58 px-4 py-3 text-white shadow-lg backdrop-blur-xl sm:inset-x-auto sm:left-5 sm:max-w-sm">
+                  <div className="flex items-center gap-2 text-xs font-semibold text-white/78">
+                    <span className="pulse-live size-2 rounded-full bg-state-running" />
+                    {copy.label}
+                  </div>
+                  <p className="mt-1 font-semibold tracking-[-0.015em]">{copy.heading}</p>
+                  <p className="mt-0.5 text-xs text-white/70">This version stays available while the refinement develops.</p>
+                </div>
+              )}
+            </div>
           ) : (
             <div className="sweep relative flex min-h-[56vh] items-center justify-center overflow-hidden rounded-2xl bg-[#1b1917] p-5 shadow-[var(--shadow-surface)] sm:p-10">
               {before.url && (
                 // eslint-disable-next-line @next/next/no-img-element -- signed listing-photo URL
                 <img src={before.url} alt="Original photo" className="max-h-[70vh] w-full object-contain opacity-75" />
               )}
-              <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent px-6 pb-6 pt-20 text-white">
-                <p className="text-2xl font-semibold tracking-[-0.03em]">{copy.heading}</p>
-                <p className="mt-1 text-sm text-white/75">You can leave this page. The edit will keep running.</p>
+              <div className="absolute inset-x-4 bottom-4 rounded-xl border border-white/20 bg-black/58 px-4 py-3 text-white shadow-lg backdrop-blur-xl sm:inset-x-auto sm:left-5 sm:max-w-sm">
+                <div className="flex items-center gap-2 text-xs font-semibold text-white/78">
+                  <span className="pulse-live size-2 rounded-full bg-state-running" />
+                  {copy.label}
+                </div>
+                <p className="mt-1 text-lg font-semibold tracking-[-0.025em]">{copy.heading}</p>
+                <p className="mt-0.5 text-xs text-white/70">You can leave this page. The edit will keep running.</p>
               </div>
-            </div>
-          )}
-          {!settled && latest?.url && (
-            <div className="mt-3 border-l-2 border-state-running pl-3">
-              <p className="font-medium">{copy.heading}</p>
-              <p className="text-sm text-muted-foreground">The result above remains available while the new version develops.</p>
             </div>
           )}
         </section>
@@ -296,30 +307,31 @@ export function FileGroupWorkspace({ listingId, fg, before, siblings }: {
           )}
 
           {latest?.url && (
-            <details className="mt-5 rounded-xl bg-muted/45 p-3">
-              <summary className="cursor-pointer text-xs font-semibold">{qaNeedsReview ? "Review recommended" : "Ready for MLS"}</summary>
-              <div className="mt-3 text-xs text-muted-foreground">
+            <Disclosure
+              className="mt-5 rounded-xl bg-muted/45 p-1"
+              summary={qaNeedsReview ? "Review recommended" : "Ready for MLS"}
+              triggerClassName="text-xs font-semibold text-foreground"
+            >
+              <div className="text-xs text-muted-foreground">
                 {latest.qa_note && <p>{latest.qa_note}</p>}
                 {complianceChecks.map((check) => <p key={check.id} className="mt-2 flex items-start gap-2"><span className={check.pass ? "text-state-complete" : "text-state-failed"}>{check.pass ? "✓" : "✕"}</span><span>{check.label}{check.note ? ` — ${check.note}` : ""}</span></p>)}
                 {!latest.qa_note && complianceChecks.length === 0 && <p>No automated concerns were recorded. Complete your normal visual review before publishing.</p>}
               </div>
-            </details>
+            </Disclosure>
           )}
 
-          <details className="mt-5 rounded-xl bg-muted/45 p-3">
-            <summary className="cursor-pointer text-xs font-semibold">Edit details</summary>
-            <div className="mt-3 grid gap-3 text-xs text-muted-foreground">
+          <Disclosure className="mt-5 rounded-xl bg-muted/45 p-1" summary="Edit details" triggerClassName="text-xs font-semibold text-foreground">
+            <div className="grid gap-3 text-xs text-muted-foreground">
               <p><span className="text-foreground">Edit order:</span> {editOrder(fg.edit_chain)}</p>
               {fg.comment && <p><span className="text-foreground">Direction:</span> {fg.comment}</p>}
               {thread.length > 0 && <div className="grid gap-2 border-l border-border pl-3">{thread.map((message, index) => <p key={`${message.created_at}-${index}`}><span className="font-medium text-foreground">{message.role === "user" ? "You" : "Studio"}:</span> {message.content}</p>)}</div>}
             </div>
-          </details>
+          </Disclosure>
 
           {isDusk && latest?.url && complianceChecks.length === 0 && (
-            <details className="mt-5 rounded-xl bg-muted/45 p-3">
-              <summary className="cursor-pointer text-xs font-semibold">Dusk visual check</summary>
-              <div className="mt-3 grid gap-2">{DUSK_CHECKS.map((check) => <label key={check} className="flex items-start gap-2 text-xs"><input type="checkbox" className="mt-0.5" />{check}</label>)}</div>
-            </details>
+            <Disclosure className="mt-5 rounded-xl bg-muted/45 p-1" summary="Dusk visual check" triggerClassName="text-xs font-semibold text-foreground">
+              <div className="grid gap-2">{DUSK_CHECKS.map((check) => <label key={check} className="flex items-start gap-2 text-xs"><input type="checkbox" className="mt-0.5" />{check}</label>)}</div>
+            </Disclosure>
           )}
           {actionError && <p role="alert" className="mt-4 text-sm text-destructive">{actionError}</p>}
         </aside>
