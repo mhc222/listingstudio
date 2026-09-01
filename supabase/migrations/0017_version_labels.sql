@@ -132,6 +132,157 @@ using (user_id = auth.uid() and exists (
 
 alter publication supabase_realtime add table variation_requests;
 
+create or replace function create_variation_request(
+  p_request_id uuid,
+  p_user_id uuid,
+  p_source_output_version_id uuid,
+  p_instructions text,
+  p_labels text[],
+  p_generation_cost_cents numeric
+)
+returns table(
+  variation_request_id uuid,
+  variation_job_id uuid,
+  variation_file_group_ids uuid[],
+  was_existing boolean
+)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_existing variation_requests%rowtype;
+  v_listing_id uuid;
+  v_source_photo_id uuid;
+  v_source_path text;
+  v_source_chain jsonb;
+  v_size_preset text;
+  v_provider text;
+  v_count int := cardinality(p_labels);
+  v_job_id uuid;
+  v_request_id uuid;
+  v_group_id uuid;
+  v_group_ids uuid[] := '{}';
+  v_chain jsonb;
+  v_index int;
+  v_label text;
+begin
+  if p_request_id is null or p_user_id is null or p_source_output_version_id is null then
+    raise exception 'request, user, and source version are required' using errcode = '22023';
+  end if;
+  if p_instructions is null or char_length(btrim(p_instructions)) not between 2 and 1000 then
+    raise exception 'variation instructions must be 2-1000 characters' using errcode = '22023';
+  end if;
+  if v_count not between 2 and 4 then
+    raise exception 'variation count must be 2-4' using errcode = '22023';
+  end if;
+  if p_generation_cost_cents is null or p_generation_cost_cents < 0 then
+    raise exception 'generation cost must be non-negative' using errcode = '22023';
+  end if;
+  if exists (
+    select 1 from unnest(p_labels) label
+    where label is null
+      or char_length(label) not between 1 and 80
+      or label is distinct from btrim(label)
+  ) then
+    raise exception 'variation labels must be trimmed and 1-80 characters' using errcode = '22023';
+  end if;
+  if (select count(distinct lower(label)) from unnest(p_labels) label) <> v_count then
+    raise exception 'variation labels must be unique' using errcode = '22023';
+  end if;
+
+  select * into v_existing
+  from variation_requests vr
+  where vr.id = p_request_id;
+  if found then
+    if v_existing.user_id is distinct from p_user_id
+       or v_existing.source_output_version_id is distinct from p_source_output_version_id
+       or v_existing.instructions is distinct from btrim(p_instructions)
+       or v_existing.labels is distinct from p_labels
+       or v_existing.requested_count is distinct from v_count
+       or v_existing.generation_cost_cents is distinct from p_generation_cost_cents then
+      raise exception 'request id was already used for another variation request' using errcode = '23505';
+    end if;
+    select coalesce(array_agg(fg.id order by fg.variation_index), '{}')
+      into v_group_ids
+    from file_groups fg
+    where fg.variation_request_id = v_existing.id;
+    return query select v_existing.id, v_existing.job_id, v_group_ids, true;
+    return;
+  end if;
+
+  select j.listing_id, fg.primary_photo_id, ov.storage_path, fg.edit_chain,
+         fg.size_preset, fg.provider
+    into v_listing_id, v_source_photo_id, v_source_path, v_source_chain,
+         v_size_preset, v_provider
+  from output_versions ov
+  join file_groups fg on fg.id = ov.file_group_id
+  join jobs j on j.id = fg.job_id
+  join listings l on l.id = j.listing_id
+  where ov.id = p_source_output_version_id
+    and l.user_id = p_user_id;
+  if not found then raise exception 'source version not found' using errcode = 'P0002'; end if;
+  if v_provider is null then raise exception 'source version has no generation provider' using errcode = '55000'; end if;
+
+  insert into jobs (
+    listing_id, title, status, kind, target_request_id, target_snapshot, submitted_at
+  ) values (
+    v_listing_id,
+    format('Variations ×%s — %s', v_count, left(btrim(p_instructions), 60)),
+    'processing',
+    'variation',
+    p_request_id,
+    jsonb_build_object(
+      'schemaVersion', 1,
+      'selectionMethod', 'version_variations',
+      'sourcePhotoId', v_source_photo_id,
+      'sourceOutputVersionId', p_source_output_version_id,
+      'labels', to_jsonb(p_labels),
+      'requestedGenerationCount', v_count,
+      'initialGenerationCostCents', p_generation_cost_cents
+    ),
+    now()
+  ) returning id into v_job_id;
+
+  insert into variation_requests (
+    id, user_id, listing_id, source_output_version_id, job_id,
+    instructions, labels, requested_count, generation_cost_cents
+  ) values (
+    p_request_id, p_user_id, v_listing_id, p_source_output_version_id, v_job_id,
+    btrim(p_instructions), p_labels, v_count, p_generation_cost_cents
+  ) returning id into v_request_id;
+
+  for v_index in 1..v_count loop
+    v_label := p_labels[v_index];
+    v_chain := v_source_chain || jsonb_build_array(jsonb_build_object(
+      'edit_type', 'REWORK',
+      'options', jsonb_build_object(
+        'instructions', btrim(p_instructions),
+        'source_path', v_source_path,
+        'parent_version_id', p_source_output_version_id
+      )
+    ));
+    insert into file_groups (
+      job_id, primary_photo_id, edit_chain, comment, size_preset, provider,
+      current_step, variation_request_id, variation_index, requested_output_label
+    ) values (
+      v_job_id, v_source_photo_id, v_chain, btrim(p_instructions), v_size_preset, v_provider,
+      jsonb_array_length(v_chain) - 1, v_request_id, v_index, v_label
+    ) returning id into v_group_id;
+    v_group_ids := array_append(v_group_ids, v_group_id);
+    insert into chat_messages(file_group_id, role, content)
+    values (v_group_id, 'user', btrim(p_instructions));
+  end loop;
+
+  return query select v_request_id, v_job_id, v_group_ids, false;
+end;
+$$;
+
+revoke all on function create_variation_request(uuid, uuid, uuid, text, text[], numeric)
+  from public, authenticated;
+grant execute on function create_variation_request(uuid, uuid, uuid, text, text[], numeric)
+  to service_role;
+
 comment on column output_versions.version_label is
   'Optional user-facing name. Naming never changes review state or the approved final pointer.';
 comment on table variation_requests is

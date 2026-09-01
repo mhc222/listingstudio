@@ -30,6 +30,9 @@ export type FileGroupRow = {
   fal_request_id: string | null
   retry_count: number
   qa_retry_count: number
+  variation_request_id: string | null
+  variation_index: number | null
+  requested_output_label: string | null
 }
 
 const SUBMIT_RETRY_BACKOFF_MS = 1500
@@ -304,6 +307,7 @@ export async function completeStep(
     .eq("id", fg.job_id)
     .single<{ kind: string }>()
   const isIdeasJob = jobRow?.kind === "ideas"
+  const isVariationJob = jobRow?.kind === "variation"
   const cost = MODELS[fg.provider].costCents
   if (!isIdeasJob || isRework || fg.retry_count > 0) {
     await db.from("spend_ledger").insert({
@@ -352,6 +356,7 @@ export async function completeStep(
       parent_version_id: isRework
         ? ((step!.options as ReworkOptions).parent_version_id ?? null)
         : null,
+      version_label: fg.requested_output_label ?? null,
     })
     .select("id")
     .single()
@@ -369,7 +374,7 @@ export async function completeStep(
   const skipsQA =
     fg.edit_chain.some((s) => ["FLOOR_PLAN_REDRAW", "PORTRAIT_RETOUCHING"].includes(s.edit_type)) ||
     is360Chain(fg.edit_chain)
-  if ((isIdeasJob && !isRework) || skipsQA) {
+  if ((isIdeasJob && !isRework) || isVariationJob || skipsQA) {
     const { data: siblingsIdeas } = await db
       .from("file_groups")
       .select("id, step_status, current_step, edit_chain")
