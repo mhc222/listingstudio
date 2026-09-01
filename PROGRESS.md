@@ -52,6 +52,7 @@
 - Applied an interior-staging curation gate at the rendered 480 × 270 crop. The first search pass retained only Modern, Mid-Century Modern, and Hamptons; Contemporary, Farmhouse, Traditional, Urban/Industrial, Commercial, and Scandinavian were replaced. A final strict review approved every mapping after Industrial gained full brick/leather/steel/timber room context and Scandinavian gained pale timber, functional white furniture, and a distinct Nordic rug.
 - Added `public/staging-styles/SOURCES.md` with photographer, stable Pexels page, download date, license/policy links, and the design signals supporting each assignment. The local WebP set totals about 214 KB.
 - TypeScript, ESLint, and the production build pass all 24 routes. Port 3000 was stopped before the build and the dev server was restarted on port 3000 afterward.
+- Pushed the complete 15-commit Phases 38–41 release through `feea1cd` to GitHub `main` and deployed it to Vercel production as `dpl_BQqSg9iYha9UZ1vsWqwYHSfAoBUV`. The canonical alias `https://listing-studio-three.vercel.app` is Ready; live smoke checks return 200 for `/` and `/login`, and the unauthenticated `/dashboard` boundary correctly redirects to `/login`.
 
 **Phase 40 shipped:**
 - Replaced all nine code-drawn sofa/lamp illustrations in the Stage furniture-style picker with locally served, AI-generated photographic interior vignettes. The labels remain authoritative and the images are decorative (`alt=""`), so selection does not depend on interpreting a picture.
@@ -59,7 +60,7 @@
 - The nine compressed WebP assets total under 180 KB, live in `public/staging-styles/`, and have no remote loading, tracking, availability, or third-party stock-license dependency. Longer labels wrap to two lines instead of truncating.
 - TypeScript and ESLint pass. The production build passes all 24 routes after the final three-image refinement.
 
-**Next action:** Matt visually reviews the open local Stage studio at desktop and phone width. Deploy after approval, or continue with the separate >10 MB upload phase / floor-plan pin persistence / photo→room matching / Gemini OCR A-B work.
+**Next action:** Matt visually reviews the production Stage studio at desktop and phone width. Then continue with the separate >10 MB upload phase / floor-plan pin persistence / photo→room matching / Gemini OCR A-B work.
 
 **Phase 39 shipped:**
 - Replaced the shared styled-native Select with a Radix Select adapter. Existing option call sites, controlled values, server-action names/defaults, disabled/required states, and `onChange(e.target.value)` behavior remain compatible, while every dropdown now has an anchored application popover, selected checkmark, collision handling, keyboard/typeahead support, optional descriptions, and controlled typography. There are no native `<select>` elements left in application source.
