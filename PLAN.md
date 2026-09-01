@@ -505,3 +505,19 @@ Spec of record: DECISIONS.md 2026-08-31 "UI REDESIGN DIRECTION LOCKED" (commit b
 **DoD:** all nine staging styles have distinct, coherent, photoreal previews; no cartoon/CSS furniture artwork remains; previews crop cleanly at desktop and phone widths; labels remain fully legible and do not depend on image content; selected, hover, focus, disabled, keyboard, and screen-reader behavior remains correct; the image payload is appropriately compressed and locally served; lint and production build pass after the port-3000 dev server is stopped.
 
 **Manual test (Matt):** open the Living Room photo, choose Stage, scan all nine styles without opening another control, select Modern, Farmhouse, Urban/Industrial, Hamptons, and Scandinavian, and confirm each preview feels materially distinct while the selected check and label remain unmistakable. Repeat at phone width.
+
+---
+
+## Phase 41 — Curated real-photography staging references
+
+**Goal:** Supersede Phase 40's generated photographic previews with curator-verified real interior photography. The Stage picker should feel credible enough for a professional listing workflow: every thumbnail must visibly support its assigned design label, the nine images must read as one considered set, and the application must retain local performance and provenance rather than relying on remote hotlinks.
+
+**Curation contract:** source from Pexels because its current contributor policy rejects generative-AI uploads and its license explicitly permits commercial website/app use and modification. Evaluate candidates by furniture form, materials, palette, detailing, and architectural language—not search tags alone. An interior-staging design review must approve each mapping and flag adjacent styles that remain ambiguous. Avoid people, logos, prominent copyrighted artwork, recognizable branded products, and images whose composition depends on exterior scenery. Prefer consistent landscape, eye-level, naturally lit seating-area or room-detail photography that remains legible at thumbnail size.
+
+**Assets and provenance:** download the approved originals, crop/compress them into local WebP files under `public/staging-styles/`, and add a human-readable source manifest alongside the assets with style label, photographer, Pexels page URL, download date, and license URL. Never hotlink or call the Pexels API at runtime. These images are UI examples only and must not be silently sent to fal.ai or any other model as staging references.
+
+**Files:** replacement assets and provenance manifest under `public/staging-styles/`; `app/listings/[id]/chain-step-editor.tsx` changes only if filenames or presentation need a focused adjustment. No edit values, prompt compilation, provider/orchestration logic, API contract, schema, or staging defaults change.
+
+**DoD:** all nine visible previews are source-verified real photographs; an interior-design review approves each style assignment and specifically distinguishes Modern/Contemporary, Farmhouse/Traditional, and Scandinavian/Hamptons; every asset has recorded provenance; no remote request is made by the picker; local WebPs are appropriately compressed; labels and accessibility remain authoritative; TypeScript, ESLint, and the production build pass after port 3000 is stopped.
+
+**Manual test (Matt):** open Stage and scan the nine previews without reading their labels first; confirm the intended categories are recognizable, then inspect the provenance manifest for the photographer/source of any image. Repeat at phone width and confirm local image loading remains immediate.
