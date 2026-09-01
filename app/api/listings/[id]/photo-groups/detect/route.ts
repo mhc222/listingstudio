@@ -7,7 +7,7 @@ import { createClient } from "@/lib/supabase/server"
 export const maxDuration = 120
 
 function needsLuminance(photo: HdrCandidatePhoto) {
-  return photo.exposureBiasEv === null && !(photo.exposureTimeSeconds && photo.apertureFNumber && photo.iso)
+  return Boolean(photo.capturedAt) && photo.exposureBiasEv === null && !(photo.exposureTimeSeconds && photo.apertureFNumber && photo.iso)
 }
 export async function POST(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id: listingId } = await params

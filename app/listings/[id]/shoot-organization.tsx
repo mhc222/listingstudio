@@ -145,6 +145,7 @@ export function ShootOrganization({
             const memberIds = draftFor(group)
             const changed = memberIds.join(",") !== group.memberPhotoIds.join(",")
             const available = ungrouped.filter((photo) => !memberIds.includes(photo.id))
+            const manuallyReviewed = group.reason.startsWith("Created manually") || group.reason.startsWith("Adjusted manually")
             return (
               <article key={group.id} className="rounded-xl border border-border/70 bg-card/60 p-3">
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
@@ -152,7 +153,7 @@ export function ShootOrganization({
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="font-medium">{group.state === "confirmed" ? "Confirmed HDR stack" : "Proposed HDR stack"}</span>
                       <span className="rounded-full bg-accent px-2 py-0.5 text-[0.68rem] font-semibold text-accent-foreground">
-                        {Math.round(group.confidence * 100)}% {group.confidence >= 0.8 ? "match" : "— review"}
+                        {manuallyReviewed ? "Manual" : `${Math.round(group.confidence * 100)}% ${group.confidence >= 0.8 ? "match" : "— review"}`}
                       </span>
                     </div>
                     <p className="mt-1 max-w-3xl text-xs leading-relaxed text-muted-foreground">{group.reason}</p>

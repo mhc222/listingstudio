@@ -20,10 +20,20 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   if (photoIds.length < 3 || photoIds.length > 9 || new Set(photoIds).size !== photoIds.length) {
     return NextResponse.json({ error: "Choose 3–9 unique source exposures." }, { status: 400 })
   }
-  const { error } = await createAdminClient().rpc("replace_hdr_group_members", {
+  const admin = createAdminClient()
+  const { error } = await admin.rpc("replace_hdr_group_members", {
     p_group_id: groupId, p_user_id: owned.user.id, p_photo_ids: photoIds,
   })
   if (error) return NextResponse.json({ error: error.message }, { status: 409 })
+  const { error: reasonError } = await admin
+    .from("photo_groups")
+    .update({
+      confidence: 1,
+      reason: "Adjusted manually from the reviewed source exposures.",
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", groupId)
+  if (reasonError) return NextResponse.json({ error: "Members saved, but review evidence needs a reload." }, { status: 500 })
   return NextResponse.json({ groupId, status: "proposed" })
 }
 

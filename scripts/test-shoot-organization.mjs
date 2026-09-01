@@ -54,6 +54,7 @@ assert.deepEqual(logical, ["source-3", "source-4", "source-5", "merged"])
 const migration = await readFile(new URL("../supabase/migrations/0010_shoot_organization.sql", import.meta.url), "utf8")
 const hdrRoute = await readFile(new URL("../app/api/hdr-merge/route.ts", import.meta.url), "utf8")
 const jobsRoute = await readFile(new URL("../app/api/jobs/route.ts", import.meta.url), "utf8")
+const groupRoute = await readFile(new URL("../app/api/listings/[id]/photo-groups/[groupId]/route.ts", import.meta.url), "utf8")
 for (const contract of [
   "source_batch_id", "captured_at", "exposure_time_seconds", "photo_groups",
   "photo_group_members", "representative_photo_id", "confirm_hdr_group",
@@ -63,5 +64,6 @@ assert.doesNotMatch(hdrRoute, /formData\(/, "HDR route must not accept another m
 assert.match(hdrRoute, /photo_group_members/)
 assert.match(hdrRoute, /confirm_hdr_group/)
 assert.match(jobsRoute, /confirmed HDR stack counts as one photo/)
+assert.match(groupRoute, /Adjusted manually from the reviewed source exposures/)
 
-console.log("Phase 45 shoot-organization contract: 20 assertions passed")
+console.log("Phase 45 shoot-organization contract: 21 assertions passed")
