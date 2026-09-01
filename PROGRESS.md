@@ -56,6 +56,16 @@
 - [ ] Phase 53 — Scoped conversational batch rework
 - [ ] Phase 54 — Mobile intake/proofing and workflow-state hardening
 
+## ACTIVE HANDOFF — Phase 45 awaiting live migration (2026-09-01)
+
+**Read this first.** Phase 45 is implemented through a coherent schema/API/UI checkpoint but is not complete. Matt must apply `supabase/migrations/0010_shoot_organization.sql` to the linked live Supabase project before live browser verification can continue. Do not begin Phase 46. Do not push or deploy.
+
+**Committed implementation:** commit `48b3343` adds source capture/exposure/camera metadata at Phase 43 finalization; explicit intake order/source batch lineage; durable proposed/confirmed/dismissed HDR groups and ordered members; owned detect/create/reorder/dismiss/reopen/confirm routes; stored-ID HDR fusion; one merged representative per confirmed stack; source-member rejection in `/api/jobs`; logical representative filtering in the listing tray; separate dashboard photo/floor-plan/source counts; and the tray-adjacent Shoot inventory review surface. Commit `5db4575` fixes and validates the schema after local database lint found PostgreSQL has no `min(uuid)` aggregate.
+
+**Verification so far:** `npm run test:shoot-organization` passes 20 assertions covering 3-, 5-, and 9-exposure sets, mixed singles, low-confidence luminance fallback, logical counts, stored-ID HDR, and route/schema contracts. `npm run test:intake` (16), `npm run test:upload-queue` (24), `npx tsc --noEmit --pretty false`, `npm run lint`, and `git diff --check` pass. Migrations `0001`–`0010` applied from scratch in an isolated local Supabase stack and `supabase db lint --local` returned `No schema errors found`. That exact temporary stack was stopped and its directory moved to Trash. Port 3000 remains the pre-existing dev server PID 66412; no build has run.
+
+**Exact resume action:** after Matt confirms the SQL ran, read this handoff, verify the live migration, upload or seed a reversible synthetic fixture with EXIF metadata, exercise detection plus split/merge/reorder/dismiss/reopen/confirm and exact merged lineage in the authenticated browser, test dashboard/tray counts at desktop and phone width, remove every synthetic row/object, then run the complete type/lint/test/build gate (stop port 3000 before build, restart it afterward). Update `UI-SPEC.md`, `PROGRESS.md`, and `DECISIONS.md`; check Phase 45 complete; final commit; clean stop. Production remains the Phase 38–41 release.
+
 ## ACTIVE HANDOFF — Phase 44 full-shoot queue complete (2026-09-01)
 
 **Read this first.** Phase 44 is complete. Listing photo and floor-plan intake now uses the Phase 43 direct resumable contract; no selected intake bytes enter a Next.js multipart request. The >10 MB P0 is closed in local code and live-browser verification, but production still serves the Phase 38–41 release because nothing was pushed or deployed. Stop here; Phase 45 alone owns shoot inventory, honest counts, and HDR bracket organization.
