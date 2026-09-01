@@ -647,6 +647,8 @@ The implementation arc below is approved for planning, not pre-authorized as one
 
 ## Phase 47 — Safe batch scope
 
+**Status (2026-09-01):** Complete in local code. Migration `0013_batch_scope.sql` is verified and queued for Matt's end-of-run SQL batch; live migrations remain through `0012`. Nothing was pushed or deployed.
+
 **Goal:** Close the mixed-room P0 with an exact, server-enforced target contract. Make existing range selection discoverable, add efficient group selection, and prevent any crafted or ordinary request from applying one implicit staging room to incompatible photos.
 
 **Selection:** preserve the existing Shift-range implementation in `listing-workspace.tsx`/`photo-grid.tsx`; expose it instead of rebuilding it. Add Select all for the visible filter, room-group and same-room-group selection, mobile-friendly range/group actions, and clear. Every batch composer shows the exact logical representative count, rooms/groups, ordered task chain, output size, and estimated generation count. “Nothing selected” never means “everything,” and batch plain-language copy must describe only supported behavior.

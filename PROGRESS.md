@@ -47,7 +47,7 @@
 - [x] Phase 44 — Full-shoot upload queue and recovery
 - [x] Phase 45 — Shoot inventory, counts, and HDR bracket organization
 - [x] Phase 46 — Room and same-view organization review
-- [ ] Phase 47 — Safe batch scope
+- [x] Phase 47 — Safe batch scope (local complete; migration 0013 queued for final SQL batch)
 - [ ] Phase 48 — Named persistent presets
 - [ ] Phase 49 — Listing-level progress truth
 - [ ] Phase 50 — Contact-sheet proofing and final selection
@@ -55,6 +55,24 @@
 - [ ] Phase 52 — Version naming and variation comparison
 - [ ] Phase 53 — Scoped conversational batch rework
 - [ ] Phase 54 — Mobile intake/proofing and workflow-state hardening
+
+## ACTIVE HANDOFF — Phase 47 safe batch scope complete in local code (2026-09-01)
+
+**Read this first.** Phase 47 is complete and committed in local code. Batch selection now has an exact visible scope, and `/api/jobs` independently enforces the same target/room contract before creating work. Stop here. Phase 48 alone owns named persistent presets; it must preserve the Phase 47 target snapshot and may add only migration `0014_edit_presets.sql`.
+
+**Selection and review shipped:** the existing numbered corner selection remains authoritative. Desktop Shift-range is preserved and documented; **Choose range** supplies the same two-endpoint action on touch; **Select all visible** obeys the current room/organization filters; room and durable same-room buttons select their named visible members; **Clear** is available after selection. Batch Studio shows one **Exact batch scope** with ordered logical count, room distribution including Untagged, same-room groups, ordered chain, output size, and the configured expected generation count. Empty selection never expands to the listing.
+
+**Server contract:** `lib/batch-scope.ts` reconciles exact ordered owned targets and supports explicit ordered per-target chains. Multi-photo Virtual Staging with one common chain requires every photo to have one confirmed room, all targets to share that exact room, and the chain room type to match. Mixed confirmed rooms require the explicit **Use each photo's confirmed room settings** action, which materializes a room-matched chain for each target; untagged staging batches remain blocked even through crafted overrides. `/api/jobs` re-reads current logical/HDR identity, room type, and same-room membership, rejects reordered/mismatched scopes, and creates FileGroups only from the validated targets. Single-photo staging and compatible non-staging batches retain their prior behavior.
+
+**Immutable history/idempotency:** verified migration `0013_batch_scope.sql` adds `jobs.target_request_id` and `jobs.target_snapshot`, a per-listing partial unique retry index, and a trigger that prevents mutation after a snapshot/request identity exists. The snapshot records target order/count, room/group IDs, source-versus-current-HDR lineage, per-target chains, output size, selection method, and the 2.5-generations-per-target configured estimate. Same request identity plus same snapshot returns the existing Job/FileGroups; the same identity plus changed scope is rejected.
+
+**Browser proof:** authenticated local QA used existing listing `d4622039-f278-488d-a5f4-e1c4d60ce1ce` (7 logical photos: 1 Living Room, 6 Untagged) and `70e08255-e85b-4cce-b6a8-890b13732d74` (3 confirmed Dining Room photos). Select-all produced exactly 7 numbered targets; touch range endpoints 1→3 produced exactly 3; the Living Room action selected only its one visible photo. The former unsafe staging case showed `6 Untagged`, 7 expected passes, its Run button disabled, and the instruction to organize those six. Enhancement on the same 7 remained runnable. The confirmed Dining Room staging batch stayed runnable and reconciled `3 targets → 8 expected passes`; changing output to Under 10MB updated the scope immediately. At 433px, document/body widths were 418px inside a 433px viewport, the complete scope remained readable, and browser logs had zero warnings/errors. No Run button was clicked and no generation, model call, live row, storage object, or cost was created.
+
+**Database/verification:** migrations `0001`–`0013` applied from scratch in an isolated local Supabase stack; database lint found no errors. SQL fixtures proved normal Job status updates do not alter scope, duplicate `(listing_id,target_request_id)` insertion fails, snapshot mutation fails, the owner sees/inserts owned Jobs, and cross-owner insertion fails under RLS. `npm run test:batch-scope` passes 34 assertions; Phase 43 intake (16), Phase 44 queue (24), Phase 45 shoot organization (21), and Phase 46 room analysis (47) regressions pass; TypeScript, lint, diff check, and the final 26-page production build pass. The temporary local database and fixtures were stopped and moved to Trash. Port 3000 was stopped before the build and restored at PID 89395; `/` returns 200.
+
+**SQL/release state:** Matt asked to run all remaining SQL at the end. Live migrations therefore remain through `0012`; `supabase/migrations/0013_batch_scope.sql` is pending and must run before any Phase 47 local/production Job submission. Nothing was pushed, deployed, or paid. Production remains the Phase 38–41 release.
+
+**Next action:** run `/clear`, then say: `Execute Phase 48 from PLAN.md. Read the ACTIVE HANDOFF first and resume from its committed checkpoint.` Do not start Phase 49, run a paid generation, push, deploy, or apply live SQL inside Phase 48 without a new explicit instruction.
 
 ## ACTIVE HANDOFF — Phase 46 room and same-view organization complete (2026-09-01)
 
