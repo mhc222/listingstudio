@@ -191,7 +191,7 @@ export function DeliveryWorkspace({ listingId, address }: { listingId: string; a
               <Input id="profile-name" value={profileForm.name} maxLength={80} onChange={(event) => setField("name", event.target.value)} className="mt-1.5" />
             </div>
             <div className="grid grid-cols-2 gap-2">
-              <div><label htmlFor="profile-format" className="text-xs font-semibold">Format</label><Select id="profile-format" value={profileForm.fileFormat} onChange={(event) => setField("fileFormat", event.target.value)} className="mt-1.5"><option value="jpeg">JPEG</option><option value="webp">WebP</option><option value="png">PNG</option></Select></div>
+              <div><label htmlFor="profile-format" className="text-xs font-semibold">Format</label><Select id="profile-format" value={profileForm.fileFormat} onChange={(event) => setProfileForm((current) => ({ ...current, fileFormat: event.target.value, maxMegabytes: event.target.value === "png" ? "" : current.maxMegabytes }))} className="mt-1.5"><option value="jpeg">JPEG</option><option value="webp">WebP</option><option value="png">PNG</option></Select></div>
               <div><label htmlFor="profile-quality" className="text-xs font-semibold">Quality</label><Input id="profile-quality" type="number" min="35" max="100" value={profileForm.quality} onChange={(event) => setField("quality", event.target.value)} className="mt-1.5" /></div>
             </div>
             <div className="grid grid-cols-2 gap-2">

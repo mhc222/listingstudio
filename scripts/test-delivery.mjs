@@ -74,6 +74,15 @@ const blocked = buildDeliveryPreview({
 equal(blocked.canDownload, false, "missing finals block the package")
 equal(blocked.omitted[0].reason, "No approved final", "missing approval is visible, not silently replaced")
 matches(blocked.blockingIssues.join(" "), /missing an approved final/, "blocker names missing finals")
+const duplicate = buildDeliveryPreview({
+  listingId: "listing", address: "12 Main St", profile,
+  candidates: [
+    { ...base, sourcePhotoId: "p1", originalFilename: "one.jpg" },
+    { ...base, sourcePhotoId: "p2", originalFilename: "two.jpg", finalId: "final-2" },
+  ],
+})
+equal(duplicate.canDownload, false, "a duplicated output selection blocks delivery")
+matches(duplicate.blockingIssues.join(" "), /selected more than once/, "duplicate blocker names the invalid selection")
 const changedProfile = { ...profile, updated_at: "2026-09-01T13:00:00Z" }
 const changed = buildDeliveryPreview({ listingId: "listing", address: "12 Main St", profile: changedProfile, candidates: [{ ...base, sourcePhotoId: "p1", originalFilename: "IMG_0001.jpg" }] })
 equal(changed.fingerprint === complete.fingerprint, false, "profile/final fingerprint changes invalidate stale previews")
@@ -108,12 +117,31 @@ const parsedZip = await JSZip.loadAsync(archiveBytes)
 equal(Object.keys(parsedZip.files).length, 12, "streamed archive is readable and contains every entry")
 equal((await parsedZip.file("photo-12.bin").async("uint8array"))[0], 11, "streamed archive preserves entry bytes")
 
+let largeCalls = 0
+let largeBytes = 0
+let largeMaxChunk = 0
+const largeStream = createStreamingZip(Array.from({ length: 64 }, (_, index) => ({
+  name: `full-shoot-${index + 1}.bin`,
+  data: async () => { largeCalls += 1; return new Uint8Array(1024 * 1024).fill(index) },
+})))
+const largeReader = largeStream.getReader()
+for (;;) {
+  const result = await largeReader.read()
+  if (result.done) break
+  largeBytes += result.value.length
+  largeMaxChunk = Math.max(largeMaxChunk, result.value.length)
+}
+equal(largeCalls, 64, "a 64-photo fixture materializes every entry exactly once")
+equal(largeBytes > 64 * 1024 * 1024, true, "bounded-stream fixture crosses 64 MB total output")
+equal(largeMaxChunk <= 64 * 1024, true, "64 MB total output still emits at most 64 KiB per backpressured chunk")
+
 const migration = readFileSync("supabase/migrations/0016_delivery_profiles.sql", "utf8")
 const loader = readFileSync("lib/delivery-server.ts", "utf8")
 const downloadRoute = readFileSync("app/api/listings/[id]/download-all/route.ts", "utf8")
 const previewRoute = readFileSync("app/api/listings/[id]/delivery/route.ts", "utf8")
 const workspace = readFileSync("app/listings/[id]/delivery/delivery-workspace.tsx", "utf8")
 const deliveryPage = readFileSync("app/listings/[id]/delivery/page.tsx", "utf8")
+const activity = readFileSync("app/listings/[id]/activity/page.tsx", "utf8")
 for (const invariant of ["delivery_profiles", "user_id", "file_format", "max_bytes", "disclosure_mode", "naming_pattern", "ordering", "enable row level security", "read own delivery profiles"]) {
   matches(migration, new RegExp(invariant), `migration contains ${invariant}`)
 }
@@ -122,11 +150,13 @@ matches(loader, /logicalPhotoIds/, "server preview uses the current logical-phot
 matches(downloadRoute, /preview\.fingerprint !== expectedFingerprint/, "download rejects a stale preview")
 matches(downloadRoute, /acknowledge.*preview\.fingerprint/, "download requires exact warning acknowledgement")
 matches(downloadRoute, /createStreamingZip/, "download uses the bounded streaming archive")
+matches(downloadRoute, /download\(candidate\.bucket, candidate\.storagePath, storageClient\)/, "archive reads only the recomputed exact-final storage path")
 equal(/JSZip|generateAsync/.test(downloadRoute), false, "production archive does not use whole-package JSZip buffering")
 matches(previewRoute, /loadDeliveryPackageContext/, "preview and download share one approved-set loader")
 matches(workspace, /Missing finals/, "workspace exposes omitted photos")
 matches(workspace, /Approve in Proofing/, "workspace routes missing finals to the exact proofing item")
 matches(workspace, /I reviewed these warnings/, "workspace requires explicit warning acknowledgement")
 matches(deliveryPage, /No latest-version fallback is used/, "delivery route states the selection boundary")
+matches(activity, /Prepare approved delivery/, "Activity links approved work to delivery")
 
 console.log(`delivery: ${assertions} assertions passed`)

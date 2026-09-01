@@ -89,10 +89,13 @@ export default async function ActivityPage({ params }: { params: Promise<{ id: s
       <Link href={`/listings/${id}`} className="text-sm text-muted-foreground hover:underline">
         ← {listing.address}
       </Link>
-      <h1 className="mt-2 text-3xl font-semibold tracking-[-0.035em]">Activity</h1>
-      <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-        Edits in progress and completed images for this listing.
-      </p>
+      <div className="mt-2 flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="text-3xl font-semibold tracking-[-0.035em]">Activity</h1>
+          <p className="mt-1 max-w-2xl text-sm text-muted-foreground">Edits in progress and completed images for this listing.</p>
+        </div>
+        {(finals ?? []).length > 0 && <Link href={`/listings/${id}/delivery`} className="text-sm font-medium underline underline-offset-4">Prepare approved delivery →</Link>}
+      </div>
       <div className="mt-6">
         <ToolsNav listingId={id} />
       </div>
