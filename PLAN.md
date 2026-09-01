@@ -539,3 +539,282 @@ Spec of record: DECISIONS.md 2026-08-31 "UI REDESIGN DIRECTION LOCKED" (commit b
 **DoD:** every named product has an evidence-aware journey comparison with current first-party links and actual browser observations where publicly accessible; inaccessible, account-gated, or paid-only behavior is labeled; Listing Studio is inspected in production and locally rather than inferred only from documentation; the known upload failure is explicitly ranked against all other gaps; recommendations are implementation-useful and separate usability from taste; `PROGRESS.md` and `DECISIONS.md` capture the final verdict and next approval gate; the PLAN checkpoint and final research checkpoint are separate commits; the worktree is clean; nothing is deployed.
 
 **Manual review (Matt):** read the executive verdict and top-five changes, inspect the evidence behind each P0, decide which recommendations to approve, and only then append future implementation phases. No implementation begins during Phase 42.
+
+---
+
+## Phases 43–54 — execution and resume contract
+
+The implementation arc below is approved for planning, not pre-authorized as one uninterrupted code run. Execute exactly one phase per context. The Phase 42 evidence in `42-UX-BENCHMARK.md` is the research source; do not reopen competitor research or the Phase 38–41 visual system unless a phase's own usability test produces contrary evidence.
+
+**Start or resume every phase:**
+
+1. Run `/clear` before beginning the phase.
+2. Read `CLAUDE.md` end to end, then the first `ACTIVE HANDOFF` in `PROGRESS.md`, the newest `DECISIONS.md` entries, and only the current phase plus its direct dependency in `PLAN.md`.
+3. Confirm `git status`, the last two commits, applied migration state, and whether the port-3000 dev server is running. Never run `npm run build` while that server is running and never move it to another port.
+4. Resume from the exact committed checkpoint named in `PROGRESS.md`; do not repeat completed work, pull later-phase scope forward, or disturb unrelated user changes.
+
+**Checkpoint discipline:** a migration or foundational contract lands in its own coherent checkpoint commit before dependent UI work. If a phase must stop early, first leave the code in a verified coherent state, update the top `ACTIVE HANDOFF` with completed/pending work, commands run, migration/deployment state, port-3000 state, and the exact next file/test, then commit that checkpoint. Never use `/clear` to escape undocumented partial work.
+
+**Completion discipline:** verify the phase in proportion to risk, exercise its complete browser journey at desktop and phone widths, update `UI-SPEC.md` when the implemented journey contract changes, update `PROGRESS.md` and `DECISIONS.md`, make the final phase commit, and confirm a clean worktree. Do not deploy or apply a live migration without Matt's explicit approval in that phase. If a production build is required, stop port 3000 first and restart it on port 3000 afterward. The completion reply must state the manual test, commits, migration/deployment state, and the next resume seed, then stop.
+
+**Resume seed format:** after `/clear`, Matt can say: `Execute Phase N from PLAN.md. Read the ACTIVE HANDOFF first and resume from its committed checkpoint.`
+
+---
+
+## Phase 43 — Secure resumable-intake contract
+
+**Goal:** Establish the durable storage, ownership, and idempotency contract that removes Next.js request bodies from professional photo intake. This phase proves a >10 MB direct transfer and safe finalization without yet changing the listing upload UI.
+
+**Storage and data contract:** add a private mutable `intake` bucket, durable upload batches/items rooted through listing ownership, deterministic upload-item/photo IDs, and server-generated user/listing paths. Replace the current bucket-wide authenticated storage policies for relevant app buckets with path-scoped ownership checks; a signed-in user must not read or write another user's object prefix. Use a unique upload-item→photo relationship plus conditional lifecycle transitions so prepare, transfer, finalize, retry, cancel, and cleanup are idempotent across Storage/Postgres crash boundaries.
+
+**Original contract:** preserve the exact uploaded bytes as the immutable source original. Add explicit source/canonical paths: ordinary correctly oriented inputs may share a path, while HEIC or EXIF-rotated inputs keep the untouched source and create a separate immutable normalized working derivative for browser/model compatibility. Existing edit/provider code reads the canonical path; future “original” delivery can select the untouched source. Finalization validates listing ownership, actual object size/type, server limits, and path before inserting exactly one `photos` row. Initial limits are centralized at 50 MB per file and 100 files per selection; JPG/PNG/WebP/HEIC/HEIF remain accepted and PDF remains floor-plan-only.
+
+**Likely files:** `supabase/migrations/0009_reliable_intake.sql`; a focused upload contract under `config/` and `lib/`; `lib/storage.ts`; authenticated prepare/finalize/cancel/status routes under `app/api/uploads/`; a non-UI verification harness and focused RLS/idempotency tests. `/api/upload` remains temporarily for existing UI callers until Phase 44.
+
+**Not in scope:** queue UI, RAW, cloud-drive import, HDR/room analysis, presets, or any visual change.
+
+**DoD:** a >10 MB file transfers directly to storage and finalizes through the new contract; raw bytes remain immutable; canonical normalization is explicit; unauthorized path access fails; spoofed type/size fails; double-finalize creates one photo; crash/retry tests cover object-written/row-missing, row-created/status-not-finished, cancellation, and cleanup boundaries; no original can be overwritten/deleted; TypeScript, lint, migration/RLS, and focused contract tests pass. Live migration application requires explicit approval and is recorded.
+
+**Manual test (Matt):** authorize and finalize a >10 MB JPEG plus one HEIC through the contract harness, verify source bytes/path and canonical derivative behavior, repeat finalize, and confirm exactly one photo row per item and no cross-user access.
+
+**Clear/resume gate:** commit the migration/storage contract and the verified harness as coherent checkpoints; update `PROGRESS.md` with migration state, crash-boundary results, exact limits, and port-3000 state; clean, stop, and `/clear` before Phase 44.
+
+---
+
+## Phase 44 — Full-shoot upload queue and recovery
+
+**Goal:** Close the >10 MB P0 end to end by moving the listing/floor-plan upload UI onto Phase 43's direct resumable contract and making every file independently recoverable.
+
+**Queue experience:** use `tus-js-client` against Supabase's supported resumable endpoint, with the currently recommended 6 MiB chunk target confirmed at implementation time and no more than three concurrent files. Preflight before reservation; show accepted formats/limits, filename, bytes, progress, and `Waiting / Uploading / Finalizing / Uploaded / Needs attention / Canceled` per item. Support pause/resume, cancel, retry-one, retry-failed, partial success, and reload recovery using durable upload rows plus the TUS fingerprint/URL store. Photos and floor plans share the queue while retaining their distinct validation contracts.
+
+**Migration from the old path:** `app/listings/[id]/upload-panel.tsx` becomes a compact queue/launcher and no listing-intake bytes use `/api/upload`. Preserve that route only for any proven remaining small internal caller, otherwise remove it after call-site search. Failure copy names the file, cause, preserved work, and next action; one invalid item never resets successful items.
+
+**Likely files:** `package.json`/lockfile; `app/listings/[id]/upload-panel.tsx`; focused queue/item/client modules; Phase 43 routes/contracts; upload browser/integration tests; `UI-SPEC.md`.
+
+**Not in scope:** HDR grouping, room inference, RAW/cloud sources, presets, or unrelated interface polish.
+
+**DoD:** a mixed 50-file queue containing >10 MB, HEIC, and one invalid file completes valid items; interruption/reload resumes without duplicate rows; pause/cancel/retry work per item; regular photos and floor plans retain correct metadata/behavior; no request hits the Next multipart limit; mobile/desktop browser QA, TypeScript, lint, and focused tests pass.
+
+**Manual test (Matt):** upload three or more files including a >10 MB JPEG, interrupt one, cancel one, retry one, reload mid-transfer, and verify exact per-file recovery plus one photo row per success. Repeat a floor-plan upload.
+
+**Clear/resume gate:** update `PROGRESS.md` with the tested batch, reload/retry outcomes, old-route disposition, migration state, and port-3000 state; commit, clean, stop, and `/clear` before Phase 45.
+
+---
+
+## Phase 45 — Shoot inventory, counts, and HDR bracket organization
+
+**Goal:** Turn a successful intake batch into a trustworthy shoot structure. Preserve professional source identity, correct the dashboard/tray count mismatch, and propose HDR brackets without hiding or destroying any exposure.
+
+**Data and organization:** preserve original filename, capture timestamp, intake order, relevant exposure/focal metadata, and source batch on each photo. Add durable photo groups with `hdr_bracket` kind, proposal confidence/reason, `proposed / confirmed / dismissed` state, ordered members, and one explicit representative. Detect likely 3–9 exposure stacks from capture timing, dimensions, camera/lens/exposure metadata, and a bounded luminance/visual fallback only where needed; uncertainty stays visible. The review surface lets the operator confirm, split, merge, reorder, dismiss, or mark files as separate singles. The existing HDR route must consume owned stored photo/group IDs rather than accepting another multipart file upload.
+
+**Downstream identity:** before later batch/proofing/delivery work, define the unit of work. A confirmed group preserves every source exposure as immutable lineage but exposes one merged derivative as its editable/deliverable representative; unconfirmed groups expose their individual photos. Primary shoot counts, selection, proofing, approval, and delivery count logical representatives—not both a confirmed stack and all of its bracket members. The operator can reopen/undo a group and inspect source exposures, but no automatic merge hides or deletes them.
+
+**Workflow:** after upload, show exact totals for photos, floor plans, pending bracket proposals, confirmed stacks, and items needing review. Dashboard counts must label photo totals separately from attachments. The listing photo tray remains the primary surface; organization controls should extend it rather than introduce a second competing gallery.
+
+**Likely files:** `supabase/migrations/0010_shoot_organization.sql`; Phase 43/44 finalization metadata; a bracket detector/grouping helper under `lib/`; authenticated proposal/group routes; `app/dashboard/page.tsx`; `app/listings/[id]/{page,listing-workspace,photo-grid}.tsx`; existing HDR route/helper; `UI-SPEC.md` and focused tests.
+
+**Not in scope:** automatic room assignment, generative editing, deleting source brackets, RAW ingest, or changing typography/materials.
+
+**DoD:** source filename/order/metadata survive intake; the dashboard and tray report reconcilable file/representative/floor-plan counts; known 3-, 5-, and 9-exposure sets are proposed correctly; mixed singles remain singles; low-confidence sets require review; split/merge/reorder/dismiss persist; confirming and merging preserves every source, creates one traceable representative, and removes duplicate bracket members from downstream selection without deleting them; actions are listing-owned and idempotent; desktop/mobile browser QA, TypeScript, lint, and focused grouping tests pass.
+
+**Manual test (Matt):** upload a folder containing two real bracket sets plus singles, verify the proposed groups and reasons, split one incorrect proposal, merge one missed member, confirm the correct stack, and verify the dashboard distinguishes photos, bracket stacks, merged results, and the floor plan.
+
+**Clear/resume gate:** record the detector thresholds tested, representative/count contract, unresolved false positives/negatives, migration state, and exact merged-photo lineage in `PROGRESS.md`; add lasting grouping decisions to `DECISIONS.md`; commit, clean, stop, and `/clear` before Phase 46.
+
+---
+
+## Phase 46 — Room and same-view organization review
+
+**Goal:** Reduce manual room clerical work while keeping the human authoritative. Propose room labels and same-room angle groups that later batch editing can trust; never silently commit uncertain semantics.
+
+**Proposal contract:** analyze representative single/merged photos and return a room type, optional match to an existing floor-plan room, same-room group key, confidence, and short evidence. Existing floor-plan rooms may be candidates, but photo vision must never invent dimensions, geometry, doors, windows, or authoritative plan placement. High confidence may preselect a review choice; all database changes occur only after explicit acceptance. The operator can accept all high-confidence items, correct a label, create/select another room, link or unlink same-room angles, defer an item, or leave it untagged.
+
+**Workflow:** present proposals in the existing tray/room browser as an organization pass with `Suggested / Confirmed / Needs review / Untagged` filters and counts. Same-room groups become durable scope primitives for Phase 47 and later consistency prompts. Ledger any model-backed analysis using the existing allowed `interpreter` ledger kind plus an explicit room-analysis edit label, and make rerunning analysis deliberate rather than automatic on every page load.
+
+**Likely files:** `supabase/migrations/0011_room_proposals.sql`; a named room-analysis prompt in `lib/prompts.ts`; model config and ledger integration; authenticated analyze/accept routes; `app/listings/[id]/{room-browser,photo-grid,listing-workspace}.tsx`; tests and `UI-SPEC.md`.
+
+**Not in scope:** automatic furniture/layout consistency, inferring floor-plan geometry from room photos, applying edits, or hiding untagged photos from the shoot.
+
+**DoD:** a mixed shoot receives reviewable room and same-view proposals; no room tag/group is persisted without acceptance; corrections and deferred items survive reload; same-room membership is clear and reversible; dimensions remain sourced only from floor plans/manual input; analysis cost and model are ledgered; failed/partial analysis leaves photos usable; ownership and idempotency tests pass; browser QA covers a floor-plan listing and a listing without one.
+
+**Manual test (Matt):** run organization on a kitchen, living room, two bedroom angles, an exterior, and one ambiguous image; bulk-accept the obvious results, correct the ambiguous one, link/unlink the bedroom views, reload, and confirm the accepted room tags and groups are exact.
+
+**Clear/resume gate:** `PROGRESS.md` must name the tested listing, accepted/corrected/deferred counts, model/cost, and any known confidence weakness. Commit the proposal/prompt contract before dependent review UI; finish clean, stop, and `/clear` before Phase 47.
+
+---
+
+## Phase 47 — Safe batch scope
+
+**Goal:** Close the mixed-room P0 with an exact, server-enforced target contract. Make existing range selection discoverable, add efficient group selection, and prevent any crafted or ordinary request from applying one implicit staging room to incompatible photos.
+
+**Selection:** preserve the existing Shift-range implementation in `listing-workspace.tsx`/`photo-grid.tsx`; expose it instead of rebuilding it. Add Select all for the visible filter, room-group and same-room-group selection, mobile-friendly range/group actions, and clear. Every batch composer shows the exact logical representative count, rooms/groups, ordered task chain, output size, and estimated generation count. “Nothing selected” never means “everything,” and batch plain-language copy must describe only supported behavior.
+
+**Server safety:** persist an immutable target/scope snapshot with the Job and support explicit per-target chains/options or a validated split into compatible room groups. `/api/jobs` recomputes ownership, representative identity, room/group compatibility, and allowed options; it rejects a crafted mixed/untagged Virtual Staging request without explicit room-specific overrides. Client blocking is guidance, never the safety boundary. Retries reuse the same target snapshot.
+
+**Likely files:** `supabase/migrations/0012_batch_scope.sql`; `app/listings/[id]/{photo-grid,listing-workspace,composer,chain-step-editor}.tsx`; `app/api/jobs/route.ts`; a pure scope validator; orchestration/request tests and `UI-SPEC.md`.
+
+**Not in scope:** presets, new edit types, prompt/provider changes, or redesigning the studio.
+
+**DoD:** Select all/range/group selection works without N clicks; scope stays visible; logical HDR representatives—not source brackets—are targeted; the former two-untagged-photo Living Room defect is blocked or explicitly split; crafted API requests fail the same validation; per-target overrides persist; single-photo and compatible non-staging batch flows do not regress; RLS/idempotency, TypeScript, lint, and desktop/mobile browser tests pass.
+
+**Manual test (Matt):** reproduce the former two-untagged-photo defect through the UI and a direct crafted request; confirm both fail safely, then split/override by confirmed room and verify only the displayed targets run.
+
+**Clear/resume gate:** record the selection behaviors, scope snapshot, server rejection fixture, migration state, and target-count reconciliation in `PROGRESS.md`; commit, clean, stop, and `/clear` before Phase 48.
+
+---
+
+## Phase 48 — Named persistent presets
+
+**Goal:** Replace browser-local saved edits with reusable, validated production settings after batch scope is trustworthy.
+
+**Preset contract:** add account-owned named edit presets with ordered chain/options, included-settings summary, timestamps, and optional account/listing/room default relationships. Strictly sanitize every stored/replayed chain against the current edit catalog and option schema. A preset can be applied to the listing, room/same-room group, explicit selection, or one photo, then overridden without mutating the saved definition. Offer a one-time explicit import of the existing `localStorage` listing default before retiring it as source of truth; keep Apply last as a separate recent-action accelerator. Rename/delete never alters historical jobs.
+
+**Intake and scope:** expose preset choice during or immediately after Phase 44 intake, but always show the scope and included settings before application. No preset silently starts processing or resolves an incompatible mixed-room Stage batch.
+
+**Likely files:** `supabase/migrations/0013_edit_presets.sql`; authenticated preset actions/routes; `app/listings/[id]/{composer,chain-step-editor,upload-panel}.tsx`; listing/page data wiring; validation helpers; tests and `UI-SPEC.md`.
+
+**Not in scope:** a client/CRM entity, team sharing, silent auto-run, or new task/provider behavior.
+
+**DoD:** named presets survive browser/device sessions; invalid edit chains/options are rejected; included settings and target scope are inspectable; account/listing/room defaults resolve deterministically; overrides do not mutate presets; legacy import is one-time and reversible until confirmed; historical jobs remain stable; RLS, TypeScript, lint, and browser tests pass.
+
+**Manual test (Matt):** import or create “MLS warm clean,” set it as a listing default, apply it to one room group, override one photo, reload in a fresh session, and verify the saved preset and untouched definition.
+
+**Clear/resume gate:** record schema/migration state, legacy-default disposition, validation fixture, default precedence, and scope test in `PROGRESS.md`; commit, clean, stop, and `/clear` before Phase 49.
+
+---
+
+## Phase 49 — Listing-level progress truth
+
+**Goal:** Let the operator answer “What is happening, and what needs me?” from one surface before adding approval semantics.
+
+**Operational model:** derive listing counts from durable upload, organization, Job, FileGroup, output, and failure truth rather than maintain a second mutable listing state machine. Expose `Uploading / Organizing / Queued / Editing / Review pending / Needs attention` counts with exact item drill-through. Finished outputs become reviewable immediately while other work continues; failed items link to the correct upload, organization, generation, or signed-image recovery. Dashboard summary and Activity use the same pure aggregation contract.
+
+**Likely files:** a pure `lib/listing-status.ts`/query contract; dashboard and listing/Activity loaders; `app/listings/[id]/job-feed.tsx`; narrow realtime/reconciliation integration; tests and `UI-SPEC.md`.
+
+**Not in scope:** approval/final selection, delivery, notifications, or a second orchestration state machine.
+
+**DoD:** aggregate counts reconcile to underlying rows for active, partial, failed, and recovered fixtures; no unfinished/failed listing reads complete; completed items are accessible during partial processing; every failure has an item-specific action; realtime/reload settles to the same derived truth; TypeScript, lint, focused aggregation tests, and desktop/mobile browser QA pass.
+
+**Manual test (Matt):** use a listing with an active upload, unresolved organization item, ready output, running output, and one failure; verify counts and drill-through, resolve/retry items, and confirm the summary reconciles without stale duplicate status.
+
+**Clear/resume gate:** record the tested state matrix, reconciliation totals, realtime/reconcile coverage, and any deliberately derived wording in `PROGRESS.md`; commit, clean, stop, and `/clear` before Phase 50.
+
+---
+
+## Phase 50 — Contact-sheet proofing and final selection
+
+**Goal:** Separate `Ready` from `Approved final` and make full-shoot review efficient enough to support safe delivery in Phase 51.
+
+**Proofing workflow:** add a focused listing proofing workspace with contact sheet/filmstrip, room/status/QA filters, keyboard next/previous, fast before/after, version selection, `Approve final`, `Needs changes`, and `N of M approved`. Finished outputs can be reviewed while others process. Opening or comparing an image never implies approval.
+
+**Final-selection contract:** add per-version review state and an explicit `photo_finals` record for each logical source representative. It can point to a valid output version or deliberately approve the untouched original. The server validates lineage, ownership, and logical HDR representative identity; one source has at most one active final and replacing it is atomic/idempotent. Later refinements never move the pointer. Needs-changes attaches to the reviewed version with an optional note/refinement path. Disable the unsafe listing ZIP when this phase ships; individual downloads remain until Phase 51 replaces it.
+
+**Likely files:** `supabase/migrations/0014_proofing_and_finals.sql`; authenticated review/final actions; a focused proofing route/workspace; FileGroup workspace; shared `BeforeAfter`; listing navigation/Activity; tests and `UI-SPEC.md`.
+
+**Not in scope:** package generation, team approvals/comments, or auto-approval.
+
+**DoD:** keyboard proofing crosses a full shoot; original or one lineage-valid version can be approved per source; choosing another is atomic; later versions do not change the final; needs-changes persists; source brackets do not demand duplicate approvals; no viewing action approves; the unsafe ZIP is unavailable; RLS/idempotency, TypeScript, lint, and mobile/desktop browser tests pass.
+
+**Manual test (Matt):** review a listing with processing, failed, bracketed, original-only, and multi-version items; approve one original and one older revision, mark another needs changes, reload, and verify exact finals/counts while new processing continues.
+
+**Clear/resume gate:** record the fixture mix, approval/lineage invariants, unsafe-ZIP disablement, migration state, and review counts in `PROGRESS.md`; commit, clean, stop, and `/clear` before Phase 51.
+
+---
+
+## Phase 51 — Approved finals and MLS delivery
+
+**Goal:** Replace the unsafe “latest completed edits” ZIP with a previewable, reproducible MLS/client package containing only explicitly approved source finals.
+
+**Delivery contract:** add account-owned named delivery profiles covering file format, dimensions/quality or size ceiling, watermark/virtual-staging disclosure, naming pattern, and ordering. Build a package preview from Phase 50's explicit source-final selections. Show included/omitted photos, original versus edited source, chosen version, room/order, generated filename, expected warnings, and missing finals before download. Block missing/duplicate selections; require acknowledgement for QA/compliance warnings; never silently fall back to the latest version.
+
+**Package output:** use deterministic address/sequence/room or preserved-original naming, traversal-safe sanitization, collision handling, stable order, approved originals/versions only, optional disclosure companions, and a human-readable manifest recording source, selected version, transformation/disclosure, dimensions, bytes, and generation time. Replace JSZip's current whole-shoot buffering with a backpressured streaming archive or a durable asynchronous package artifact; the server recomputes the approved set at download time and peak memory must remain bounded as total package bytes grow. Replace or rename `/download-all` so no stale unsafe path remains.
+
+**Likely files:** `supabase/migrations/0015_delivery_profiles.sql`; a new bounded package helper; `lib/deliver.ts`; authenticated delivery-profile/package routes; `app/api/listings/[id]/download-all/route.ts`; listing proofing/Activity/download UI; tests and `UI-SPEC.md`.
+
+**Not in scope:** publishing directly to an MLS, claiming universal MLS compliance, client portals, or changing the visual brand.
+
+**DoD:** the ZIP cannot include an abandoned/latest experiment unless explicitly approved; an older approved revision and an approved original export correctly; filenames are deterministic, traversal-safe, and collision-free; profile limits are enforced; virtual staging disclosure is explicit; manifest matches every file; missing finals and warnings fail visibly; another user cannot preview/download a package; a growing full-shoot fixture demonstrates bounded peak memory/backpressure; TypeScript, lint, focused package tests, and browser QA pass.
+
+**Manual test (Matt):** approve a mix of originals, latest results, and one older revision; create an MLS profile; inspect the preview; resolve a missing final; download; verify order, names, dimensions/size, watermark/disclosure, and manifest, and confirm no abandoned output is present.
+
+**Clear/resume gate:** record the exact package fixture, profile, validation results, memory measurement, ZIP contents, migration state, and old-route disposition in `PROGRESS.md`; commit, clean, stop, and `/clear` before Phase 52.
+
+---
+
+## Phase 52 — Version naming and variation comparison
+
+**Goal:** Make immutable history decision-useful without mixing it with batch orchestration. Let the operator name, understand, and compare branches while approved-final state remains stable.
+
+**Version workflow:** add meaningful version labels, explicit parent/branch context, hover/list previews, and side-by-side comparison of any two lineage-compatible versions. Preserve branch-from-any-version and every current output. A variation request creates clearly labeled sibling outputs from one source/version with exact generation count/cost shown before submission; successful siblings remain usable if another fails.
+
+**Approval safety:** creating/naming/comparing/generating a version never moves Phase 50's final pointer. Replacing the approved branch is a separate explicit action, and delivery continues to surface any needs-changes conflict.
+
+**Likely files:** `supabase/migrations/0016_version_labels.sql`; version actions/API; FileGroup and proofing workspaces; a dedicated two-version compare built on the existing comparison primitive; variation submission/orchestration tests; `UI-SPEC.md`.
+
+**Not in scope:** multi-photo conversational rework, implicit apply-to-all, provider replacement, or free/unbounded variations.
+
+**DoD:** versions can be named and compared without changing approval; parent/branch lineage survives reload; variation count/cost is explicit; partial variation failure preserves siblings; an older approved final remains selected until explicitly replaced; RLS, TypeScript, lint, orchestration/idempotency tests, and desktop/mobile browser QA pass. A paid-generation test requires Matt's explicit approval.
+
+**Manual test (Matt):** branch from an older result, name two directions, compare them side by side, create variations if authorized, and verify the existing approved final and delivery package remain unchanged.
+
+**Clear/resume gate:** record version lineage IDs, variation authorization/cost/result, approval behavior, and migration state in `PROGRESS.md`; commit, clean, stop, and `/clear` before Phase 53.
+
+---
+
+## Phase 53 — Scoped conversational batch rework
+
+**Goal:** Apply one correction safely across an explicit subset of results while preserving immutable per-target lineage, cost truth, and individual recovery.
+
+**Scope contract:** select exact ready/approved outputs by photo, explicit selection, room group, or same-room group; enter a shared correction; then preview every target, source version, protected geometry, generation count/cost, and optional per-target exception. Persist the immutable request/scope snapshot plus an idempotency key before submission. No selection never means all. The server revalidates ownership, lineage, compatibility, and overrides, then creates one child version per target.
+
+**Recovery and approvals:** report submission, processing, and failure per target; successful children remain available when siblings fail; retry reuses the stored snapshot/idempotency rules. New children never replace approved finals automatically, and protected geometry/prompt constraints continue through the existing compiler/orchestrator path.
+
+**Likely files:** `supabase/migrations/0017_scoped_rework.sql`; batch-rework route/helper; proofing workspace; orchestration and prompt-compilation integration; cost/scope confirmation; tests and `UI-SPEC.md`.
+
+**Not in scope:** team collaboration, implicit global corrections, provider/model changes, or approval automation.
+
+**DoD:** a scoped correction cannot escape the displayed targets; per-target exceptions persist; duplicate submission is idempotent; partial failures are individually recoverable; approval pointers do not move; cost and lineage ledger reconcile; TypeScript, lint, orchestration tests, and desktop/mobile browser QA pass. Paid generations require Matt's explicit approval.
+
+**Manual test (Matt):** choose exactly three exteriors, exclude a fourth, add one target-specific exception, submit if authorized, and verify only three immutable children are created while every other photo/version/final remains untouched.
+
+**Clear/resume gate:** record authorization, scope snapshot/idempotency fixture, version/ledger IDs, partial-failure result, and approval behavior in `PROGRESS.md`; commit, clean, stop, and `/clear` before Phase 54.
+
+---
+
+## Phase 54 — Mobile intake/proofing and workflow-state hardening
+
+**Goal:** Complete the operational arc on small screens and under interruption. Make intake, status, light proofing, approval, and recovery dependable on mobile without squeezing the full desktop Task Studio into a phone or starting another cosmetic redesign.
+
+**Mobile contract:** optimize camera-roll/file intake, the resumable queue, organization decisions, listing status, contact-sheet proofing, before/after, approve/needs-changes, and delivery readiness for touch and constrained widths. Preserve resumability within web-platform limits, support reselect-to-reconnect after browser/OS eviction where necessary, and explicitly avoid promising native background upload after termination. Desktop remains the richer editing/configuration surface.
+
+**State hardening:** cover empty listing, empty filter, invalid/oversized file, interrupted upload, expired auth, offline/reconnect, duplicate resume, organization-analysis failure, generation failure, stale signed URL, missing final, package warning, and download failure. Every state names what happened, what was preserved, and the smallest recovery action. Add a golden-path regression covering upload → organize → preset/batch → progress → review/approve → delivery, plus targeted accessibility, reduced-motion, keyboard, touch-target, and no-horizontal-overflow checks.
+
+**Likely files:** Phase 43–53 workflow components and routes; shared empty/error/status primitives only when needed; signed-URL refresh and reconnect paths; integration/browser tests; `UI-SPEC.md`, `PROGRESS.md`, and `DECISIONS.md`.
+
+**Not in scope:** a native iOS/Android app, service-worker offline editing, broad visual polish, team collaboration, cloud-drive import, or automatic MLS publication.
+
+**DoD:** the golden path is usable at phone width with no document overflow; upload interruption/reload recovers without duplicates; all named empty/error cases have specific recovery; expired auth and signed URLs recover without losing work; light proofing and approval are touch/keyboard accessible; desktop behavior does not regress; TypeScript, lint, focused unit/integration/browser tests, and a production build pass after port 3000 is stopped. Restart port 3000 afterward. Deployment remains a separate explicit approval.
+
+**Manual test (Matt):** on a phone-sized browser, start a multi-file upload, interrupt/reload/resume it, resolve one organization proposal, inspect aggregate progress, approve one result, recover an expired image URL, and confirm delivery readiness; repeat the complete golden path on desktop.
+
+**Clear/resume gate:** update the top `ACTIVE HANDOFF` with the full Phase 43–54 completion state, remaining deferred items, verified commands, port-3000 state, migration/deployment inventory, and the next approved direction. Make the final implementation-arc checkpoint, confirm a clean worktree, stop, and use `/clear` before any release/deploy or new milestone.
+
+---
+
+## Phase 42 finding coverage
+
+| Audit gap | Implementation phase |
+|---|---|
+| P0 reliable full-shoot intake | 43 secure contract → 44 queue/recovery |
+| P1 source identity, counts, and HDR groups | 45 |
+| P1 room/same-view organization | 46 |
+| P0 safe batch scope | 47 |
+| P1 named persistent presets | 48 |
+| P1 listing-level progress truth | 49 |
+| P0 approved finals + P1 proofing | 50 |
+| P0/P1 approved MLS delivery | 51 |
+| P2 version naming/variations | 52 |
+| P2 scoped conversational rework | 53 |
+| P2 mobile and empty/error/recovery states | 54 |
+
+Locked boundaries across the arc: preserve the Phase 38–41 visual system; no RAW/cloud-drive/native-app scope; no multipart HDR upload; no automatic room/floor-plan geometry claims; no implicit “nothing selected means all”; `Ready` never equals `Approved final`; the unsafe latest-output ZIP stays disabled until replaced; and no live migration, paid generation, push, or deployment occurs without the phase's explicit approval gate.

@@ -43,6 +43,35 @@
 - [x] Phase 40 — Photoreal staging style previews (nine local WebP assets; no migration)
 - [x] Phase 41 — Curated real-photography staging references (nine local Pexels WebPs + provenance; no migration)
 - [x] Phase 42 — Competitive end-to-end UX benchmark (research only; no application change or deployment)
+- [ ] Phase 43 — Secure resumable-intake contract
+- [ ] Phase 44 — Full-shoot upload queue and recovery
+- [ ] Phase 45 — Shoot inventory, counts, and HDR bracket organization
+- [ ] Phase 46 — Room and same-view organization review
+- [ ] Phase 47 — Safe batch scope
+- [ ] Phase 48 — Named persistent presets
+- [ ] Phase 49 — Listing-level progress truth
+- [ ] Phase 50 — Contact-sheet proofing and final selection
+- [ ] Phase 51 — Approved finals and MLS delivery
+- [ ] Phase 52 — Version naming and variation comparison
+- [ ] Phase 53 — Scoped conversational batch rework
+- [ ] Phase 54 — Mobile intake/proofing and workflow-state hardening
+
+## ACTIVE HANDOFF — Post-audit implementation arc planned (2026-09-01)
+
+**Read this first.** Matt asked to turn Phase 42's approved research direction into an executable phased roadmap with `/clear` and resume built in. `PLAN.md` now contains Phases 43–54 plus one mandatory execution/resume contract. This checkpoint is planning only: no application source, package, schema, storage, migration, live data, port-3000 process, or deployment changed.
+
+**Roadmap and dependencies:**
+- Phase 43 secures the direct resumable intake/storage/finalization contract; Phase 44 moves the listing UI to its per-file queue. No other interface phase precedes the >10 MB fix.
+- Phase 45 establishes source metadata, honest counts, HDR groups, and one downstream representative per confirmed bracket set; Phase 46 adds human-reviewed room/same-view proposals.
+- Phase 47 makes batch scope explicit and server-enforced; Phase 48 adds named persistent presets only after that scope is safe.
+- Phase 49 derives listing-level progress truth; Phase 50 adds contact-sheet proofing and explicit final selection, and disables the unsafe latest-output ZIP.
+- Phase 51 replaces delivery with approved-only profiles, deterministic filenames, a manifest, and a bounded streaming/asynchronous archive. Phase 52 adds version naming/comparison, Phase 53 adds exact-scope batch rework, and Phase 54 hardens mobile and recovery states.
+
+**Verification corrections already incorporated:** an independent implementation planner and goal-backward checker rejected an eight-phase draft as too large for one-context execution. The final 12-phase split also (1) restricts current bucket-wide storage policy by user path and tests Storage/Postgres crash boundaries, (2) preserves raw uploaded bytes separately from canonical normalized derivatives, (3) defines the HDR representative consumed by selection/proofing/delivery, (4) preserves the existing Shift-range code while adding discoverability/Select all/group scope, (5) makes batch safety a server contract with an immutable scope snapshot, and (6) replaces JSZip whole-shoot buffering with an explicitly bounded package design.
+
+**Clear/resume contract:** execute exactly one phase per context. Before each phase run `/clear`, read `CLAUDE.md`, the first `ACTIVE HANDOFF`, newest `DECISIONS.md`, and the current PLAN phase; verify git/migrations/port 3000. On interruption, leave a verified coherent commit and update this handoff with completed/pending files, commands, migration/deploy state, port state, and exact next test. On completion, run proportional automated/browser checks, update `UI-SPEC.md` if the journey changed, update `PROGRESS.md`/`DECISIONS.md`, make the final phase commit, confirm a clean worktree, and stop. Never build while port 3000 is running; never apply a live migration, run a paid generation, push, or deploy without explicit approval.
+
+**Next action:** run `/clear`, then say: `Execute Phase 43 from PLAN.md. Read the ACTIVE HANDOFF first and resume from its committed checkpoint.` Phase 43 is backend/storage contract work only; Phase 44 owns the queue UI. Keep the Phase 38–41 visual system frozen.
 
 ## ACTIVE HANDOFF — Competitive UX benchmark complete (2026-09-01)
 
@@ -182,6 +211,8 @@
 > **Guardrails:** dev server is pinned to **port 3000** (Supabase magic-link callbacks + fal webhooks — do not change it); never run `npm run build` while a dev server is up; edit templates live in `lib/prompts.ts` as named exports (never inline a prompt); the verbatim geometry-preservation sentences in CLAUDE.md must never be paraphrased; never commit `.env*` (only `.env.example`); follow the execution protocol — checkpoint commits, keep PROGRESS.md and DECISIONS.md current.
 
 ## Current state
+
+Roadmap checkpoint (2026-09-01): **Phases 43–54 are planned and independently resumable; implementation has not started.** Every Phase 42 P0/P1/P2 gap maps to one bounded phase with dependencies, likely files/migrations, non-goals, DoD, Matt manual test, and a phase-specific clear/resume gate. The next unchecked phase is 43, the secure resumable-intake contract. The worktree at this checkpoint contains documentation changes only; no migration or deployment has occurred.
 
 Phase 42 (2026-09-01): **Competitive end-to-end UX benchmark complete — research only.** `42-UX-BENCHMARK.md` records live Listing Studio evidence and current first-party evidence for five direct and four adjacent products across all thirteen requested journey stages. The visual interface remains frozen. The documented recommendation is to reopen only the operational workflow, beginning with the >10 MB upload defect, then shoot organization, batch/preset scope, listing-level proofing, and approved MLS delivery. No application code changed and nothing was deployed.
 
@@ -340,6 +371,6 @@ Outstanding (Matt, manual):
 - Webhook signature verification still unexercised locally (needs deployed URL — phase 16).
 
 ## Next action
-**FIRST: see "ACTIVE HANDOFF — Competitive UX benchmark complete (2026-09-01)" near the top of this file and read `42-UX-BENCHMARK.md`.** Matt chooses which recommendations to approve and their scope before any implementation planning begins. The recommended first implementation phase is reliable full-shoot intake; the >10 MB defect must precede all further interface work. Preserve the Phase 38–41 visual freeze and reopen only evidence-backed workflow surfaces.
+**FIRST: see "ACTIVE HANDOFF — Post-audit implementation arc planned (2026-09-01)" near the top of this file.** Run `/clear`, then execute Phase 43 only from `PLAN.md`. Phase 43 must prove the secure resumable storage/finalization contract and >10 MB transfer before Phase 44 changes the upload UI. Preserve the Phase 38–41 visual freeze and use the handoff/commit/resume protocol exactly.
 
-**PLAN IS COMPLETE through Phase 42.** Phase 42 changed documentation only. Any implementation requires a new phase appended to `PLAN.md` after approval. **Migrations 0001–0008 remain applied live; no Phase 42 migration or deployment exists.**
+**PLAN IS DEFINED through Phase 54; Phase 43 is the next unchecked phase.** Migrations 0001–0008 remain applied live. Migrations 0009–0017 are roadmap reservations only and do not exist or apply yet. No roadmap implementation or deployment has begun.
