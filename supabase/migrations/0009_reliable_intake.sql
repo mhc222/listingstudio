@@ -16,6 +16,26 @@ where source_storage_path is null;
 alter table photos
   alter column source_storage_path set not null;
 
+-- Phase 44 moves the UI off the legacy multipart routes. Until then, keep all
+-- existing photo insert call sites compatible and treat their canonical object
+-- as the source object too.
+create or replace function default_photo_source_path()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  if new.source_storage_path is null then
+    new.source_storage_path := new.storage_path;
+  end if;
+  return new;
+end;
+$$;
+
+create trigger photos_default_source_path
+before insert or update of storage_path, source_storage_path on photos
+for each row execute function default_photo_source_path();
+
 create table upload_batches (
   id uuid primary key,
   listing_id uuid not null references listings(id) on delete cascade,
@@ -81,6 +101,7 @@ create policy "read own upload items" on upload_items for select to authenticate
 -- photos row and one completed upload item.
 create or replace function finalize_upload_item(
   p_item_id uuid,
+  p_user_id uuid,
   p_source_storage_path text,
   p_canonical_storage_path text,
   p_source_content_type text,
@@ -97,7 +118,6 @@ as $$
 declare
   v_item upload_items%rowtype;
   v_listing_id uuid;
-  v_user_id uuid;
   v_existing photos%rowtype;
   v_prefix text;
 begin
@@ -106,24 +126,49 @@ begin
   from upload_items i
   join upload_batches b on b.id = i.batch_id
   join listings l on l.id = b.listing_id
-  where i.id = p_item_id and l.user_id = auth.uid()
+  where i.id = p_item_id and l.user_id = p_user_id
   for update of i;
 
   if not found then
     raise exception 'upload item not found' using errcode = 'P0002';
   end if;
 
-  select b.listing_id, l.user_id
-  into v_listing_id, v_user_id
+  select b.listing_id
+  into v_listing_id
   from upload_batches b
-  join listings l on l.id = b.listing_id
   where b.id = v_item.batch_id;
 
   if v_item.status = 'canceled' then
     raise exception 'upload item canceled' using errcode = '22023';
   end if;
 
-  v_prefix := auth.uid()::text || '/' || v_listing_id::text || '/' || v_item.photo_id::text || '/';
+  if v_item.status not in ('finalizing', 'complete') then
+    raise exception 'upload item is not ready to finalize' using errcode = '55000';
+  end if;
+
+  if p_source_byte_size <> v_item.declared_byte_size
+     or p_source_byte_size <= 0
+     or p_source_byte_size > 52428800 then
+    raise exception 'invalid source byte size' using errcode = '22023';
+  end if;
+
+  if not (
+    p_source_content_type = v_item.declared_content_type
+    or (
+      p_source_content_type in ('image/heic', 'image/heif')
+      and v_item.declared_content_type in ('image/heic', 'image/heif')
+    )
+  ) then
+    raise exception 'invalid source content type' using errcode = '22023';
+  end if;
+
+  if p_canonical_content_type not in (
+    'image/jpeg', 'image/png', 'image/webp', 'application/pdf'
+  ) then
+    raise exception 'invalid canonical content type' using errcode = '22023';
+  end if;
+
+  v_prefix := p_user_id::text || '/' || v_listing_id::text || '/' || v_item.photo_id::text || '/';
   if p_source_storage_path <> v_item.source_storage_path
      or p_source_storage_path not like v_prefix || 'source.%'
      or not (
@@ -199,8 +244,9 @@ begin
 end;
 $$;
 
-revoke all on function finalize_upload_item(uuid, text, text, text, text, bigint, int, int) from public;
-grant execute on function finalize_upload_item(uuid, text, text, text, text, bigint, int, int) to authenticated;
+revoke all on function finalize_upload_item(uuid, uuid, text, text, text, text, bigint, int, int) from public;
+revoke all on function finalize_upload_item(uuid, uuid, text, text, text, text, bigint, int, int) from authenticated;
+grant execute on function finalize_upload_item(uuid, uuid, text, text, text, text, bigint, int, int) to service_role;
 
 -- A mutable staging bucket for direct/resumable transfer. Completed source and
 -- canonical objects are copied into immutable originals paths.
