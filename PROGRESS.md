@@ -42,6 +42,25 @@
 - [x] Phase 39 — Studio interaction language completion (Radix selects/disclosures; no migration)
 - [x] Phase 40 — Photoreal staging style previews (nine local WebP assets; no migration)
 - [x] Phase 41 — Curated real-photography staging references (nine local Pexels WebPs + provenance; no migration)
+- [x] Phase 42 — Competitive end-to-end UX benchmark (research only; no application change or deployment)
+
+## ACTIVE HANDOFF — Competitive UX benchmark complete (2026-09-01)
+
+**Read this first.** Phase 42 is complete as research and recommendations only. `PLAN.md` was checkpointed separately in commit `f943e79` before research began. The deployed Phase 38–41 visual system remains intentionally frozen; no application source, runtime asset, prompt, provider, schema, storage behavior, migration, or production deployment changed during this phase.
+
+**What was audited:**
+- Exercised the current production public product and the complete authenticated local workflow on pinned port 3000, including full-shoot upload mechanics, room/photo organization, single and batch Task Studio, saved edits, Activity/status, before/after, refinements, versions, QA, ZIP delivery, mobile containment, and empty states.
+- Benchmarked the same thirteen-stage journey across BoxBrownie, Autoenhance.ai, ApplyDesign, Virtual Staging AI, REimagineHome, Adobe Lightroom, Frame.io, Canva, and Photoroom using current first-party documentation, official public demos, and hands-on browser paths where access did not require an account, credits, or a paid generation.
+- Used a separate senior UX-research/product-design agent for an independent direct-product workflow pass, then reconciled its findings against the live Listing Studio inspection and primary sources.
+- Produced `42-UX-BENCHMARK.md` with the journey map, evidence-aware matrices, click/decision counts, friction analysis, `Steal / Adapt / Reject`, ranked P0/P1/P2 gaps, usability-versus-aesthetic separation, future phase order, anti-patterns, and precise evidence links.
+
+**Research verdict:**
+- Listing Studio's single-photo edit/result loop is credible and should be preserved. Its full-shoot production workflow is not yet competitive because intake, organization, safe batch scope, listing-level proofing, final approval, and delivery do not form a trustworthy operational spine.
+- The known >10 MB request truncation is **P0 rank 1** and must precede every further interface change. The fix must replace the one-request upload with bounded per-file/direct-resumable intake plus preflight, progress, retry, and partial success; friendlier error copy alone is insufficient.
+- Two other P0s are unsafe mixed-room batch scope and the lack of an approved-final delivery set. The current ZIP takes the latest version of every completed FileGroup and uses internal-ID filenames, so processing completion is not a safe proxy for delivery approval.
+- Keep typography, radii, colors, motion, material language, staging-photo curation, and the existing result canvas frozen. Evidence justifies reopening only upload/queue, intake organization, tray/batch scope, listing-level proofing/status, and delivery.
+
+**Recommended implementation order, pending Matt's approval:** reliable intake → shoot organization/HDR/rooms → safe batch scope and named persistent presets → listing-level progress/proofing → approved finals and MLS delivery → variations/rework → mobile intake/state hardening. Do not append or implement these phases until Matt chooses the scope and ordering. The dev server remained running on port 3000, so no production build was run; nothing was deployed.
 
 ## ACTIVE HANDOFF — Curated real staging photography complete (2026-09-01)
 
@@ -163,6 +182,8 @@
 > **Guardrails:** dev server is pinned to **port 3000** (Supabase magic-link callbacks + fal webhooks — do not change it); never run `npm run build` while a dev server is up; edit templates live in `lib/prompts.ts` as named exports (never inline a prompt); the verbatim geometry-preservation sentences in CLAUDE.md must never be paraphrased; never commit `.env*` (only `.env.example`); follow the execution protocol — checkpoint commits, keep PROGRESS.md and DECISIONS.md current.
 
 ## Current state
+
+Phase 42 (2026-09-01): **Competitive end-to-end UX benchmark complete — research only.** `42-UX-BENCHMARK.md` records live Listing Studio evidence and current first-party evidence for five direct and four adjacent products across all thirteen requested journey stages. The visual interface remains frozen. The documented recommendation is to reopen only the operational workflow, beginning with the >10 MB upload defect, then shoot organization, batch/preset scope, listing-level proofing, and approved MLS delivery. No application code changed and nothing was deployed.
 
 Phase 39 (2026-09-01): **Studio interaction language complete — no migration.** The app has zero native selects/details: Radix application listboxes preserve existing form/state contracts, and one animated Disclosure now serves the studio, room browser, Activity, and result rail without leaving closed controls focusable. The task rail remains spatially present, glides its active surface, anchors More tools, and preserves per-task drafts across switches. Stage uses visual material swatches and direct level/showcase choices. Processing truth sits over the image; the result rail is one surface rather than nested cards. Browser QA passed custom values/forms, mobile/tablet/desktop overflow, task preservation, More/disclosures, result, and Activity with no new console issues. TypeScript, ESLint, and production build pass.
 
@@ -319,6 +340,6 @@ Outstanding (Matt, manual):
 - Webhook signature verification still unexercised locally (needs deployed URL — phase 16).
 
 ## Next action
-**FIRST: see "ACTIVE HANDOFF — Studio interaction language complete (2026-09-01)" near the top of this file.** Phase 39 is shipped and browser/build verified without starting another paid generation. Next recommended action: Matt visually approves the local Stage/result surfaces, then deploy; if the next paid golden-path source exceeds 10 MB, land the separate upload-path phase first. AI floor-plan pin precision, photo→room matching, and Gemini OCR A/B remain separate levers. New work requires a phase appended first.
+**FIRST: see "ACTIVE HANDOFF — Competitive UX benchmark complete (2026-09-01)" near the top of this file and read `42-UX-BENCHMARK.md`.** Matt chooses which recommendations to approve and their scope before any implementation planning begins. The recommended first implementation phase is reliable full-shoot intake; the >10 MB defect must precede all further interface work. Preserve the Phase 38–41 visual freeze and reopen only evidence-backed workflow surfaces.
 
-**PLAN IS COMPLETE through Phase 39.** The UI-redesign arc (25–39), public home page (33), room browser (34), Activity split (35), end-to-end Task Studio/result journey (36), staging direction (37), calm interface system (38), and custom interaction language (39) are shipped in code. **Migrations 0001–0008 ALL applied live 2026-08-31.** Any further work needs a NEW phase appended to PLAN.md first.
+**PLAN IS COMPLETE through Phase 42.** Phase 42 changed documentation only. Any implementation requires a new phase appended to `PLAN.md` after approval. **Migrations 0001–0008 remain applied live; no Phase 42 migration or deployment exists.**
