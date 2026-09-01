@@ -84,6 +84,8 @@ export function FileGroupWorkspace({ listingId, fg, before, siblings }: {
   const [preview360, setPreview360] = useState(false)
   const [attaching, setAttaching] = useState(false)
   const [attached, setAttached] = useState(false)
+  const [resultImageFailed, setResultImageFailed] = useState(false)
+  const [imageRetryKey, setImageRetryKey] = useState(0)
 
   const versionsDesc = [...fg.output_versions].sort((a, b) => b.version_number - a.version_number)
   const latest = versionsDesc.find((version) => version.id === selectedVersionId) ?? versionsDesc[0]
@@ -185,6 +187,10 @@ export function FileGroupWorkspace({ listingId, fg, before, siblings }: {
   const complianceChecks = latest?.compliance?.checks ?? []
   const qaNeedsReview = Boolean(latest?.qa_note) || complianceChecks.some((check) => !check.pass)
 
+  useEffect(() => {
+    setResultImageFailed(false)
+  }, [latest?.id, latest?.url])
+
   return (
     <div>
       {siblings.length > 1 && (
@@ -208,13 +214,13 @@ export function FileGroupWorkspace({ listingId, fg, before, siblings }: {
 
       <div className="grid min-w-0 items-start gap-5 lg:grid-cols-[minmax(0,1fr)_21rem]">
         <section aria-label="Photo result" className="min-w-0">
-          {latest?.url ? (
+          {latest?.url && !resultImageFailed ? (
             <div className="relative">
               {is360 && preview360 ? (
                 <div className="h-[62vh] min-h-96 w-full overflow-hidden rounded-2xl bg-black">
                   <TourViewer scenes={[{ id: fg.id, name: "360 result", url: latest.url, width: before.width ?? 4096, initial_yaw: 0, hotspots: [] }]} activeSceneId={fg.id} />
                 </div>
-              ) : <BeforeAfter beforeUrl={before.url} afterUrl={latest.url} />}
+              ) : <BeforeAfter key={`${latest.id}:${imageRetryKey}`} beforeUrl={before.url} afterUrl={latest.url} onAfterError={() => setResultImageFailed(true)} />}
               {!settled && (
                 <div className="absolute inset-x-4 bottom-4 rounded-xl border border-white/20 bg-black/58 px-4 py-3 text-white shadow-lg backdrop-blur-xl sm:inset-x-auto sm:left-5 sm:max-w-sm">
                   <div className="flex items-center gap-2 text-xs font-semibold text-white/78">
@@ -225,6 +231,22 @@ export function FileGroupWorkspace({ listingId, fg, before, siblings }: {
                   <p className="mt-0.5 text-xs text-white/70">This version stays available while the refinement develops.</p>
                 </div>
               )}
+            </div>
+          ) : resultImageFailed ? (
+            <div className="relative flex min-h-[56vh] items-center justify-center overflow-hidden rounded-2xl bg-[#1b1917] p-5 shadow-[var(--shadow-surface)] sm:p-10">
+              {before.url && (
+                // eslint-disable-next-line @next/next/no-img-element -- signed listing-photo URL
+                <img src={before.url} alt="Original photo" className="absolute inset-0 h-full w-full object-contain opacity-30" />
+              )}
+              <div className="relative max-w-sm rounded-xl border border-white/20 bg-black/65 px-5 py-4 text-center text-white backdrop-blur-xl">
+                <p className="font-semibold">The finished image could not load</p>
+                <p className="mt-1 text-xs text-white/70">The result is still saved. Refresh its secure image link and try again.</p>
+                <Button type="button" size="sm" variant="secondary" className="mt-3" onClick={() => {
+                  setResultImageFailed(false)
+                  setImageRetryKey((value) => value + 1)
+                  router.refresh()
+                }}>Retry image</Button>
+              </div>
             </div>
           ) : (
             <div className="sweep relative flex min-h-[56vh] items-center justify-center overflow-hidden rounded-2xl bg-[#1b1917] p-5 shadow-[var(--shadow-surface)] sm:p-10">

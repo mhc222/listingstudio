@@ -115,7 +115,9 @@ export function ListingProgress({
           ))}
         </div>
       ) : (
-        <p className="mt-4 text-sm text-muted-foreground">Nothing currently needs action. New uploads and edits will appear here.</p>
+        <p className="mt-4 text-sm text-muted-foreground">
+          {summary.total > 0 ? "No items in this status. Show all work to see the rest." : "Nothing currently needs action. New uploads and edits will appear here."}
+        </p>
       )}
     </section>
   )

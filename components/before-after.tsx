@@ -4,7 +4,15 @@ import { useState } from "react"
 
 // Clip-path before/after slider (phase 10): a range input over stacked images.
 // Left of the divider shows the original, right shows the edited output.
-export function BeforeAfter({ beforeUrl, afterUrl }: { beforeUrl: string | null; afterUrl: string }) {
+export function BeforeAfter({
+  beforeUrl,
+  afterUrl,
+  onAfterError,
+}: {
+  beforeUrl: string | null
+  afterUrl: string
+  onAfterError?: () => void
+}) {
   const [pos, setPos] = useState(50)
   if (!beforeUrl) {
     return (
@@ -13,6 +21,7 @@ export function BeforeAfter({ beforeUrl, afterUrl }: { beforeUrl: string | null;
         <img
           src={afterUrl}
           alt="Edited listing photo"
+          onError={onAfterError}
           className="develop-in block h-auto max-h-[calc(100dvh-10rem)] max-w-full object-contain"
         />
       </div>
@@ -34,6 +43,7 @@ export function BeforeAfter({ beforeUrl, afterUrl }: { beforeUrl: string | null;
         <img
           src={afterUrl}
           alt="Edited listing photo"
+          onError={onAfterError}
           className="develop-in absolute inset-0 h-full w-full object-contain"
           style={{ clipPath: `inset(0 0 0 ${pos}%)` }}
         />
