@@ -166,6 +166,7 @@ declare
   v_room_name text;
   v_same_key text;
   v_group_id uuid;
+  v_previous_group_id uuid;
   v_existing_group same_room_groups%rowtype;
   v_accepted int := 0;
   v_deferred int := 0;
@@ -262,9 +263,14 @@ begin
       )
       on conflict (photo_id) do update set group_id = excluded.group_id, position = excluded.position;
     else
+      select group_id into v_previous_group_id
+      from same_room_group_members where photo_id = v_proposal.photo_id;
       delete from same_room_group_members where photo_id = v_proposal.photo_id;
-      delete from same_room_groups g where g.listing_id = p_listing_id
-        and (select count(*) from same_room_group_members m where m.group_id = g.id) < 2;
+      if v_previous_group_id is not null and (
+        select count(*) from same_room_group_members where group_id = v_previous_group_id
+      ) < 2 then
+        delete from same_room_groups where id = v_previous_group_id;
+      end if;
     end if;
 
     update room_proposals set decision = 'accepted', review_state = 'confirmed',

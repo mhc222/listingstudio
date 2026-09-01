@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
+import { createAdminClient } from "@/lib/supabase/admin"
 
 export async function createListing(formData: FormData) {
   const supabase = await createClient()
@@ -91,14 +92,57 @@ export async function updateRoom(formData: FormData) {
 export async function deleteRoom(formData: FormData) {
   const supabase = await createClient()
   const listingId = formData.get("listingId") as string
-  const { error } = await supabase.from("rooms").delete().eq("id", formData.get("roomId") as string)
+  const roomId = formData.get("roomId") as string
+  const { data: room } = await supabase.from("rooms").select("id").eq("id", roomId).eq("listing_id", listingId).single()
+  if (!room) return
+  // Accepted proposals retain their evidence, but deleting the confirmed Room
+  // returns them to the durable untagged/deferred state before the FK changes.
+  await createAdminClient().from("room_proposals").update({
+    decision: "deferred",
+    review_state: "untagged",
+    accepted_room_id: null,
+    decided_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  }).eq("listing_id", listingId).eq("accepted_room_id", roomId).eq("is_current", true)
+  const { error } = await supabase.from("rooms").delete().eq("id", roomId)
   if (error) throw error
   revalidatePath(`/listings/${listingId}`)
 }
 
 export async function tagPhoto(photoId: string, roomId: string | null, listingId: string) {
   const supabase = await createClient()
+  const { data: photo } = await supabase.from("photos").select("id, room_id").eq("id", photoId).eq("listing_id", listingId).single()
+  if (!photo || photo.room_id === roomId) return
+  if (roomId) {
+    const { data: room } = await supabase.from("rooms").select("id").eq("id", roomId).eq("listing_id", listingId).single()
+    if (!room) throw new Error("Room not found")
+  }
   const { error } = await supabase.from("photos").update({ room_id: roomId }).eq("id", photoId)
   if (error) throw error
+  const admin = createAdminClient()
+  const { data: memberships } = await supabase.from("same_room_group_members")
+    .select("group_id, same_room_groups!inner(listing_id)").eq("photo_id", photoId).eq("same_room_groups.listing_id", listingId)
+  for (const membership of memberships ?? []) {
+    await admin.from("same_room_group_members").delete().eq("group_id", membership.group_id).eq("photo_id", photoId)
+    const { count } = await admin.from("same_room_group_members").select("photo_id", { count: "exact", head: true }).eq("group_id", membership.group_id)
+    if ((count ?? 0) < 2) await admin.from("same_room_groups").delete().eq("id", membership.group_id)
+  }
+  if (!roomId) {
+    await admin.from("room_proposals").update({
+      decision: "deferred",
+      review_state: "untagged",
+      accepted_room_id: null,
+      decided_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }).eq("listing_id", listingId).eq("photo_id", photoId).eq("is_current", true)
+  } else {
+    await admin.from("room_proposals").update({
+      decision: "accepted",
+      review_state: "confirmed",
+      accepted_room_id: roomId,
+      decided_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }).eq("listing_id", listingId).eq("photo_id", photoId).eq("is_current", true)
+  }
   revalidatePath(`/listings/${listingId}`)
 }

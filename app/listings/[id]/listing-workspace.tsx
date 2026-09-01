@@ -5,6 +5,14 @@ import { Button } from "@/components/ui/button"
 import { PhotoGrid, type PhotoRow } from "./photo-grid"
 import { Composer } from "./composer"
 import { ShootOrganization, type PhotoGroupRow } from "./shoot-organization"
+import {
+  RoomOrganization,
+  type OrganizationFilter,
+  type OrganizationState,
+  type RoomAnalysisRunRow,
+  type RoomProposalRow,
+  type SameRoomGroupRow,
+} from "./room-organization"
 import { type JobRow, type SampleRow } from "./job-feed"
 import {
   ALL_ROOMS,
@@ -21,6 +29,9 @@ export function ListingWorkspace({
   photos,
   inventoryPhotos,
   photoGroups,
+  latestRoomAnalysis,
+  roomProposals,
+  sameRoomGroups,
   floorPlans,
   rooms,
   jobs,
@@ -30,6 +41,9 @@ export function ListingWorkspace({
   photos: PhotoRow[]
   inventoryPhotos: PhotoRow[]
   photoGroups: PhotoGroupRow[]
+  latestRoomAnalysis: RoomAnalysisRunRow | null
+  roomProposals: RoomProposalRow[]
+  sameRoomGroups: SameRoomGroupRow[]
   floorPlans: PhotoRow[]
   rooms: RoomRow[]
   jobs: JobRow[]
@@ -37,6 +51,7 @@ export function ListingWorkspace({
 }) {
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [activeRoom, setActiveRoom] = useState(ALL_ROOMS)
+  const [organizationFilter, setOrganizationFilter] = useState<OrganizationFilter>("all")
   // anchor index for shift-click range select
   const [anchor, setAnchor] = useState<number | null>(null)
   // full-screen single-photo editor (Matt, 2026-08-31): clicking a photo opens
@@ -51,16 +66,33 @@ export function ListingWorkspace({
   const openPhoto = photos.find((p) => p.id === openId) ?? null
   const studioIds = openPhoto ? [openPhoto.id, ...additionalIds] : []
   const selectedPhotos = photos.filter((photo) => selectedIds.includes(photo.id))
-  const filteredPhotos =
+  const roomFilteredPhotos =
     activeRoom === ALL_ROOMS
       ? photos
       : activeRoom === UNTAGGED_ROOM
         ? photos.filter((photo) => photo.room_id == null)
         : photos.filter((photo) => photo.room_id === activeRoom)
+  const proposalByPhoto = new Map(roomProposals.map((proposal) => [proposal.photo_id, proposal]))
+  const organizationState = (photo: PhotoRow): OrganizationState => {
+    const proposal = proposalByPhoto.get(photo.id)
+    if (proposal) return proposal.review_state
+    return photo.room_id ? "confirmed" : "untagged"
+  }
+  const organizationCounts = photos.reduce<Record<OrganizationState, number>>(
+    (counts, photo) => {
+      counts[organizationState(photo)] += 1
+      return counts
+    },
+    { suggested: 0, confirmed: 0, needs_review: 0, untagged: 0 }
+  )
+  const filteredPhotos = organizationFilter === "all"
+    ? roomFilteredPhotos
+    : roomFilteredPhotos.filter((photo) => organizationState(photo) === organizationFilter)
   const roomLabels = roomDisplayLabels(rooms)
   const roomOptions = rooms.map((room) => ({
     id: room.id,
     name: roomLabels.get(room.id) ?? room.name,
+    room_type: room.room_type,
   }))
 
   useEffect(() => {
@@ -164,13 +196,25 @@ export function ListingWorkspace({
   }
 
   return (
-    <div className="grid gap-7">
+    <div className="grid min-w-0 gap-7">
       <ShootOrganization
         listingId={listingId}
         photos={inventoryPhotos}
         logicalPhotoCount={photos.length}
         floorPlanCount={floorPlans.length}
         groups={photoGroups}
+      />
+      <RoomOrganization
+        listingId={listingId}
+        latestRun={latestRoomAnalysis}
+        proposals={roomProposals}
+        counts={organizationCounts}
+        filter={organizationFilter}
+        onFilterChange={(next) => {
+          setOrganizationFilter(next)
+          clear()
+        }}
+        selectedPhotoIds={selectedIds}
       />
       <RoomBrowser
         listingId={listingId}
@@ -204,6 +248,8 @@ export function ListingWorkspace({
           photos={filteredPhotos}
           rooms={roomOptions}
           listingId={listingId}
+          proposals={roomProposals}
+          sameRoomGroups={sameRoomGroups}
           selectedIds={selectedIds}
           onSelect={selectPhoto}
           onOpen={(i) => {
@@ -214,7 +260,7 @@ export function ListingWorkspace({
         />
         {filteredPhotos.length > 0 && (
           <p className="mt-2 text-xs text-muted-foreground">
-            Click a photo to edit it full-screen · use the corner ＋ to batch-select several.
+            Click a photo to edit it full-screen · use the corner ＋ to select views for editing or same-room linking.
           </p>
         )}
       </section>

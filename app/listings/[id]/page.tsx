@@ -9,12 +9,17 @@ import { ListingWorkspace } from "./listing-workspace"
 import { ToolsNav } from "./tools-nav"
 import { logicalPhotoIds } from "@/lib/hdr-groups"
 import { type PhotoGroupRow } from "./shoot-organization"
+import {
+  type RoomAnalysisRunRow,
+  type RoomProposalRow,
+  type SameRoomGroupRow,
+} from "./room-organization"
 
 export default async function ListingPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const supabase = await createClient()
 
-  const [{ data: listing }, { data: rooms }, { data: photos }, { data: groups }, { data: members }, { data: jobs }, { data: samples }] =
+  const [{ data: listing }, { data: rooms }, { data: photos }, { data: groups }, { data: members }, { data: jobs }, { data: samples }, { data: analysisRuns }, { data: roomProposals }, { data: sameRoomGroups }, { data: sameRoomMembers }] =
     await Promise.all([
       supabase.from("listings").select("id, address, mls_number").eq("id", id).single(),
       supabase.from("rooms").select("*").eq("listing_id", id).order("name"),
@@ -49,6 +54,10 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
         .select("id, label, storage_path, use_count")
         .order("use_count", { ascending: false })
         .order("created_at", { ascending: false }),
+      supabase.from("room_analysis_runs").select("id, status, analyzed_photo_count, cost_cents, error, created_at").eq("listing_id", id).order("created_at", { ascending: false }).limit(1),
+      supabase.from("room_proposals").select("id, run_id, photo_id, proposed_room_type, proposed_room_name, proposed_room_id, proposed_same_room_key, confidence, evidence, review_state, decision, accepted_room_id").eq("listing_id", id).eq("is_current", true),
+      supabase.from("same_room_groups").select("id, room_id, name").eq("listing_id", id).order("created_at"),
+      supabase.from("same_room_group_members").select("group_id, photo_id, position, same_room_groups!inner(listing_id)").eq("same_room_groups.listing_id", id).order("position"),
     ])
   if (!listing) notFound()
 
@@ -73,6 +82,16 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
     confidence: Number(group.confidence),
     memberPhotoIds: memberIdsByGroup.get(group.id) ?? [],
   })) as PhotoGroupRow[]
+  const sameRoomMemberIds = new Map<string, string[]>()
+  for (const member of sameRoomMembers ?? []) {
+    const list = sameRoomMemberIds.get(member.group_id) ?? []
+    list.push(member.photo_id)
+    sameRoomMemberIds.set(member.group_id, list)
+  }
+  const sameRoomGroupRows: SameRoomGroupRow[] = (sameRoomGroups ?? []).map((group) => ({
+    ...group,
+    memberPhotoIds: sameRoomMemberIds.get(group.id) ?? [],
+  }))
   const confirmed = photoGroups
     .filter((group) => group.state === "confirmed")
     .map((group) => ({ representative_photo_id: group.representative_photo_id, members: group.memberPhotoIds }))
@@ -172,6 +191,9 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
           photos={regular}
           inventoryPhotos={inventoryPhotos}
           photoGroups={photoGroups}
+          latestRoomAnalysis={(analysisRuns?.[0] as RoomAnalysisRunRow | undefined) ?? null}
+          roomProposals={(roomProposals ?? []).map((proposal) => ({ ...proposal, confidence: Number(proposal.confidence) })) as RoomProposalRow[]}
+          sameRoomGroups={sameRoomGroupRows}
           floorPlans={floorPlans}
           rooms={rooms ?? []}
           jobs={jobRows}

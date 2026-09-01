@@ -1,6 +1,6 @@
 # Listing Studio — End-to-End UX Contract
 
-Phase 45 · 2026-09-01 · implementation contract
+Phase 46 · 2026-09-01 · implementation contract
 
 ## Product promise
 
@@ -85,6 +85,19 @@ The Photos route owns upload, room filtering/tagging, photo selection, and entry
 - **Keep separate** is durable: dismissed members remain normal photos and are not immediately reproposed. **Reopen stack** restores all source exposures as downstream photos and preserves the prior merged derivative as lineage. Reconfirming creates a new immutable merged result.
 - A confirmed stack preserves every source exposure but contributes exactly one current merged representative to Rooms & photos, selection, later proofing, approval, and delivery. Its members are inspectable in organization but cannot start a new edit directly. Proposed stacks continue to expose their individual source photos.
 - HDR fusion consumes owned stored group/photo IDs. The browser never reuploads bracket bytes, and the route never accepts multipart source files.
+
+#### Room and same-view organization review
+
+- **Room review** follows shoot/HDR organization and uses only the current logical photo set. It never analyzes floor plans, hidden confirmed bracket sources, or stale merged derivatives as room photos.
+- Analysis is deliberate through **Suggest rooms** or **Run room review again**; it never runs on page load. The review call uses contact sheets labeled to exact owned photo IDs and records its model, cost, status, analyzed count, and partial/error note. A failed or partial pass leaves the tray and all existing room tags usable.
+- A proposal contains canonical room type, short room name, optional match to an existing owned room, optional same-room angle key, confidence, and one observable evidence sentence. It never supplies dimensions, plan geometry, adjacency, hidden openings, furniture, edits, or authoritative floor-plan placement.
+- The shared tray has mutually understandable **Suggested**, **Confirmed**, **Needs review**, and **Untagged** filters with counts. Existing manually tagged photos without proposals count as Confirmed; deferred and untouched photos count as Untagged.
+- Confidence at or above 80% may preselect a review choice when the canonical type is known. **Accept clear suggestions** remains an explicit action. `other`, ambiguous views, malformed/missing responses, and confidence below 80% remain Needs review.
+- Each pending card keeps the photo visible and offers an existing-room choice or editable new room name/type, an explicit same-room-link checkbox when applicable, **Confirm room**, and **Leave untagged**. Creating a room from a photo proposal never adds dimensions.
+- Confirmation is the only path from proposal to `photos.room_id` or durable same-room membership. Repeating the same decision is idempotent. Corrected labels, accepted room IDs, deferred state, and groups survive reload.
+- Two or more confirmed photos may be selected with the existing corner control and explicitly linked as views of one room. The server requires current logical photos with exactly one confirmed room. Every grouped card states the view count and offers **Unlink**; falling below two useful angles removes the group.
+- Manually changing or clearing a confirmed room removes stale same-room membership. Clearing the room returns its current proposal to the durable untagged/deferred state. Deleting a Room does the same before its accepted proposal reference is cleared.
+- Room proposals are organization evidence, not edit instructions. They do not apply image edits, promise cross-view furniture consistency, or hide untagged photos from selection.
 
 ### 5. Task Studio
 
@@ -197,6 +210,11 @@ Internal “chain” may appear only inside the Advanced disclosure as **Edit or
 | Upload complete | Say Uploaded and refresh the shared tray without clearing neighboring failures |
 | Upload canceled | Say Canceled; do not create a photo row |
 | Room filter has no photos | State the active filter and offer Show all photos |
+| Room analysis active | Keep every photo usable; say Analyzing rooms; prevent a duplicate click |
+| Room analysis partial | Keep valid proposals; name how many photos still need manual review |
+| Room analysis failed | Preserve prior proposals/tags and say that existing organization was not changed |
+| Room suggestion pending | Show confidence, evidence, proposed/new room choice, Confirm room, and Leave untagged |
+| Room suggestion deferred | Keep the photo visible and count it as Untagged after reload |
 | Interpreter working | Keep input and photo visible; use “Understanding your edit…” |
 | Interpreter question | Show one question beside the answer field; preserve prior choices |
 | Submission failed | Preserve draft, inline error, Retry |

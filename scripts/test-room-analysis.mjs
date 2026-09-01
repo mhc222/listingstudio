@@ -58,6 +58,9 @@ const prompts = await readFile(new URL("../lib/prompts.ts", import.meta.url), "u
 const analyzeRoute = await readFile(new URL("../app/api/listings/[id]/room-analysis/route.ts", import.meta.url), "utf8")
 const decisionsRoute = await readFile(new URL("../app/api/listings/[id]/room-analysis/decisions/route.ts", import.meta.url), "utf8")
 const groupsRoute = await readFile(new URL("../app/api/listings/[id]/same-room-groups/route.ts", import.meta.url), "utf8")
+const organizationUi = await readFile(new URL("../app/listings/[id]/room-organization.tsx", import.meta.url), "utf8")
+const photoGrid = await readFile(new URL("../app/listings/[id]/photo-grid.tsx", import.meta.url), "utf8")
+const listingPage = await readFile(new URL("../app/listings/[id]/page.tsx", import.meta.url), "utf8")
 for (const contract of [
   "room_analysis_runs", "room_proposals", "same_room_groups", "same_room_group_members",
   "is_current_logical_photo", "apply_room_proposal_decisions", "replace_same_room_group_members",
@@ -72,6 +75,13 @@ assert.match(analyzeRoute, /room_analysis_run_id/)
 assert.match(analyzeRoute, /idempotent/)
 assert.match(analyzeRoute, /is_current: false/)
 assert.match(decisionsRoute, /apply_room_proposal_decisions/)
+assert.match(decisionsRoute, /single-\$\{decision\.proposal_id\}/)
+assert.doesNotMatch(migration, /delete from same_room_groups g where g\.listing_id = p_listing_id/, "ungrouping must not delete unrelated singleton proposals")
 assert.match(groupsRoute, /Tag the selected views to the same room first/)
+for (const label of ["Suggested", "Confirmed", "Needs review", "Untagged"]) assert.match(organizationUi, new RegExp(label))
+assert.match(organizationUi, /Accept \$\{highConfidence\.length\} clear suggestion/)
+assert.match(photoGrid, /Leave untagged/)
+assert.match(photoGrid, /Same room ·/)
+assert.match(listingPage, /\.eq\("is_current", true\)/)
 
-console.log("Phase 46 room-analysis contract: 36 assertions passed")
+console.log("Phase 46 room-analysis contract: 47 assertions passed")

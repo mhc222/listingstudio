@@ -76,9 +76,9 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
 
   const logicalPhotos = (photos ?? []).filter((photo) => logicalIds.includes(photo.id))
   const urls = await getUrls("originals", logicalPhotos.map((photo) => photo.storage_path))
-  const { sheets, failedPhotoIds } = await buildRoomAnalysisSheets(
-    logicalPhotos.flatMap((photo) => urls[photo.storage_path] ? [{ id: photo.id, url: urls[photo.storage_path] }] : [])
-  )
+  const availablePhotos = logicalPhotos.flatMap((photo) => urls[photo.storage_path] ? [{ id: photo.id, url: urls[photo.storage_path] }] : [])
+  const missingUrlIds = logicalPhotos.filter((photo) => !urls[photo.storage_path]).map((photo) => photo.id)
+  const { sheets, failedPhotoIds } = await buildRoomAnalysisSheets(availablePhotos)
   if (!sheets.length) {
     await admin.from("room_analysis_runs").update({
       status: "failed", error: "No listing photos could be read.", completed_at: new Date().toISOString(),
@@ -86,7 +86,8 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     return NextResponse.json({ error: "No listing photos could be read. Your photos are unchanged." }, { status: 502 })
   }
 
-  const readableIds = logicalPhotos.map((photo) => photo.id).filter((id) => !failedPhotoIds.includes(id))
+  const unreadableIds = [...missingUrlIds, ...failedPhotoIds]
+  const readableIds = availablePhotos.map((photo) => photo.id).filter((id) => !failedPhotoIds.includes(id))
   const content: Anthropic.ContentBlockParam[] = [
     { type: "text", text: roomAnalysisUserPrompt(readableIds, (rooms ?? []).map((room) => ({ id: room.id, name: room.name, roomType: room.room_type }))) },
     ...sheets.flatMap((sheet, index): Anthropic.ContentBlockParam[] => [
@@ -165,7 +166,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     return NextResponse.json({ error: "Suggestions could not be published. Your earlier organization is preserved." }, { status: 500 })
   }
 
-  const missing = [...failedPhotoIds, ...parsed.missingPhotoIds]
+  const missing = [...unreadableIds, ...parsed.missingPhotoIds]
   const partial = missing.length > 0 || parsed.rejected.length > 0
   const error = partial ? `${missing.length} photo${missing.length === 1 ? "" : "s"} still need manual review.` : null
   await admin.from("room_analysis_runs").update({
