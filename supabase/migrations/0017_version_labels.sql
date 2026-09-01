@@ -162,9 +162,8 @@ declare
   v_job_id uuid;
   v_request_id uuid;
   v_group_id uuid;
-  v_group_ids uuid[] := '{}';
+  v_group_ids uuid[] := array[]::uuid[];
   v_chain jsonb;
-  v_index int;
   v_label text;
 begin
   if p_request_id is null or p_user_id is null or p_source_output_version_id is null then
@@ -190,6 +189,10 @@ begin
   if (select count(distinct lower(label)) from unnest(p_labels) label) <> v_count then
     raise exception 'variation labels must be unique' using errcode = '22023';
   end if;
+
+  -- Serialize exact retries before checking the receipt. This keeps two
+  -- simultaneous clicks from racing through the pre-insert existence check.
+  perform pg_advisory_xact_lock(hashtextextended(p_request_id::text, 0));
 
   select * into v_existing
   from variation_requests vr
@@ -252,8 +255,8 @@ begin
     btrim(p_instructions), p_labels, v_count, p_generation_cost_cents
   ) returning id into v_request_id;
 
-  for v_index in 1..v_count loop
-    v_label := p_labels[v_index];
+  for v_sibling_index in 1..v_count loop
+    v_label := p_labels[v_sibling_index];
     v_chain := v_source_chain || jsonb_build_array(jsonb_build_object(
       'edit_type', 'REWORK',
       'options', jsonb_build_object(
@@ -267,7 +270,7 @@ begin
       current_step, variation_request_id, variation_index, requested_output_label
     ) values (
       v_job_id, v_source_photo_id, v_chain, btrim(p_instructions), v_size_preset, v_provider,
-      jsonb_array_length(v_chain) - 1, v_request_id, v_index, v_label
+      jsonb_array_length(v_chain) - 1, v_request_id, v_sibling_index, v_label
     ) returning id into v_group_id;
     v_group_ids := array_append(v_group_ids, v_group_id);
     insert into chat_messages(file_group_id, role, content)

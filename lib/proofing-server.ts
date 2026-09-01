@@ -11,7 +11,9 @@ export type ProofingVersionRow = {
   fileGroupId: string
   jobTitle: string
   versionNumber: number
+  versionLabel: string | null
   parentVersionId: string | null
+  variationIndex: number | null
   createdAt: string
   reviewState: "unreviewed" | "needs_changes" | "approved"
   reviewNote: string | null
@@ -72,8 +74,8 @@ export async function loadProofingListing(
     supabase
       .from("jobs")
       .select(
-        `id, title, file_groups (id, primary_photo_id, step_status, last_error,
-          output_versions (id, version_number, parent_version_id, storage_path, qa_note, compliance, created_at, review_state, review_note, reviewed_at))`
+        `id, title, file_groups (id, primary_photo_id, step_status, last_error, variation_index,
+          output_versions (id, version_number, version_label, parent_version_id, storage_path, qa_note, compliance, created_at, review_state, review_note, reviewed_at))`
       )
       .eq("listing_id", listingId),
     supabase
@@ -136,7 +138,9 @@ export async function loadProofingListing(
           fileGroupId: group.id,
           jobTitle: job.title,
           versionNumber: version.version_number,
+          versionLabel: version.version_label,
           parentVersionId: version.parent_version_id,
+          variationIndex: group.variation_index,
           createdAt: version.created_at,
           reviewState: version.review_state,
           reviewNote: version.review_note,

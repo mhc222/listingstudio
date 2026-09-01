@@ -6,11 +6,17 @@ import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Disclosure } from "@/components/ui/disclosure"
+import { Input } from "@/components/ui/input"
 import { Select } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { StatePill } from "@/components/brand"
 import { BeforeAfter } from "@/components/before-after"
 import { TourViewer } from "@/components/tour-viewer"
+import {
+  automaticVersionLabel,
+  branchContext,
+  formatGenerationCost,
+} from "@/lib/versioning"
 import { EDIT_TYPES } from "../../edit-types"
 import type { ComplianceNote } from "../../job-feed"
 
@@ -41,8 +47,17 @@ export type WorkspaceFileGroup = {
   edit_chain: { edit_type: string; options?: Record<string, unknown> }[]
   output_versions: {
     id: string
+    file_group_id: string
+    job_title: string
     version_number: number
+    version_label: string | null
     parent_version_id: string | null
+    variation_index: number | null
+    created_at: string
+    group_status: string
+    group_error: string | null
+    edit_chain: { edit_type: string; options?: Record<string, unknown> }[]
+    generation_cost_cents: number
     qa_note: string | null
     compliance: ComplianceNote
     review_state: "unreviewed" | "needs_changes" | "approved"
@@ -97,31 +112,70 @@ export function FileGroupWorkspace({ listingId, fg, before, siblings, initialVer
   const [imageRetryKey, setImageRetryKey] = useState(0)
   const [reviewNote, setReviewNote] = useState("")
   const [reviewing, setReviewing] = useState(false)
+  const [versionName, setVersionName] = useState("")
+  const [naming, setNaming] = useState(false)
+  const [compareLeftId, setCompareLeftId] = useState("")
+  const [compareRightId, setCompareRightId] = useState("")
+  const [comparing, setComparing] = useState(false)
+  const [variationCount, setVariationCount] = useState(2)
+  const [variationText, setVariationText] = useState("")
+  const [variationLabels, setVariationLabels] = useState(["Direction A", "Direction B", "Direction C", "Direction D"])
+  const [creatingVariations, setCreatingVariations] = useState(false)
+  const [variationRequest, setVariationRequest] = useState<{ key: string; id: string } | null>(null)
 
-  const versionsDesc = [...fg.output_versions].sort((a, b) => b.version_number - a.version_number)
+  const versionsDesc = [...fg.output_versions].sort((a, b) => b.created_at.localeCompare(a.created_at))
   const latest = versionsDesc.find((version) => version.id === selectedVersionId) ?? versionsDesc[0]
-  const settled = ["complete", "failed"].includes(fg.step_status)
-  const isPlan = fg.edit_chain.some((step) => step.edit_type === "FLOOR_PLAN_REDRAW")
-  const isDusk = fg.edit_chain.some(
+  const namedVersions = versionsDesc.map((version) => ({
+    ...version,
+    displayLabel: automaticVersionLabel({
+      versionLabel: version.version_label,
+      parentVersionId: version.parent_version_id,
+      versionNumber: version.version_number,
+      variationIndex: version.variation_index,
+    }),
+  }))
+  const selectedNamed = namedVersions.find((version) => version.id === latest?.id)
+  const settled = ["complete", "failed"].includes(latest?.group_status ?? fg.step_status)
+  const currentSettled = ["complete", "failed"].includes(fg.step_status)
+  const currentActive = !currentSettled
+  const selectedChain = latest?.edit_chain ?? fg.edit_chain
+  const isPlan = selectedChain.some((step) => step.edit_type === "FLOOR_PLAN_REDRAW")
+  const isDusk = selectedChain.some(
     (step) => step.edit_type === "DAY_TO_DUSK" && (step.options?.preset ?? "dusk") === "dusk"
   )
-  const is360 = fg.edit_chain.some((step) => EDIT_360_TYPES.includes(step.edit_type))
-  const staged = fg.edit_chain.some((step) => STAGED_TYPES.includes(step.edit_type))
+  const is360 = selectedChain.some((step) => EDIT_360_TYPES.includes(step.edit_type))
+  const staged = selectedChain.some((step) => STAGED_TYPES.includes(step.edit_type))
   const thread = [...(fg.chat_messages ?? [])].sort((a, b) => a.created_at.localeCompare(b.created_at))
   const selectedIsFinal = Boolean(latest && fg.final?.output_version_id === latest.id)
-  const copy = selectedIsFinal
-    ? { label: "Approved final", heading: "This version is the approved final" }
-    : statusCopy(fg.step_status, Boolean(latest?.url))
+  const copy = currentActive
+    ? statusCopy(fg.step_status, Boolean(latest?.url))
+    : selectedIsFinal
+      ? { label: "Approved final", heading: "This version is the approved final" }
+      : statusCopy(latest?.group_status ?? fg.step_status, Boolean(latest?.url))
   const selectedSiblingIndex = Math.max(0, siblings.findIndex((item) => item.id === fg.id))
+  const compareLeft = namedVersions.find((version) => version.id === compareLeftId) ?? null
+  const compareRight = namedVersions.find((version) => version.id === compareRightId) ?? null
+  const comparisonReady = Boolean(compareLeft?.url && compareRight?.url && compareLeft?.id !== compareRight?.id)
+  const variationCost = (latest?.generation_cost_cents ?? 0) * variationCount
+  const fallbackCompareId = latest?.parent_version_id
+    ?? namedVersions.find((version) => version.id !== latest?.id)?.id
+    ?? ""
+
+  useEffect(() => {
+    setVersionName(latest?.version_label ?? "")
+    setCompareRightId((current) => current || latest?.id || "")
+    setCompareLeftId((current) => current || fallbackCompareId)
+  }, [fallbackCompareId, latest?.id, latest?.version_label])
 
   useEffect(() => {
     const supabase = createClient()
     const channel = supabase
       .channel(`fg-${fg.id}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "file_groups", filter: `id=eq.${fg.id}` }, () => router.refresh())
-      .on("postgres_changes", { event: "*", schema: "public", table: "output_versions", filter: `file_group_id=eq.${fg.id}` }, () => router.refresh())
+      .on("postgres_changes", { event: "*", schema: "public", table: "file_groups" }, () => router.refresh())
+      .on("postgres_changes", { event: "*", schema: "public", table: "output_versions" }, () => router.refresh())
       .on("postgres_changes", { event: "*", schema: "public", table: "chat_messages", filter: `file_group_id=eq.${fg.id}` }, () => router.refresh())
       .on("postgres_changes", { event: "*", schema: "public", table: "photo_finals", filter: `listing_id=eq.${listingId}` }, () => router.refresh())
+      .on("postgres_changes", { event: "*", schema: "public", table: "variation_requests", filter: `listing_id=eq.${listingId}` }, () => router.refresh())
       .subscribe()
     return () => { supabase.removeChannel(channel) }
   }, [fg.id, listingId, router])
@@ -159,7 +213,7 @@ export function FileGroupWorkspace({ listingId, fg, before, siblings, initialVer
   // localhost cannot receive fal webhooks. This listing-scoped endpoint uses
   // the same orchestrator transitions and production realtime remains primary.
   useEffect(() => {
-    if (settled) return
+    if (currentSettled) return
     let cancelled = false
     const reconcile = async () => {
       try {
@@ -172,15 +226,16 @@ export function FileGroupWorkspace({ listingId, fg, before, siblings, initialVer
     void reconcile()
     const timer = window.setInterval(reconcile, 5000)
     return () => { cancelled = true; window.clearInterval(timer) }
-  }, [listingId, router, settled])
+  }, [currentSettled, listingId, router])
 
   async function sendRework(versionId: string | undefined) {
     const message = reworkText.trim()
-    if (!message || reworking) return
+    const source = versionsDesc.find((version) => version.id === versionId)
+    if (!message || reworking || !source) return
     setReworking(true)
     setActionError(null)
     try {
-      const response = await fetch(`/api/file-groups/${fg.id}/rework`, {
+      const response = await fetch(`/api/file-groups/${source.file_group_id}/rework`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message, versionId }),
@@ -212,9 +267,10 @@ export function FileGroupWorkspace({ listingId, fg, before, siblings, initialVer
   }
 
   async function attachPlan(versionId: string | undefined) {
-    if (attaching) return
+    const source = versionsDesc.find((version) => version.id === versionId)
+    if (attaching || !source) return
     setAttaching(true)
-    const response = await fetch(`/api/file-groups/${fg.id}/attach-plan`, {
+    const response = await fetch(`/api/file-groups/${source.file_group_id}/attach-plan`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ versionId }),
@@ -227,7 +283,7 @@ export function FileGroupWorkspace({ listingId, fg, before, siblings, initialVer
 
   const watermark = dlWatermark ?? staged
   const downloadHref = latest
-    ? `/api/file-groups/${fg.id}/download?version=${latest.id}&watermark=${watermark ? 1 : 0}${dlVariant ? `&variant=${dlVariant}` : ""}`
+    ? `/api/file-groups/${latest.file_group_id}/download?version=${latest.id}&watermark=${watermark ? 1 : 0}${dlVariant ? `&variant=${dlVariant}` : ""}`
     : "#"
   const complianceChecks = latest?.compliance?.checks ?? []
   const qaNeedsReview = Boolean(latest?.qa_note) || complianceChecks.some((check) => !check.pass)
@@ -235,6 +291,59 @@ export function FileGroupWorkspace({ listingId, fg, before, siblings, initialVer
   useEffect(() => {
     setResultImageFailed(false)
   }, [latest?.id, latest?.url])
+
+  async function saveVersionName() {
+    if (!latest || naming) return
+    setNaming(true)
+    setActionError(null)
+    try {
+      const response = await fetch(`/api/output-versions/${latest.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ label: versionName }),
+      })
+      const data = await response.json().catch(() => null)
+      if (!response.ok) {
+        setActionError(data?.error ?? "The version name could not be saved. Try again.")
+        return
+      }
+      router.refresh()
+    } catch {
+      setActionError("The connection was interrupted. Your version is unchanged—try again.")
+    } finally {
+      setNaming(false)
+    }
+  }
+
+  async function createVariations() {
+    if (!latest || creatingVariations) return
+    const labels = variationLabels.slice(0, variationCount)
+    const key = JSON.stringify({ versionId: latest.id, count: variationCount, instructions: variationText.trim(), labels })
+    const requestId = variationRequest?.key === key ? variationRequest.id : crypto.randomUUID()
+    setVariationRequest({ key, id: requestId })
+    setCreatingVariations(true)
+    setActionError(null)
+    try {
+      const response = await fetch(`/api/output-versions/${latest.id}/variations`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ requestId, count: variationCount, instructions: variationText, labels }),
+      })
+      const data = await response.json().catch(() => null)
+      if (!response.ok) {
+        setActionError(data?.error ?? "The variations could not be started. Try again.")
+        return
+      }
+      setVariationRequest(null)
+      const first = data?.fileGroupIds?.[0]
+      if (first) router.push(`/listings/${listingId}/f/${first}`)
+      else router.refresh()
+    } catch {
+      setActionError("The connection was interrupted. Your variation request is still here—try again.")
+    } finally {
+      setCreatingVariations(false)
+    }
+  }
 
   return (
     <div>
@@ -259,14 +368,31 @@ export function FileGroupWorkspace({ listingId, fg, before, siblings, initialVer
 
       <div className="grid min-w-0 items-start gap-5 lg:grid-cols-[minmax(0,1fr)_21rem]">
         <section aria-label="Photo result" className="min-w-0">
-          {latest?.url && !resultImageFailed ? (
+          {comparing && comparisonReady && compareLeft?.url && compareRight?.url ? (
+            <div>
+              <BeforeAfter
+                key={`${compareLeft.id}:${compareRight.id}`}
+                beforeUrl={compareLeft.url}
+                afterUrl={compareRight.url}
+                beforeLabel={compareLeft.displayLabel}
+                afterLabel={compareRight.displayLabel}
+                beforeAlt={`${compareLeft.displayLabel} listing-photo version`}
+                afterAlt={`${compareRight.displayLabel} listing-photo version`}
+                ariaLabel={`Compare ${compareLeft.displayLabel} with ${compareRight.displayLabel}`}
+              />
+              <div className="mt-3 flex flex-wrap items-start justify-between gap-3 text-xs text-muted-foreground">
+                <p><span className="font-medium text-foreground">{compareLeft.displayLabel}</span> · {branchContext(compareLeft, namedVersions)}</p>
+                <p className="text-right"><span className="font-medium text-foreground">{compareRight.displayLabel}</span> · {branchContext(compareRight, namedVersions)}</p>
+              </div>
+            </div>
+          ) : latest?.url && !resultImageFailed ? (
             <div className="relative">
               {is360 && preview360 ? (
                 <div className="h-[62vh] min-h-96 w-full overflow-hidden rounded-2xl bg-black">
                   <TourViewer scenes={[{ id: fg.id, name: "360 result", url: latest.url, width: before.width ?? 4096, initial_yaw: 0, hotspots: [] }]} activeSceneId={fg.id} />
                 </div>
               ) : <BeforeAfter key={`${latest.id}:${imageRetryKey}`} beforeUrl={before.url} afterUrl={latest.url} onAfterError={() => setResultImageFailed(true)} />}
-              {!settled && (
+              {currentActive && (
                 <div className="absolute inset-x-4 bottom-4 rounded-xl border border-white/20 bg-black/58 px-4 py-3 text-white shadow-lg backdrop-blur-xl sm:inset-x-auto sm:left-5 sm:max-w-sm">
                   <div className="flex items-center gap-2 text-xs font-semibold text-white/78">
                     <span className="pulse-live size-2 rounded-full bg-state-running" />
@@ -312,7 +438,7 @@ export function FileGroupWorkspace({ listingId, fg, before, siblings, initialVer
         </section>
 
         <aside className="ls-surface min-w-0 p-4 sm:p-5 lg:sticky lg:top-5">
-          <StatePill status={fg.step_status} label={copy.label} />
+          <StatePill status={currentActive ? fg.step_status : latest?.group_status ?? fg.step_status} label={copy.label} />
           <h2 className="mt-2 text-2xl font-semibold tracking-[-0.03em]">{copy.heading}</h2>
 
           {fg.step_status === "failed" && (
@@ -364,33 +490,96 @@ export function FileGroupWorkspace({ listingId, fg, before, siblings, initialVer
             <section className="mt-6">
               <h3 className="text-xs font-semibold">Export plan</h3>
               <div className="mt-2 grid grid-cols-3 gap-2">
-                {(["png", "svg", "pdf"] as const).map((format) => <Button key={format} asChild size="sm" variant="outline"><a href={`/api/file-groups/${fg.id}/plan-export?format=${format}&version=${latest.id}`}>{format.toUpperCase()}</a></Button>)}
+                {(["png", "svg", "pdf"] as const).map((format) => <Button key={format} asChild size="sm" variant="outline"><a href={`/api/file-groups/${latest.file_group_id}/plan-export?format=${format}&version=${latest.id}`}>{format.toUpperCase()}</a></Button>)}
               </div>
               <Button className="mt-3 w-full" variant="outline" onClick={() => attachPlan(latest.id)} disabled={attaching || attached}>{attached ? "Attached to listing ✓" : attaching ? "Attaching…" : "Attach to listing"}</Button>
+            </section>
+          )}
+
+          {namedVersions.length > 0 && (
+            <section className="mt-6 border-t border-border/60 pt-5">
+              <h3 className="text-xs font-semibold">Versions and branches</h3>
+              <div className="mt-2 grid gap-1.5">
+                {namedVersions.map((version) => (
+                  <button
+                    key={version.id}
+                    type="button"
+                    onClick={() => { setSelectedVersionId(version.id); setComparing(false) }}
+                    title={`${version.displayLabel}. ${branchContext(version, namedVersions)}`}
+                    className={`ls-pressable grid min-h-12 grid-cols-[2.75rem_minmax(0,1fr)] items-center gap-2 rounded-lg p-1.5 text-left ${latest?.id === version.id && !comparing ? "bg-card font-semibold text-foreground shadow-sm" : "text-muted-foreground hover:bg-card/60 hover:text-foreground"}`}
+                  >
+                    <span className="block aspect-[4/3] overflow-hidden rounded bg-muted">
+                      {/* eslint-disable-next-line @next/next/no-img-element -- signed output URLs expire */}
+                      {version.url && <img src={version.url} alt="" className="h-full w-full object-cover" />}
+                    </span>
+                    <span className="min-w-0">
+                      <span className="flex items-center justify-between gap-2"><span className="truncate text-sm">{version.displayLabel}</span>{fg.final?.output_version_id === version.id && <span className="shrink-0 text-[10px] text-state-complete">Approved</span>}</span>
+                      <span className="block truncate text-[10px] font-normal text-muted-foreground">{branchContext(version, namedVersions)}</span>
+                    </span>
+                  </button>
+                ))}
+              </div>
+
+              {selectedNamed && (
+                <div className="mt-3">
+                  <label htmlFor="version-name" className="text-xs font-semibold">Name this version</label>
+                  <div className="mt-2 flex gap-2">
+                    <Input id="version-name" value={versionName} onChange={(event) => setVersionName(event.target.value)} maxLength={80} placeholder={selectedNamed.displayLabel} />
+                    <Button type="button" size="sm" variant="outline" onClick={saveVersionName} disabled={naming}>{naming ? "Saving…" : "Save"}</Button>
+                  </div>
+                  <p className="mt-1 text-[10px] text-muted-foreground">Naming does not change the approved final.</p>
+                </div>
+              )}
+
+              {namedVersions.length > 1 && (
+                <div className="mt-4 border-t border-border/60 pt-4">
+                  <h4 className="text-xs font-semibold">Compare any two</h4>
+                  <div className="mt-2 grid grid-cols-2 gap-2">
+                    <Select aria-label="Left comparison version" value={compareLeftId} onChange={(event) => setCompareLeftId(event.target.value)}>
+                      {namedVersions.map((version) => <option key={version.id} value={version.id}>{version.displayLabel}</option>)}
+                    </Select>
+                    <Select aria-label="Right comparison version" value={compareRightId} onChange={(event) => setCompareRightId(event.target.value)}>
+                      {namedVersions.map((version) => <option key={version.id} value={version.id}>{version.displayLabel}</option>)}
+                    </Select>
+                  </div>
+                  <Button type="button" className="mt-2 w-full" variant="outline" onClick={() => setComparing((value) => !value)} disabled={!comparisonReady}>
+                    {comparing ? "Return to original comparison" : "Compare these versions"}
+                  </Button>
+                </div>
+              )}
             </section>
           )}
 
           {latest?.url && settled && (
             <section className="mt-6">
               <label htmlFor="refine-result" className="text-xs font-semibold">Refine this version</label>
-              <p className="mt-1 text-xs text-muted-foreground">A refinement creates a new version. This one stays safe.</p>
-              <Textarea id="refine-result" value={reworkText} onChange={(event) => setReworkText(event.target.value)} placeholder="What should change? e.g. use a gray sofa and remove the wall art" rows={3}
-                className="mt-2 w-full resize-none bg-card" />
+              <p className="mt-1 text-xs text-muted-foreground">A refinement branches from {selectedNamed?.displayLabel ?? "this version"}. The source and approved final stay safe.</p>
+              <Textarea id="refine-result" value={reworkText} onChange={(event) => setReworkText(event.target.value)} placeholder="What should change? e.g. use a gray sofa and remove the wall art" rows={3} className="mt-2 w-full resize-none bg-card" />
               <Button className="mt-2 w-full" variant="outline" onClick={() => sendRework(latest.id)} disabled={!reworkText.trim() || reworking}>{reworking ? "Creating version…" : "Create new version"}</Button>
-            </section>
-          )}
 
-          {versionsDesc.length > 0 && (
-            <section className="mt-6">
-              <h3 className="text-xs font-semibold">Versions</h3>
-              <div className="mt-2 grid gap-1">
-                {[...versionsDesc].reverse().map((version, index) => (
-                  <button key={version.id} type="button" onClick={() => setSelectedVersionId(version.id)}
-                    className={`ls-pressable flex min-h-10 items-center justify-between rounded-lg px-2 text-left text-sm ${latest?.id === version.id ? "bg-card font-semibold text-foreground shadow-sm" : "text-muted-foreground hover:bg-card/60 hover:text-foreground"}`}>
-                    <span>{index === 0 ? "Original edit" : `Revision ${index}`}</span><span className="text-xs">v{version.version_number}</span>
-                  </button>
-                ))}
-              </div>
+              <Disclosure className="mt-3" summary="Create several variations" triggerClassName="px-0 text-xs font-semibold text-foreground" contentClassName="px-0">
+                <p className="text-xs text-muted-foreground">Create independent options from this exact version. One failed option will not remove successful siblings.</p>
+                <label htmlFor="variation-direction" className="mt-3 block text-xs font-semibold">Shared direction</label>
+                <Textarea id="variation-direction" value={variationText} onChange={(event) => setVariationText(event.target.value)} maxLength={1000} rows={2} className="mt-2" placeholder="e.g. Try distinct warm-neutral furniture arrangements" />
+                <label htmlFor="variation-count" className="mt-3 block text-xs font-semibold">Number of variations</label>
+                <Select id="variation-count" value={variationCount} onChange={(event) => setVariationCount(Number(event.target.value))} className="mt-2">
+                  {[2, 3, 4].map((count) => <option key={count} value={count}>{count} variations</option>)}
+                </Select>
+                <div className="mt-3 grid gap-2">
+                  {variationLabels.slice(0, variationCount).map((label, index) => (
+                    <label key={index} className="text-xs font-semibold">Option {index + 1} name
+                      <Input value={label} onChange={(event) => setVariationLabels((current) => current.map((item, itemIndex) => itemIndex === index ? event.target.value : item))} maxLength={80} className="mt-1" />
+                    </label>
+                  ))}
+                </div>
+                <div className="mt-3 border-l-2 border-border pl-3 text-xs text-muted-foreground">
+                  <p><span className="font-medium text-foreground">{variationCount} requested generations · {formatGenerationCost(variationCost)}</span> initial generation cost.</p>
+                  <p className="mt-1">Provider retries, only if needed, are counted separately. Variations do not move the approved final.</p>
+                </div>
+                <Button type="button" className="mt-3 w-full" onClick={createVariations} disabled={creatingVariations || variationText.trim().length < 2 || variationLabels.slice(0, variationCount).some((label) => !label.trim())}>
+                  {creatingVariations ? "Starting variations…" : `Create ${variationCount} variations · ${formatGenerationCost(variationCost)}`}
+                </Button>
+              </Disclosure>
             </section>
           )}
 
@@ -411,7 +600,7 @@ export function FileGroupWorkspace({ listingId, fg, before, siblings, initialVer
 
           <Disclosure className="mt-2" summary="Edit details" triggerClassName="px-0 text-xs font-semibold text-foreground" contentClassName="px-0">
             <div className="grid gap-3 text-xs text-muted-foreground">
-              <p><span className="text-foreground">Edit order:</span> {editOrder(fg.edit_chain)}</p>
+              <p><span className="text-foreground">Edit order:</span> {editOrder(selectedChain)}</p>
               {fg.comment && <p><span className="text-foreground">Direction:</span> {fg.comment}</p>}
               {thread.length > 0 && <div className="grid gap-2 border-l border-border pl-3">{thread.map((message, index) => <p key={`${message.created_at}-${index}`}><span className="font-medium text-foreground">{message.role === "user" ? "You" : "Studio"}:</span> {message.content}</p>)}</div>}
             </div>

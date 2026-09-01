@@ -21,6 +21,7 @@ import {
   type ProofingStatus,
 } from "@/lib/proofing"
 import type { ProofingItemRow, ProofingVersionRow } from "@/lib/proofing-server"
+import { automaticVersionLabel } from "@/lib/versioning"
 
 const STATUS_LABELS: Record<ProofingStatus, string> = {
   unreviewed: "Unreviewed",
@@ -46,8 +47,12 @@ function previewFor(item: ProofingItemRow) {
 }
 
 function versionLabel(version: ProofingVersionRow) {
-  const revision = version.versionNumber === 1 ? "Original edit" : `Revision ${version.versionNumber - 1}`
-  return `${version.jobTitle} · ${revision}`
+  return automaticVersionLabel({
+    versionLabel: version.versionLabel,
+    parentVersionId: version.parentVersionId,
+    versionNumber: version.versionNumber,
+    variationIndex: version.variationIndex,
+  })
 }
 
 export function ProofingWorkspace({
@@ -324,7 +329,7 @@ export function ProofingWorkspace({
               <option value={ORIGINAL_SELECTION}>Untouched original</option>
               {sortedProofingVersions(selectedItem.versions).reverse().map((version) => (
                 <option key={version.id} value={version.id} data-description={`v${version.versionNumber}${version.reviewState === "needs_changes" ? " · Needs changes" : ""}`}>
-                  {versionLabel(version)}
+                  {versionLabel(version)} · {version.jobTitle}
                 </option>
               ))}
             </Select>
@@ -335,6 +340,7 @@ export function ProofingWorkspace({
               </p>
               {selectedVersion?.qaNote && <p className="mt-1">{selectedVersion.qaNote}</p>}
               {selectedVersion?.reviewNote && <p className="mt-1">Review note: {selectedVersion.reviewNote}</p>}
+              {selectedVersion && <p className="mt-1">{selectedVersion.parentVersionId ? "This is a saved branch from an earlier version." : "This is the first result in its branch."}</p>}
               {selectedItem.groups.some((group) => group.status === "running" || group.status === "queued") && <p className="mt-1">New work is still processing; this available version can be reviewed now.</p>}
               {selectedItem.groups.some((group) => group.status === "failed") && <p className="mt-1 text-destructive">One edit needs attention. Existing versions and the original remain available.</p>}
             </div>

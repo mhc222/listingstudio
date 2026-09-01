@@ -8,10 +8,20 @@ export function BeforeAfter({
   beforeUrl,
   afterUrl,
   onAfterError,
+  beforeLabel = "Before",
+  afterLabel = "After",
+  beforeAlt = "Original listing photo",
+  afterAlt = "Edited listing photo",
+  ariaLabel = "Before and after comparison",
 }: {
   beforeUrl: string | null
   afterUrl: string
   onAfterError?: () => void
+  beforeLabel?: string
+  afterLabel?: string
+  beforeAlt?: string
+  afterAlt?: string
+  ariaLabel?: string
 }) {
   const [pos, setPos] = useState(50)
   if (!beforeUrl) {
@@ -20,7 +30,7 @@ export function BeforeAfter({
         {/* eslint-disable-next-line @next/next/no-img-element -- signed URLs expire; next/image caching fights that */}
         <img
           src={afterUrl}
-          alt="Edited listing photo"
+          alt={afterAlt}
           onError={onAfterError}
           className="develop-in block h-auto max-h-[calc(100dvh-10rem)] max-w-full object-contain"
         />
@@ -36,13 +46,13 @@ export function BeforeAfter({
         {/* eslint-disable-next-line @next/next/no-img-element -- signed URLs expire; next/image caching fights that */}
         <img
           src={beforeUrl}
-          alt="Original listing photo"
+          alt={beforeAlt}
           className="block h-auto max-h-[calc(100dvh-10rem)] max-w-full object-contain"
         />
         {/* eslint-disable-next-line @next/next/no-img-element -- signed URLs expire; next/image caching fights that */}
         <img
           src={afterUrl}
-          alt="Edited listing photo"
+          alt={afterAlt}
           onError={onAfterError}
           className="develop-in absolute inset-0 h-full w-full object-contain"
           style={{ clipPath: `inset(0 0 0 ${pos}%)` }}
@@ -68,10 +78,10 @@ export function BeforeAfter({
           </span>
         </div>
         <span className="pointer-events-none absolute left-1.5 top-1.5 rounded bg-black/55 px-1.5 py-0.5 text-[10px] font-medium text-white">
-          Before
+          {beforeLabel}
         </span>
         <span className="pointer-events-none absolute right-1.5 top-1.5 rounded bg-black/55 px-1.5 py-0.5 text-[10px] font-medium text-white">
-          After
+          {afterLabel}
         </span>
         <input
           type="range"
@@ -94,8 +104,8 @@ export function BeforeAfter({
               setPos(100)
             }
           }}
-          aria-label="Before and after comparison"
-          aria-valuetext={`${pos}% original, ${100 - pos}% edited`}
+          aria-label={ariaLabel}
+          aria-valuetext={`${pos}% ${beforeLabel}, ${100 - pos}% ${afterLabel}`}
           className="peer absolute inset-0 h-full w-full touch-none cursor-ew-resize opacity-0"
         />
         <span className="pointer-events-none absolute inset-1 opacity-0 ring-2 ring-white ring-offset-2 ring-offset-[#241f1a] transition-opacity peer-focus-visible:opacity-100" />
