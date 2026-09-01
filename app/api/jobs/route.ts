@@ -51,13 +51,40 @@ export async function POST(req: Request) {
   // RLS-scoped read proves ownership of the photos/listing
   const { data: ownedPhotos } = await supabase
     .from("photos")
-    .select("id, listing_id, room_id, is_floor_plan, storage_path, width, height")
+    .select("id, listing_id, room_id, is_floor_plan, storage_path, width, height, photo_role, hdr_group_id")
     .in("id", requestedPhotoIds)
     .eq("listing_id", listingId)
   if ((ownedPhotos ?? []).length !== requestedPhotoIds.length) {
     return NextResponse.json({ error: "photo not found" }, { status: 404 })
   }
   const photo = ownedPhotos![0]
+
+  // Confirmed source brackets are immutable lineage, not separate downstream
+  // targets. Only the current merged representative can enter new work.
+  const { data: confirmedMemberships } = await supabase
+    .from("photo_group_members")
+    .select("photo_id, photo_groups!inner(state, listing_id)")
+    .in("photo_id", requestedPhotoIds)
+    .eq("photo_groups.state", "confirmed")
+    .eq("photo_groups.listing_id", listingId)
+  if (confirmedMemberships?.length) {
+    return NextResponse.json(
+      { error: "A confirmed HDR stack counts as one photo. Select its merged result instead of a source exposure." },
+      { status: 409 }
+    )
+  }
+  const mergedIds = ownedPhotos!.filter((item) => item.photo_role === "hdr_merged").map((item) => item.id)
+  if (mergedIds.length) {
+    const { data: currentRepresentatives } = await supabase
+      .from("photo_groups")
+      .select("representative_photo_id")
+      .eq("listing_id", listingId)
+      .eq("state", "confirmed")
+      .in("representative_photo_id", mergedIds)
+    if ((currentRepresentatives ?? []).length !== mergedIds.length) {
+      return NextResponse.json({ error: "This HDR result is no longer the active representative." }, { status: 409 })
+    }
+  }
 
   // FLOOR_PLAN_REDRAW (phase 11): never infer plans from room photos
   // (CLAUDE.md) — input must be an image floor plan/sketch, and the redraw

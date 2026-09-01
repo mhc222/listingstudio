@@ -93,6 +93,18 @@ export async function POST(
             sourceByteSize: item.source_byte_size,
             width: item.width,
             height: item.height,
+            photoMetadata: {
+              capturedAt: null,
+              exposureTimeSeconds: null,
+              exposureBiasEv: null,
+              apertureFNumber: null,
+              iso: null,
+              focalLengthMm: null,
+              cameraMake: null,
+              cameraModel: null,
+              lensModel: null,
+              sourceMetadata: {},
+            },
           }
         : await materializeIntakeItem(item, admin)
     const { data: photoId, error } = await admin.rpc("finalize_upload_item", {
@@ -105,6 +117,16 @@ export async function POST(
       p_source_byte_size: materialized.sourceByteSize,
       p_width: materialized.width,
       p_height: materialized.height,
+      p_captured_at: materialized.photoMetadata.capturedAt,
+      p_exposure_time_seconds: materialized.photoMetadata.exposureTimeSeconds,
+      p_exposure_bias_ev: materialized.photoMetadata.exposureBiasEv,
+      p_aperture_f_number: materialized.photoMetadata.apertureFNumber,
+      p_iso: materialized.photoMetadata.iso,
+      p_focal_length_mm: materialized.photoMetadata.focalLengthMm,
+      p_camera_make: materialized.photoMetadata.cameraMake,
+      p_camera_model: materialized.photoMetadata.cameraModel,
+      p_lens_model: materialized.photoMetadata.lensModel,
+      p_source_metadata: materialized.photoMetadata.sourceMetadata,
     })
     if (error) throw error
 

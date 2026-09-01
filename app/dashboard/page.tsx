@@ -47,21 +47,39 @@ export default async function Dashboard() {
   const activeJobs = activeQ.data ?? []
   const failedGroups = failedQ.data ?? []
 
-  // Cover photo per listing = first non-floor-plan by created_at asc (same rule
-  // as the listing hero); count is every photo including floor plans.
+  // Counts use logical photos: confirmed HDR source exposures collapse behind
+  // their one merged representative. Attachments remain a separate total.
   const listingIds = listings.map((l) => l.id)
-  const { data: photos } = listingIds.length
-    ? await supabase
+  const [{ data: photos }, { data: confirmedGroups }, { data: groupMembers }] = listingIds.length
+    ? await Promise.all([
+      supabase
         .from("photos")
-        .select("listing_id, storage_path, is_floor_plan, created_at")
+        .select("id, listing_id, storage_path, is_floor_plan, photo_role, created_at")
         .in("listing_id", listingIds)
-        .order("created_at", { ascending: true })
-    : { data: [] }
+        .order("created_at", { ascending: true }),
+      supabase.from("photo_groups").select("id, listing_id, representative_photo_id")
+        .in("listing_id", listingIds).eq("state", "confirmed"),
+      supabase.from("photo_group_members").select("group_id, photo_id, photo_groups!inner(listing_id)")
+        .in("photo_groups.listing_id", listingIds),
+    ])
+    : [{ data: [] }, { data: [] }, { data: [] }]
+  const confirmedIds = new Set((confirmedGroups ?? []).map((group) => group.id))
+  const hiddenMembers = new Set((groupMembers ?? []).filter((member) => confirmedIds.has(member.group_id)).map((member) => member.photo_id))
+  const representativeIds = new Set((confirmedGroups ?? []).map((group) => group.representative_photo_id).filter(Boolean))
   const coverPath = new Map<string, string>()
   const photoCount = new Map<string, number>()
+  const floorPlanCount = new Map<string, number>()
+  const sourceCount = new Map<string, number>()
   for (const p of photos ?? []) {
+    if (p.is_floor_plan) {
+      floorPlanCount.set(p.listing_id, (floorPlanCount.get(p.listing_id) ?? 0) + 1)
+      continue
+    }
+    if (p.photo_role === "source") sourceCount.set(p.listing_id, (sourceCount.get(p.listing_id) ?? 0) + 1)
+    const logical = !hiddenMembers.has(p.id) && (p.photo_role !== "hdr_merged" || representativeIds.has(p.id))
+    if (!logical) continue
     photoCount.set(p.listing_id, (photoCount.get(p.listing_id) ?? 0) + 1)
-    if (!p.is_floor_plan && !coverPath.has(p.listing_id)) coverPath.set(p.listing_id, p.storage_path)
+    if (!coverPath.has(p.listing_id)) coverPath.set(p.listing_id, p.storage_path)
   }
   const coverUrls = await getUrls("originals", [...coverPath.values()])
 
@@ -120,7 +138,10 @@ export default async function Dashboard() {
             const path = coverPath.get(l.id)
             const cover = path ? coverUrls[path] : null
             const count = photoCount.get(l.id) ?? 0
-            const meta = `${l.mls_number ? `MLS ${l.mls_number} · ` : ""}${count} photo${count === 1 ? "" : "s"}`
+            const plans = floorPlanCount.get(l.id) ?? 0
+            const sources = sourceCount.get(l.id) ?? 0
+            const sourceDetail = sources !== count ? ` · ${sources} source files` : ""
+            const meta = `${l.mls_number ? `MLS ${l.mls_number} · ` : ""}${count} photo${count === 1 ? "" : "s"} · ${plans} floor plan${plans === 1 ? "" : "s"}${sourceDetail}`
             return (
               <Link key={l.id} href={`/listings/${l.id}`} className="group">
                 <Card className="ls-pressable overflow-hidden p-0 hover:-translate-y-1 hover:shadow-[0_18px_46px_rgba(45,35,23,0.12)]">

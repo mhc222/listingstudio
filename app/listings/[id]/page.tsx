@@ -7,20 +7,33 @@ import { type PhotoRow } from "./photo-grid"
 import { type JobRow, type SampleRow, type ComplianceNote } from "./job-feed"
 import { ListingWorkspace } from "./listing-workspace"
 import { ToolsNav } from "./tools-nav"
+import { logicalPhotoIds } from "@/lib/hdr-groups"
+import { type PhotoGroupRow } from "./shoot-organization"
 
 export default async function ListingPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const supabase = await createClient()
 
-  const [{ data: listing }, { data: rooms }, { data: photos }, { data: jobs }, { data: samples }] =
+  const [{ data: listing }, { data: rooms }, { data: photos }, { data: groups }, { data: members }, { data: jobs }, { data: samples }] =
     await Promise.all([
       supabase.from("listings").select("id, address, mls_number").eq("id", id).single(),
       supabase.from("rooms").select("*").eq("listing_id", id).order("name"),
       supabase
         .from("photos")
-        .select("id, room_id, storage_path, is_floor_plan, width, height")
+        .select("id, room_id, storage_path, is_floor_plan, width, height, original_filename, source_batch_id, intake_order, captured_at, exposure_time_seconds, exposure_bias_ev, aperture_f_number, iso, focal_length_mm, camera_make, camera_model, lens_model, photo_role, hdr_group_id, hdr_decision")
         .eq("listing_id", id)
         .order("created_at"),
+      supabase
+        .from("photo_groups")
+        .select("id, state, confidence, reason, representative_photo_id, created_at")
+        .eq("listing_id", id)
+        .in("state", ["proposed", "confirmed"])
+        .order("created_at"),
+      supabase
+        .from("photo_group_members")
+        .select("group_id, photo_id, position, photo_groups!inner(listing_id)")
+        .eq("photo_groups.listing_id", id)
+        .order("position"),
       supabase
         .from("jobs")
         .select(
@@ -40,8 +53,31 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
   if (!listing) notFound()
 
   const urls = await getUrls("originals", (photos ?? []).map((p) => p.storage_path))
-  const withUrls: PhotoRow[] = (photos ?? []).map((p) => ({ ...p, url: urls[p.storage_path] ?? null }))
-  const regular = withUrls.filter((p) => !p.is_floor_plan)
+  const withUrls: PhotoRow[] = (photos ?? []).map((p) => ({
+    ...p,
+    exposure_time_seconds: p.exposure_time_seconds === null ? null : Number(p.exposure_time_seconds),
+    exposure_bias_ev: p.exposure_bias_ev === null ? null : Number(p.exposure_bias_ev),
+    aperture_f_number: p.aperture_f_number === null ? null : Number(p.aperture_f_number),
+    focal_length_mm: p.focal_length_mm === null ? null : Number(p.focal_length_mm),
+    url: urls[p.storage_path] ?? null,
+  })) as PhotoRow[]
+  const inventoryPhotos = withUrls.filter((p) => !p.is_floor_plan)
+  const memberIdsByGroup = new Map<string, string[]>()
+  for (const member of members ?? []) {
+    const list = memberIdsByGroup.get(member.group_id) ?? []
+    list.push(member.photo_id)
+    memberIdsByGroup.set(member.group_id, list)
+  }
+  const photoGroups: PhotoGroupRow[] = (groups ?? []).map((group) => ({
+    ...group,
+    confidence: Number(group.confidence),
+    memberPhotoIds: memberIdsByGroup.get(group.id) ?? [],
+  })) as PhotoGroupRow[]
+  const confirmed = photoGroups
+    .filter((group) => group.state === "confirmed")
+    .map((group) => ({ representative_photo_id: group.representative_photo_id, members: group.memberPhotoIds }))
+  const logicalIds = new Set(logicalPhotoIds(inventoryPhotos, confirmed))
+  const regular = inventoryPhotos.filter((photo) => logicalIds.has(photo.id))
   // floorPlans still passed to JobPanel for plan-fg before-image lookup; the
   // floor-plan grid + redraw tool now live on /plan.
   const floorPlans = withUrls.filter((p) => p.is_floor_plan)
@@ -134,6 +170,8 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
         <ListingWorkspace
           listingId={id}
           photos={regular}
+          inventoryPhotos={inventoryPhotos}
+          photoGroups={photoGroups}
           floorPlans={floorPlans}
           rooms={rooms ?? []}
           jobs={jobRows}

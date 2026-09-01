@@ -3,6 +3,7 @@ import heicConvert from "heic-convert"
 import sharp from "sharp"
 import { MAX_UPLOAD_FILE_BYTES } from "@/config/uploads"
 import { copy, download, info, upload } from "@/lib/storage"
+import { extractSourcePhotoMetadata, type SourcePhotoMetadata } from "@/lib/photo-metadata"
 
 export type IntakeItem = {
   id: string
@@ -32,6 +33,20 @@ export type MaterializedIntake = {
   sourceByteSize: number
   width: number | null
   height: number | null
+  photoMetadata: SourcePhotoMetadata
+}
+
+const EMPTY_PHOTO_METADATA: SourcePhotoMetadata = {
+  capturedAt: null,
+  exposureTimeSeconds: null,
+  exposureBiasEv: null,
+  apertureFNumber: null,
+  iso: null,
+  focalLengthMm: null,
+  cameraMake: null,
+  cameraModel: null,
+  lensModel: null,
+  sourceMetadata: {},
 }
 
 export function intakePath(
@@ -171,8 +186,11 @@ export async function materializeIntakeItem(
       sourceByteSize,
       width: null,
       height: null,
+      photoMetadata: EMPTY_PHOTO_METADATA,
     }
   }
+
+  const photoMetadata = await extractSourcePhotoMetadata(sourceBuffer)
 
   let canonicalBuffer = sourceBuffer
   let canonicalContentType = sourceContentType
@@ -223,5 +241,6 @@ export async function materializeIntakeItem(
     sourceByteSize,
     width: metadata.width ?? null,
     height: metadata.height ?? null,
+    photoMetadata,
   }
 }

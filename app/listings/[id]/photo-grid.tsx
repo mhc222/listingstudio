@@ -11,6 +11,21 @@ export type PhotoRow = {
   is_floor_plan: boolean
   width: number | null
   height: number | null
+  original_filename?: string | null
+  source_batch_id?: string | null
+  intake_order?: number | null
+  captured_at?: string | null
+  exposure_time_seconds?: number | null
+  exposure_bias_ev?: number | null
+  aperture_f_number?: number | null
+  iso?: number | null
+  focal_length_mm?: number | null
+  camera_make?: string | null
+  camera_model?: string | null
+  lens_model?: string | null
+  photo_role?: "source" | "hdr_merged"
+  hdr_group_id?: string | null
+  hdr_decision?: "unreviewed" | "single"
   url: string | null
 }
 

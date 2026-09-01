@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { PhotoGrid, type PhotoRow } from "./photo-grid"
 import { Composer } from "./composer"
+import { ShootOrganization, type PhotoGroupRow } from "./shoot-organization"
 import { type JobRow, type SampleRow } from "./job-feed"
 import {
   ALL_ROOMS,
@@ -18,6 +19,8 @@ import {
 export function ListingWorkspace({
   listingId,
   photos,
+  inventoryPhotos,
+  photoGroups,
   floorPlans,
   rooms,
   jobs,
@@ -25,6 +28,8 @@ export function ListingWorkspace({
 }: {
   listingId: string
   photos: PhotoRow[]
+  inventoryPhotos: PhotoRow[]
+  photoGroups: PhotoGroupRow[]
   floorPlans: PhotoRow[]
   rooms: RoomRow[]
   jobs: JobRow[]
@@ -160,6 +165,13 @@ export function ListingWorkspace({
 
   return (
     <div className="grid gap-7">
+      <ShootOrganization
+        listingId={listingId}
+        photos={inventoryPhotos}
+        logicalPhotoCount={photos.length}
+        floorPlanCount={floorPlans.length}
+        groups={photoGroups}
+      />
       <RoomBrowser
         listingId={listingId}
         rooms={rooms}

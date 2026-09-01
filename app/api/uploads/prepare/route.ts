@@ -66,7 +66,7 @@ export async function POST(req: Request) {
   }
 
   const batchId = crypto.randomUUID()
-  const reservations = declarations.map((file) => {
+  const reservations = declarations.map((file, index) => {
     const itemId = crypto.randomUUID()
     const photoId = crypto.randomUUID()
     return {
@@ -79,6 +79,7 @@ export async function POST(req: Request) {
       declared_byte_size: file.byteSize,
       source_extension: file.extension,
       is_floor_plan: file.isFloorPlan,
+      intake_order: index + 1,
       intake_path: intakePath(
         user.id,
         body.listingId as string,

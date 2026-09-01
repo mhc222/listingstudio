@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "test:intake": "node scripts/test-intake-contract.mjs",
-    "test:upload-queue": "node scripts/test-upload-queue.mjs"
+    "test:upload-queue": "node scripts/test-upload-queue.mjs",
+    "test:shoot-organization": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/test-shoot-organization.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.122.0",
