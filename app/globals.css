@@ -148,6 +148,27 @@
     box-shadow: 0 1px 0 rgb(76 62 43 / 0.08), 0 10px 24px rgb(76 62 43 / 0.05);
   }
 
+  .ls-disclosure-content {
+    display: grid;
+    grid-template-rows: 0fr;
+    opacity: 0;
+    transform: translateY(-3px);
+    transition:
+      grid-template-rows 200ms var(--ease-fluid),
+      opacity 160ms ease,
+      transform 200ms var(--ease-fluid);
+  }
+
+  .ls-disclosure-content[data-state="open"] {
+    grid-template-rows: 1fr;
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .ls-mode-panel {
+    animation: ls-mode-panel-in 190ms var(--ease-fluid) both;
+  }
+
   /* The signature move: a print coming up in the tray. Fires on mount via
      @starting-style — no JS, no effect hook, no mount flag. */
   .develop-in {
@@ -227,6 +248,17 @@
   }
 }
 
+@keyframes ls-mode-panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -244,6 +276,9 @@
   }
   .sweep::after {
     display: none;
+  }
+  .ls-disclosure-content {
+    transform: none;
   }
 }
 
