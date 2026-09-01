@@ -2,6 +2,7 @@
 // "Virtually Staged" compliance watermark. Shared by the single-file download
 // route and the per-listing zip. Server-only (sharp).
 import sharp from "sharp"
+import type { DeliveryProfileRow } from "@/lib/delivery"
 
 const CAPS_BYTES: Record<string, number> = {
   under_10mb: 10 * 1024 * 1024,
@@ -62,4 +63,47 @@ export async function applyVariant(buf: Buffer, variant: Variant): Promise<Buffe
     }
   }
   return buf
+}
+
+function deliveryWatermarkSvg() {
+  return Buffer.from(
+    `<svg width="262" height="60" xmlns="http://www.w3.org/2000/svg">
+       <rect x="0" y="0" width="246" height="44" rx="22" fill="#0B0E10" fill-opacity="0.82"/>
+       <text x="18" y="28" font-family="Georgia, 'Times New Roman', serif" font-size="15" font-weight="bold" fill="#D0A967" letter-spacing="2">VIRTUALLY STAGED</text>
+     </svg>`
+  )
+}
+
+export async function renderDeliveryImage(
+  input: Buffer,
+  profile: DeliveryProfileRow,
+  watermark: boolean
+) {
+  const render = async (quality: number) => {
+    let pipeline = sharp(input)
+      .rotate()
+      .resize({
+        width: profile.max_width ?? undefined,
+        height: profile.max_height ?? undefined,
+        fit: "inside",
+        withoutEnlargement: true,
+      })
+    if (watermark) pipeline = pipeline.composite([{ input: deliveryWatermarkSvg(), gravity: "southeast" }])
+    if (profile.file_format === "jpeg") return pipeline.jpeg({ quality, mozjpeg: true }).toBuffer()
+    if (profile.file_format === "webp") return pipeline.webp({ quality }).toBuffer()
+    return pipeline.png({ compressionLevel: 9 }).toBuffer()
+  }
+
+  let buffer = await render(profile.quality)
+  if (profile.max_bytes && buffer.length > profile.max_bytes) {
+    for (let quality = profile.quality - 5; quality >= 35; quality -= 5) {
+      buffer = await render(quality)
+      if (buffer.length <= profile.max_bytes) break
+    }
+    if (buffer.length > profile.max_bytes) {
+      throw new Error(`A photo could not fit the ${(profile.max_bytes / 1024 / 1024).toFixed(2)} MB profile ceiling.`)
+    }
+  }
+  const metadata = await sharp(buffer).metadata()
+  return { buffer, width: metadata.width ?? null, height: metadata.height ?? null }
 }
