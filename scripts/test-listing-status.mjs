@@ -1,5 +1,5 @@
 import assert from "node:assert/strict"
-import { deriveListingStatus } from "../lib/listing-status.ts"
+import { deriveJobDisplayStatus, deriveListingStatus } from "../lib/listing-status.ts"
 
 let assertions = 0
 function equal(actual, expected, message) {
@@ -120,5 +120,17 @@ const orphan = deriveListingStatus({
   jobs: [{ id: "orphan", title: "prepare edits", status: "pending", fileGroups: [] }],
 })
 equal(orphan.counts.queued, 1, "a durable pending job with no groups cannot make the listing look idle")
+
+equal(deriveJobDisplayStatus([
+  { stepStatus: "complete", outputCount: 1 },
+  { stepStatus: "failed", outputCount: 0 },
+], "complete").label, "Needs attention", "a stale complete parent cannot hide a failed child")
+equal(deriveJobDisplayStatus([
+  { stepStatus: "complete", outputCount: 1 },
+  { stepStatus: "running", outputCount: 0 },
+], "complete").label, "Editing", "partial batches stay active while finished siblings remain reviewable")
+equal(deriveJobDisplayStatus([
+  { stepStatus: "complete", outputCount: 1 },
+], "complete").label, "Review pending", "finished work is not approval")
 
 console.log(`listing status: ${assertions} assertions passed`)

@@ -71,6 +71,28 @@ export type ListingStatusSummary = {
   headline: "Needs attention" | "In progress" | "Review pending" | "No active work"
 }
 
+export function deriveJobDisplayStatus(
+  groups: Array<{ stepStatus: string; outputCount: number }>,
+  fallbackStatus = "pending"
+): { status: string; label: string } {
+  if (groups.some((group) => group.stepStatus === "failed" || (group.stepStatus === "complete" && group.outputCount === 0))) {
+    return { status: "failed", label: "Needs attention" }
+  }
+  if (groups.some((group) => group.stepStatus === "running")) {
+    return { status: "processing", label: "Editing" }
+  }
+  if (groups.some((group) => group.stepStatus === "queued")) {
+    return { status: "queued", label: "Queued" }
+  }
+  if (groups.length > 0 && groups.every((group) => group.stepStatus === "complete" && group.outputCount > 0)) {
+    return { status: "complete", label: "Review pending" }
+  }
+  return {
+    status: fallbackStatus,
+    label: fallbackStatus === "failed" || fallbackStatus === "partial_failure" ? "Needs attention" : fallbackStatus === "processing" ? "Editing" : "Queued",
+  }
+}
+
 function cleanError(error: string | null | undefined, fallback: string) {
   return error?.trim() || fallback
 }

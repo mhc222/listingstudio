@@ -8,6 +8,7 @@ import { StatePill } from "@/components/brand"
 import { Disclosure } from "@/components/ui/disclosure"
 import { EDIT_TYPES } from "./edit-types"
 import type { PhotoRow } from "./photo-grid"
+import { deriveJobDisplayStatus } from "@/lib/listing-status"
 
 export type SampleRow = {
   id: string
@@ -49,16 +50,6 @@ export type JobRow = {
     }[]
     chat_messages: { role: string; content: string; created_at: string }[]
   }[]
-}
-
-const STATUS_LABELS: Record<string, string> = {
-  queued: "Waiting",
-  pending: "Waiting",
-  processing: "Editing",
-  running: "Editing",
-  complete: "Ready",
-  failed: "Needs attention",
-  partial_failure: "Needs attention",
 }
 
 function humanTitle(value: string): string {
@@ -199,6 +190,13 @@ export function JobFeed({
             const completeGroups = job.file_groups.filter(
               (group) => group.step_status === "complete"
             ).length
+            const displayStatus = deriveJobDisplayStatus(
+              job.file_groups.map((group) => ({
+                stepStatus: group.step_status,
+                outputCount: group.output_versions.length,
+              })),
+              job.status
+            )
             return (
             <article id={`job-${job.id}`} key={job.id} className="scroll-mt-24 border-b border-border py-6">
               <div className="flex items-start justify-between gap-4">
@@ -216,7 +214,7 @@ export function JobFeed({
                     </time>
                   )}
                 </div>
-                <StatePill status={job.status} label={STATUS_LABELS[job.status] ?? "Waiting"} />
+                <StatePill status={displayStatus.status} label={displayStatus.label} />
               </div>
               {(() => {
                 // job cards show the latest user message as description (CLAUDE.md)
