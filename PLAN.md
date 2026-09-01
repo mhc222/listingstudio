@@ -625,7 +625,7 @@ The implementation arc below is approved for planning, not pre-authorized as one
 
 ## Phase 46 — Room and same-view organization review
 
-**Status (2026-09-01):** In progress. The proposal/prompt/schema checkpoint is complete locally; migration `0011_room_proposals.sql` is awaiting Matt's live SQL run before authenticated routes and the review UI continue.
+**Status (2026-09-01):** Complete locally. Migration `0011_room_proposals.sql` is live; permanent targeted-cleanup migration `0012_room_proposal_cleanup.sql` is queued for Matt's end-of-project SQL batch, with an application compatibility path verified against the current live function.
 
 **Goal:** Reduce manual room clerical work while keeping the human authoritative. Propose room labels and same-room angle groups that later batch editing can trust; never silently commit uncertain semantics.
 
@@ -653,7 +653,7 @@ The implementation arc below is approved for planning, not pre-authorized as one
 
 **Server safety:** persist an immutable target/scope snapshot with the Job and support explicit per-target chains/options or a validated split into compatible room groups. `/api/jobs` recomputes ownership, representative identity, room/group compatibility, and allowed options; it rejects a crafted mixed/untagged Virtual Staging request without explicit room-specific overrides. Client blocking is guidance, never the safety boundary. Retries reuse the same target snapshot.
 
-**Likely files:** `supabase/migrations/0012_batch_scope.sql`; `app/listings/[id]/{photo-grid,listing-workspace,composer,chain-step-editor}.tsx`; `app/api/jobs/route.ts`; a pure scope validator; orchestration/request tests and `UI-SPEC.md`.
+**Likely files:** `supabase/migrations/0013_batch_scope.sql`; `app/listings/[id]/{photo-grid,listing-workspace,composer,chain-step-editor}.tsx`; `app/api/jobs/route.ts`; a pure scope validator; orchestration/request tests and `UI-SPEC.md`.
 
 **Not in scope:** presets, new edit types, prompt/provider changes, or redesigning the studio.
 
@@ -673,7 +673,7 @@ The implementation arc below is approved for planning, not pre-authorized as one
 
 **Intake and scope:** expose preset choice during or immediately after Phase 44 intake, but always show the scope and included settings before application. No preset silently starts processing or resolves an incompatible mixed-room Stage batch.
 
-**Likely files:** `supabase/migrations/0013_edit_presets.sql`; authenticated preset actions/routes; `app/listings/[id]/{composer,chain-step-editor,upload-panel}.tsx`; listing/page data wiring; validation helpers; tests and `UI-SPEC.md`.
+**Likely files:** `supabase/migrations/0014_edit_presets.sql`; authenticated preset actions/routes; `app/listings/[id]/{composer,chain-step-editor,upload-panel}.tsx`; listing/page data wiring; validation helpers; tests and `UI-SPEC.md`.
 
 **Not in scope:** a client/CRM entity, team sharing, silent auto-run, or new task/provider behavior.
 
@@ -711,7 +711,7 @@ The implementation arc below is approved for planning, not pre-authorized as one
 
 **Final-selection contract:** add per-version review state and an explicit `photo_finals` record for each logical source representative. It can point to a valid output version or deliberately approve the untouched original. The server validates lineage, ownership, and logical HDR representative identity; one source has at most one active final and replacing it is atomic/idempotent. Later refinements never move the pointer. Needs-changes attaches to the reviewed version with an optional note/refinement path. Disable the unsafe listing ZIP when this phase ships; individual downloads remain until Phase 51 replaces it.
 
-**Likely files:** `supabase/migrations/0014_proofing_and_finals.sql`; authenticated review/final actions; a focused proofing route/workspace; FileGroup workspace; shared `BeforeAfter`; listing navigation/Activity; tests and `UI-SPEC.md`.
+**Likely files:** `supabase/migrations/0015_proofing_and_finals.sql`; authenticated review/final actions; a focused proofing route/workspace; FileGroup workspace; shared `BeforeAfter`; listing navigation/Activity; tests and `UI-SPEC.md`.
 
 **Not in scope:** package generation, team approvals/comments, or auto-approval.
 
@@ -731,7 +731,7 @@ The implementation arc below is approved for planning, not pre-authorized as one
 
 **Package output:** use deterministic address/sequence/room or preserved-original naming, traversal-safe sanitization, collision handling, stable order, approved originals/versions only, optional disclosure companions, and a human-readable manifest recording source, selected version, transformation/disclosure, dimensions, bytes, and generation time. Replace JSZip's current whole-shoot buffering with a backpressured streaming archive or a durable asynchronous package artifact; the server recomputes the approved set at download time and peak memory must remain bounded as total package bytes grow. Replace or rename `/download-all` so no stale unsafe path remains.
 
-**Likely files:** `supabase/migrations/0015_delivery_profiles.sql`; a new bounded package helper; `lib/deliver.ts`; authenticated delivery-profile/package routes; `app/api/listings/[id]/download-all/route.ts`; listing proofing/Activity/download UI; tests and `UI-SPEC.md`.
+**Likely files:** `supabase/migrations/0016_delivery_profiles.sql`; a new bounded package helper; `lib/deliver.ts`; authenticated delivery-profile/package routes; `app/api/listings/[id]/download-all/route.ts`; listing proofing/Activity/download UI; tests and `UI-SPEC.md`.
 
 **Not in scope:** publishing directly to an MLS, claiming universal MLS compliance, client portals, or changing the visual brand.
 
@@ -751,7 +751,7 @@ The implementation arc below is approved for planning, not pre-authorized as one
 
 **Approval safety:** creating/naming/comparing/generating a version never moves Phase 50's final pointer. Replacing the approved branch is a separate explicit action, and delivery continues to surface any needs-changes conflict.
 
-**Likely files:** `supabase/migrations/0016_version_labels.sql`; version actions/API; FileGroup and proofing workspaces; a dedicated two-version compare built on the existing comparison primitive; variation submission/orchestration tests; `UI-SPEC.md`.
+**Likely files:** `supabase/migrations/0017_version_labels.sql`; version actions/API; FileGroup and proofing workspaces; a dedicated two-version compare built on the existing comparison primitive; variation submission/orchestration tests; `UI-SPEC.md`.
 
 **Not in scope:** multi-photo conversational rework, implicit apply-to-all, provider replacement, or free/unbounded variations.
 
@@ -771,7 +771,7 @@ The implementation arc below is approved for planning, not pre-authorized as one
 
 **Recovery and approvals:** report submission, processing, and failure per target; successful children remain available when siblings fail; retry reuses the stored snapshot/idempotency rules. New children never replace approved finals automatically, and protected geometry/prompt constraints continue through the existing compiler/orchestrator path.
 
-**Likely files:** `supabase/migrations/0017_scoped_rework.sql`; batch-rework route/helper; proofing workspace; orchestration and prompt-compilation integration; cost/scope confirmation; tests and `UI-SPEC.md`.
+**Likely files:** `supabase/migrations/0018_scoped_rework.sql`; batch-rework route/helper; proofing workspace; orchestration and prompt-compilation integration; cost/scope confirmation; tests and `UI-SPEC.md`.
 
 **Not in scope:** team collaboration, implicit global corrections, provider/model changes, or approval automation.
 

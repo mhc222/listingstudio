@@ -46,7 +46,7 @@
 - [x] Phase 43 — Secure resumable-intake contract (migration 0009 applied live 2026-09-01; backend contract only, queue UI remains Phase 44)
 - [x] Phase 44 — Full-shoot upload queue and recovery
 - [x] Phase 45 — Shoot inventory, counts, and HDR bracket organization
-- [ ] Phase 46 — Room and same-view organization review
+- [x] Phase 46 — Room and same-view organization review
 - [ ] Phase 47 — Safe batch scope
 - [ ] Phase 48 — Named persistent presets
 - [ ] Phase 49 — Listing-level progress truth
@@ -55,6 +55,24 @@
 - [ ] Phase 52 — Version naming and variation comparison
 - [ ] Phase 53 — Scoped conversational batch rework
 - [ ] Phase 54 — Mobile intake/proofing and workflow-state hardening
+
+## ACTIVE HANDOFF — Phase 46 room and same-view organization complete (2026-09-01)
+
+**Read this first.** Phase 46 is complete in local code. The listing now turns the Phase 45 logical-photo set into an explicit human-reviewed room organization pass: model suggestions remain evidence until accepted, corrected/deferred decisions survive reload, and durable same-room groups are clear and reversible. Stop here. Phase 47 alone owns safe batch scope and immutable target snapshots.
+
+**Shipped workflow:** Room review sits between shoot/HDR organization and the shared room browser/tray. It exposes `Suggested / Confirmed / Needs review / Untagged` counts and filters, deliberate **Suggest rooms / Run room review again**, explicit high-confidence bulk acceptance, per-photo existing/new room correction, **Leave untagged**, and same-room link/unlink. The existing corner selector can link two or more already confirmed views; the server requires one confirmed room and current logical photo identities. Manual room changes clear stale group membership, clearing a room returns the proposal to durable deferred/untagged state, and deleting a room safely detaches accepted proposal state before the FK change.
+
+**Analysis/server contract:** the authenticated analysis route snapshots only current representative photos, creates labeled contact sheets for up to 100 photos, uses the named Claude Haiku 4.5 room-analysis prompt, records `kind=interpreter / edit_type=ROOM_ANALYSIS` spend against listing/run, tolerates unreadable/malformed neighbors as a partial result, and publishes new proposals only after a usable response exists. Request UUIDs make starts idempotent. Acceptance remains service-role-only through the owned database function; the API supplies compatibility cleanup for the initially applied `0011` function. No page load starts analysis and no proposal writes a room tag, room record, dimensions, or group before acceptance.
+
+**Browser proof:** the owned empty listing `3d454ee8-fe7d-47a1-b40b-8a0074b40886` received a deterministic seven-photo fixture (two kitchen views, living room, two bedroom views, exterior, ambiguous transition) plus one floor plan. Bulk acceptance confirmed four clear suggestions; the low-confidence bedroom was confirmed and linked; the ambiguous item was corrected to **Entry Hall**; the exterior was deferred. Reload preserved exactly `6 Confirmed / 1 Untagged`, one two-view Kitchen group, one two-view Bedroom group, and `0 Needs review`. Bedroom unlink removed the two-member scope and manual reselection/relink rebuilt it. Only the seeded Kitchen retained its `14 × 11` floor-plan dimensions; all three photo-created rooms had null dimensions. A temporary photos-only listing `76b70365-5758-4903-826f-85dde9f53f5d` showed `2 Suggested`, no floor-plan extraction action, and the same explicit review controls. At the 433px browser minimum, document width stayed within the viewport after adding the required `min-w-0` containment. Browser logs had zero warnings/errors.
+
+**Confidence/cost evidence:** automated UI QA used `model=deterministic-qa-fixture`, cost `0`, and created no `ROOM_ANALYSIS` ledger row; no paid Claude call was made. The configured production model is `claude-haiku-4-5`. The known confidence weakness is intentional: visually similar bedrooms, partial/transition views, and exterior subareas can share cues without proving physical identity, so combined classification/group confidence below `0.8` stays in Needs review and `other` never becomes a clear suggestion.
+
+**Verification/cleanup/release:** Phase 46 tests pass 47 assertions; Phase 45 (21), Phase 44 (24), and Phase 43 (16) regressions pass; TypeScript, lint, diff check, the final production build, migrations `0001`–`0012` from scratch, database lint, ownership/idempotency SQL, and targeted singleton-cleanup SQL pass. Cleanup removed all 10 synthetic original objects, both fixture listings' photo/proposal/run/group rows, the temporary photos-only listing, and every fixture-created room; `3d454ee8-fe7d-47a1-b40b-8a0074b40886` is back to zero photos/proposals/runs/groups. Port 3000 was stopped before build and restarted at PID 84890; `/` returns 200. Nothing was pushed, deployed, or paid. Production remains Phase 38–41.
+
+**SQL state:** Matt applied `0011_room_proposals.sql`. Browser QA then found an over-broad singleton cleanup branch; local code and the API compatibility path are fixed and live-browser-proven. New migration `0012_room_proposal_cleanup.sql` contains the permanent database replacement and is intentionally pending Matt's end-of-project SQL batch. This consumed the old Phase 47 reservation, so planned migrations shifted: batch scope `0013`, presets `0014`, proofing `0015`, delivery `0016`, version labels `0017`, scoped rework `0018`.
+
+**Next action:** run `/clear`, then say: `Execute Phase 47 from PLAN.md. Read the ACTIVE HANDOFF first and resume from its committed checkpoint.` Do not run paid room analysis, push, deploy, or start Phase 48 inside Phase 47 without the required gate.
 
 ## ACTIVE HANDOFF — Phase 46 proposal/schema checkpoint awaiting live SQL (2026-09-01)
 
