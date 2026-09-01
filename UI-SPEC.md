@@ -108,6 +108,15 @@ The Photos route owns upload, room filtering/tagging, photo selection, and entry
 - The browser guidance and disabled Run action are not the security boundary. `/api/jobs` re-reads owned photos, current HDR representative identity, room type, and same-room membership; reconciles exact ordered targets; and rejects mismatched, reordered, mixed implicit, or untagged staging requests.
 - Every accepted job records one immutable scope snapshot with a retry identity, exact ordered target/room/group/lineage values, per-target chains, output size, and generation count. A network retry reuses that identity only for the same snapshot; later retries and orchestration continue from the stored Job/FileGroups rather than recomputing “current selection.”
 
+#### Named persistent presets
+
+- Saved presets are account-owned server records, not browser defaults. Each has one unique account name, an ordered current-catalog edit definition, output size, an included-settings summary, and created/updated timestamps. Internal rework, source-bound markup, unknown edits, unknown option keys, invalid enums, and wrong option types cannot be saved.
+- Authenticated clients can read only their own presets/defaults. Create, rename, delete, and default mutations pass through authenticated server routes after an owned read; the server sanitizer is the only write path. Deleting or renaming a preset never changes historical Jobs because every submission receives a copied chain inside its immutable Phase 47 scope.
+- Default precedence is deterministic: a confirmed single-room scope uses room → listing → account; mixed-room or untagged scopes use listing → account. A default is recommended, never silently applied, and no preset automatically starts processing.
+- A preset may fill the editable draft for one photo, an explicit selection, a visible-listing selection, a Room, or a same-room group. The operator sees the exact photo/room/group scope plus the preset's edit order and output size before choosing **Apply**. Applying deep-copies the definition, so later per-photo or per-batch overrides never mutate the saved preset.
+- Intake may prepare a server preset for the next draft. This stores only a temporary preset ID, states that target scope has not yet been chosen, and requires explicit application after exact photo selection. It never stores another browser-local chain or submits work.
+- **Apply last edit** remains a separate recent-action accelerator. The old `ls:defaultChain:<listingId>` value is offered only as a one-time validated import preview; **Not now** leaves it reversible, and a successful server save retires that browser value as source of truth.
+
 ### 5. Task Studio
 
 Desktop is a full-screen split surface:

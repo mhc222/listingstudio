@@ -669,6 +669,8 @@ The implementation arc below is approved for planning, not pre-authorized as one
 
 ## Phase 48 — Named persistent presets
 
+**Status (2026-09-01):** Complete in local code. Migration `0014_edit_presets.sql` is verified and queued with `0013_batch_scope.sql` for Matt's end-of-run SQL batch; live migrations remain through `0012`. Nothing was pushed or deployed.
+
 **Goal:** Replace browser-local saved edits with reusable, validated production settings after batch scope is trustworthy.
 
 **Preset contract:** add account-owned named edit presets with ordered chain/options, included-settings summary, timestamps, and optional account/listing/room default relationships. Strictly sanitize every stored/replayed chain against the current edit catalog and option schema. A preset can be applied to the listing, room/same-room group, explicit selection, or one photo, then overridden without mutating the saved definition. Offer a one-time explicit import of the existing `localStorage` listing default before retiring it as source of truth; keep Apply last as a separate recent-action accelerator. Rename/delete never alters historical jobs.

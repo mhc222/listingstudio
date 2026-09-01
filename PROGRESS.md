@@ -48,13 +48,29 @@
 - [x] Phase 45 — Shoot inventory, counts, and HDR bracket organization
 - [x] Phase 46 — Room and same-view organization review
 - [x] Phase 47 — Safe batch scope (local complete; migration 0013 queued for final SQL batch)
-- [ ] Phase 48 — Named persistent presets
+- [x] Phase 48 — Named persistent presets (local complete; migration 0014 queued for final SQL batch)
 - [ ] Phase 49 — Listing-level progress truth
 - [ ] Phase 50 — Contact-sheet proofing and final selection
 - [ ] Phase 51 — Approved finals and MLS delivery
 - [ ] Phase 52 — Version naming and variation comparison
 - [ ] Phase 53 — Scoped conversational batch rework
 - [ ] Phase 54 — Mobile intake/proofing and workflow-state hardening
+
+## ACTIVE HANDOFF — Phase 48 named persistent presets complete in local code (2026-09-01)
+
+**Read this first.** Phase 48 is complete and committed in local code. Browser-local listing defaults have been replaced by durable validated account presets, while Apply last remains a separate recent-action shortcut. Stop here. Phase 49 alone owns listing-level progress truth; it must preserve the Phase 47 immutable scope and Phase 48 copied-preset history.
+
+**Preset/schema contract:** verified migration `0014_edit_presets.sql` adds account-owned named presets with ordered chain/options, output size, included-settings summary, timestamps, case-insensitive unique names, plus optional account/listing/room default relationships. Default ownership and room→listing consistency are enforced by a database trigger. Authenticated tables are read-only; mutations use authenticated server routes after an owned read and a strict server whitelist. Unsupported/internal/source-bound edit types, unknown option keys, invalid enum values, wrong types, empty chains, and chains over eight steps are rejected. Jobs store copied chains/scope only, so rename/delete cannot rewrite historical work.
+
+**Workflow shipped:** the listing's post-upload surface can prepare a server preset for the next draft while explicitly saying scope is not chosen and nothing runs. Task Studio shows the exact target label/count and included edit/output settings before Apply. Applying deep-copies the definition into the editable draft and reuses Phase 47 scope validation; defaults only recommend. Resolution is room → listing → account for a confirmed one-room scope and listing → account otherwise. Account/listing/current-room defaults can be set or cleared. Named presets can be created, renamed, or deleted; historical-work copy remains explicit. The old `ls:defaultChain:<listingId>` is no longer read as active default state: it appears only as a validated one-time Import/Not now preview and is removed only after a successful server save. Apply last remains separate.
+
+**Browser proof:** authenticated isolated-local QA used listing `48484848-4848-4848-8848-484848484848` with three logical photos, two rooms, one two-view Living Room group, three default levels, and one recent chain. Post-upload preparation named included settings without choosing a scope. Selecting the same-room action opened exactly two targets; applying **MLS warm clean** produced `Image enhancement → Turn on lights`, Under 10MB, and five expected passes without submitting. Living Room resolved the room default above listing/account; Kitchen resolved the listing default above account. A crisp override saved as **Browser preset proof**, became the listing default, survived reload, and reapplied crisp after the working draft was changed to warm, proving the definition was untouched. At the browser's 481px minimum, document/body width stayed 464px with one dialog and no overflow; browser logs had zero warnings/errors. No Start button was clicked and no generation/model call/cost was created.
+
+**Database/verification:** migrations `0001`–`0014` applied from scratch in an isolated high-port Supabase stack and database lint found no schema errors. SQL fixtures proved own/cross-owner reads, direct authenticated insert/update bypass prevention, default owner/listing/room enforcement, three-level defaults, cascade cleanup, and historical Job stability after preset rename/delete. `npm run test:edit-presets` passes 38 assertions; Phase 43 intake (16), Phase 44 queue (24), Phase 45 shoot organization (21), Phase 46 room analysis (47), and Phase 47 batch scope (34) regressions pass—180 assertions total. TypeScript, lint, diff check, and the final 28-page production build pass with no warnings. The temporary database, QA account/listing/photos/presets, and uploaded objects were destroyed with the isolated stack, whose folder was moved to Trash.
+
+**SQL/release/port state:** Matt asked to run all remaining SQL at the end. Live migrations remain through `0012`; `0013_batch_scope.sql` must run before `0014_edit_presets.sql`. Nothing was pushed, deployed, or paid. Production remains the Phase 38–41 release. Port 3000 was stopped before both final builds and restored against the normal `.env.local`; `/` returns 200.
+
+**Next action:** run `/clear`, then say: `Execute Phase 49 from PLAN.md. Read the ACTIVE HANDOFF first.` Do not start Phase 50, run a paid generation, push, deploy, or apply live SQL inside Phase 49 without a new explicit instruction.
 
 ## ACTIVE HANDOFF — Phase 47 safe batch scope complete in local code (2026-09-01)
 

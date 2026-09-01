@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
+import { useLayoutEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Armchair, Eraser, Hammer, MoreHorizontal, Moon, Paintbrush, Plus, Sparkles } from "lucide-react"
