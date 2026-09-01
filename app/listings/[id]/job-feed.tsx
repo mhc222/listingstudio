@@ -48,6 +48,7 @@ export type JobRow = {
       compliance: ComplianceNote
       url: string | null
     }[]
+    approved?: boolean
     chat_messages: { role: string; content: string; created_at: string }[]
   }[]
 }
@@ -154,7 +155,7 @@ export function JobFeed({
     }
   }, [hasActive, listingId, router])
 
-  const hasFinals = jobs.some((j) =>
+  const hasReviewable = jobs.some((j) =>
     j.file_groups.some((fg) => fg.step_status === "complete" && fg.output_versions.length > 0)
   )
 
@@ -167,13 +168,13 @@ export function JobFeed({
           </p>
           <h2 id="activity-feed-title" className="mt-1.5 text-2xl font-semibold tracking-[-0.03em]">Recent edits</h2>
         </div>
-        {hasFinals && (
-          <a
-            href={`/api/listings/${listingId}/download-all`}
+        {hasReviewable && (
+          <Link
+            href={`/listings/${listingId}/proofing`}
             className="text-sm underline underline-offset-4 hover:text-foreground"
           >
-            Download ready images
-          </a>
+            Review and choose finals
+          </Link>
         )}
       </div>
 
@@ -194,6 +195,7 @@ export function JobFeed({
               job.file_groups.map((group) => ({
                 stepStatus: group.step_status,
                 outputCount: group.output_versions.length,
+                approved: group.approved,
               })),
               job.status
             )

@@ -15,10 +15,13 @@ function workspaceTitle(chain: { edit_type: string }[]): string {
 
 export default async function FileGroupPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string; fileGroupId: string }>
+  searchParams: Promise<{ version?: string }>
 }) {
   const { id, fileGroupId } = await params
+  const query = await searchParams
   const supabase = await createClient()
 
   // RLS scopes file_groups to the owner (via job → listing), so an unowned id
@@ -76,17 +79,33 @@ export default async function FileGroupPage({
   // compliance jsonb (phase 21, migration 0008) fetched separately, fail-open —
   // a nested select would error the whole query on any pre-migration schema gap.
   const complianceById = new Map<string, ComplianceNote>()
+  const reviewById = new Map<string, { review_state: "unreviewed" | "needs_changes" | "approved"; review_note: string | null; reviewed_at: string | null }>()
   if (fg.output_versions.length > 0) {
     const { data: rows } = await supabase
       .from("output_versions")
-      .select("id, compliance")
+      .select("id, compliance, review_state, review_note, reviewed_at")
       .in(
         "id",
         fg.output_versions.map((v) => v.id)
       )
-    for (const r of rows ?? [])
+    for (const r of rows ?? []) {
       complianceById.set(r.id, (r.compliance as ComplianceNote) ?? null)
+      reviewById.set(r.id, {
+        review_state: r.review_state as "unreviewed" | "needs_changes" | "approved",
+        review_note: r.review_note,
+        reviewed_at: r.reviewed_at,
+      })
+    }
   }
+
+  // Fail-open while Matt's deferred migration batch is pending. Once 0015 is
+  // applied, this is the explicit source-final pointer for every workspace.
+  const { data: selectedFinal } = await supabase
+    .from("photo_finals")
+    .select("id, output_version_id, selected_at")
+    .eq("listing_id", id)
+    .eq("source_photo_id", fg.primary_photo_id)
+    .maybeSingle()
 
   const workspaceFg: WorkspaceFileGroup = {
     id: fg.id,
@@ -103,8 +122,16 @@ export default async function FileGroupPage({
       parent_version_id: v.parent_version_id,
       qa_note: v.qa_note,
       compliance: complianceById.get(v.id) ?? null,
+      review_state: reviewById.get(v.id)?.review_state ?? "unreviewed",
+      review_note: reviewById.get(v.id)?.review_note ?? null,
+      reviewed_at: reviewById.get(v.id)?.reviewed_at ?? null,
       url: outputUrls[v.storage_path] ?? null,
     })),
+    final: selectedFinal ? {
+      id: selectedFinal.id,
+      output_version_id: selectedFinal.output_version_id,
+      selected_at: selectedFinal.selected_at,
+    } : null,
   }
 
   const siblingRows = (siblings ?? []).map((item) => {
@@ -146,6 +173,7 @@ export default async function FileGroupPage({
           fg={workspaceFg}
           before={before}
           siblings={siblingRows}
+          initialVersionId={query.version}
         />
       </div>
     </main>

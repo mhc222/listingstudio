@@ -54,9 +54,16 @@ as $$
 begin
   if (current_user in ('authenticated', 'anon') or auth.role() in ('authenticated', 'anon'))
      and (
-       old.review_state is distinct from new.review_state
-       or old.review_note is distinct from new.review_note
-       or old.reviewed_at is distinct from new.reviewed_at
+       (tg_op = 'INSERT' and (
+         new.review_state <> 'unreviewed'
+         or new.review_note is not null
+         or new.reviewed_at is not null
+       ))
+       or (tg_op = 'UPDATE' and (
+         old.review_state is distinct from new.review_state
+         or old.review_note is distinct from new.review_note
+         or old.reviewed_at is distinct from new.reviewed_at
+       ))
      ) then
     raise exception 'proofing state is server managed' using errcode = '42501';
   end if;
@@ -66,6 +73,10 @@ $$;
 
 create trigger output_versions_guard_review
 before update of review_state, review_note, reviewed_at on output_versions
+for each row execute function guard_output_version_review_mutation();
+
+create trigger output_versions_guard_review_insert
+before insert on output_versions
 for each row execute function guard_output_version_review_mutation();
 
 create or replace function validate_photo_final_lineage()

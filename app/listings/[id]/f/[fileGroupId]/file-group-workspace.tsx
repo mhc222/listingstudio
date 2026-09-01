@@ -45,8 +45,16 @@ export type WorkspaceFileGroup = {
     parent_version_id: string | null
     qa_note: string | null
     compliance: ComplianceNote
+    review_state: "unreviewed" | "needs_changes" | "approved"
+    review_note: string | null
+    reviewed_at: string | null
     url: string | null
   }[]
+  final: {
+    id: string
+    output_version_id: string | null
+    selected_at: string
+  } | null
   chat_messages: { role: string; content: string; created_at: string }[]
 }
 
@@ -68,14 +76,15 @@ function editOrder(chain: WorkspaceFileGroup["edit_chain"]) {
     .join(" → ")
 }
 
-export function FileGroupWorkspace({ listingId, fg, before, siblings }: {
+export function FileGroupWorkspace({ listingId, fg, before, siblings, initialVersionId }: {
   listingId: string
   fg: WorkspaceFileGroup
   before: BeforePhoto
   siblings: Sibling[]
+  initialVersionId?: string
 }) {
   const router = useRouter()
-  const [selectedVersionId, setSelectedVersionId] = useState("")
+  const [selectedVersionId, setSelectedVersionId] = useState(initialVersionId ?? "")
   const [reworkText, setReworkText] = useState("")
   const [reworking, setReworking] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
@@ -86,6 +95,8 @@ export function FileGroupWorkspace({ listingId, fg, before, siblings }: {
   const [attached, setAttached] = useState(false)
   const [resultImageFailed, setResultImageFailed] = useState(false)
   const [imageRetryKey, setImageRetryKey] = useState(0)
+  const [reviewNote, setReviewNote] = useState("")
+  const [reviewing, setReviewing] = useState(false)
 
   const versionsDesc = [...fg.output_versions].sort((a, b) => b.version_number - a.version_number)
   const latest = versionsDesc.find((version) => version.id === selectedVersionId) ?? versionsDesc[0]
@@ -97,7 +108,10 @@ export function FileGroupWorkspace({ listingId, fg, before, siblings }: {
   const is360 = fg.edit_chain.some((step) => EDIT_360_TYPES.includes(step.edit_type))
   const staged = fg.edit_chain.some((step) => STAGED_TYPES.includes(step.edit_type))
   const thread = [...(fg.chat_messages ?? [])].sort((a, b) => a.created_at.localeCompare(b.created_at))
-  const copy = statusCopy(fg.step_status, Boolean(latest?.url))
+  const selectedIsFinal = Boolean(latest && fg.final?.output_version_id === latest.id)
+  const copy = selectedIsFinal
+    ? { label: "Approved final", heading: "This version is the approved final" }
+    : statusCopy(fg.step_status, Boolean(latest?.url))
   const selectedSiblingIndex = Math.max(0, siblings.findIndex((item) => item.id === fg.id))
 
   useEffect(() => {
@@ -107,9 +121,40 @@ export function FileGroupWorkspace({ listingId, fg, before, siblings }: {
       .on("postgres_changes", { event: "*", schema: "public", table: "file_groups", filter: `id=eq.${fg.id}` }, () => router.refresh())
       .on("postgres_changes", { event: "*", schema: "public", table: "output_versions", filter: `file_group_id=eq.${fg.id}` }, () => router.refresh())
       .on("postgres_changes", { event: "*", schema: "public", table: "chat_messages", filter: `file_group_id=eq.${fg.id}` }, () => router.refresh())
+      .on("postgres_changes", { event: "*", schema: "public", table: "photo_finals", filter: `listing_id=eq.${listingId}` }, () => router.refresh())
       .subscribe()
     return () => { supabase.removeChannel(channel) }
-  }, [fg.id, router])
+  }, [fg.id, listingId, router])
+
+  async function saveReview(action: "approve" | "needs_changes") {
+    if (!latest || reviewing) return
+    setReviewing(true)
+    setActionError(null)
+    try {
+      const response = await fetch(`/api/listings/${listingId}/proofing`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          requestId: crypto.randomUUID(),
+          sourcePhotoId: fg.primary_photo_id,
+          action,
+          outputVersionId: latest.id,
+          note: action === "needs_changes" ? reviewNote.trim() : null,
+        }),
+      })
+      const data = await response.json().catch(() => null)
+      if (!response.ok) {
+        setActionError(data?.error ?? "The review decision could not be saved. Try again.")
+        return
+      }
+      setReviewNote("")
+      router.refresh()
+    } catch {
+      setActionError("The connection was interrupted. Your review choice is still here—try again.")
+    } finally {
+      setReviewing(false)
+    }
+  }
 
   // localhost cannot receive fal webhooks. This listing-scoped endpoint uses
   // the same orchestrator transitions and production realtime remains primary.
@@ -291,6 +336,27 @@ export function FileGroupWorkspace({ listingId, fg, before, siblings }: {
               )}
               <Button asChild className="mt-3 w-full"><a href={downloadHref}>Download photo</a></Button>
               {is360 && <button type="button" onClick={() => setPreview360((value) => !value)} className="mt-2 w-full text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground">{preview360 ? "Show before and after" : "Preview in 360"}</button>}
+            </section>
+          )}
+
+          {latest?.url && settled && !isPlan && (
+            <section className="mt-6 border-t border-border/60 pt-5">
+              <div className="flex items-center justify-between gap-2">
+                <h3 className="text-xs font-semibold">Final selection</h3>
+                <Link href={`/listings/${listingId}/proofing?photo=${fg.primary_photo_id}`} className="text-xs text-muted-foreground underline underline-offset-4">Open proofing</Link>
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {selectedIsFinal ? "This exact version is approved. Later refinements will not replace it." : "Ready to review is not approval. Choose this exact version only after checking it."}
+              </p>
+              <Button className="mt-3 w-full" onClick={() => saveReview("approve")} disabled={reviewing || selectedIsFinal}>
+                {reviewing ? "Saving…" : fg.final ? "Replace approved final" : "Approve final"}
+              </Button>
+              <label htmlFor="workspace-review-note" className="mt-4 block text-xs font-semibold">What needs to change? <span className="font-normal text-muted-foreground">Optional</span></label>
+              <Textarea id="workspace-review-note" value={reviewNote} onChange={(event) => setReviewNote(event.target.value)} maxLength={2000} rows={2} className="mt-2" placeholder="e.g. Keep the original view through the window" />
+              <Button className="mt-2 w-full" variant="outline" onClick={() => saveReview("needs_changes")} disabled={reviewing}>Needs changes</Button>
+              {latest.review_state === "needs_changes" && (
+                <p className="mt-2 text-xs text-destructive">Needs changes{latest.review_note ? ` — ${latest.review_note}` : ""}</p>
+              )}
             </section>
           )}
 

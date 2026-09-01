@@ -21,6 +21,7 @@ export type ListingStatusItem = {
 
 export type ListingStatusInput = {
   listingId: string
+  approvedSourcePhotoIds?: string[]
   uploadItems?: Array<{
     id: string
     originalFilename: string
@@ -72,7 +73,7 @@ export type ListingStatusSummary = {
 }
 
 export function deriveJobDisplayStatus(
-  groups: Array<{ stepStatus: string; outputCount: number }>,
+  groups: Array<{ stepStatus: string; outputCount: number; approved?: boolean }>,
   fallbackStatus = "pending"
 ): { status: string; label: string } {
   if (groups.some((group) => group.stepStatus === "failed" || (group.stepStatus === "complete" && group.outputCount === 0))) {
@@ -85,7 +86,9 @@ export function deriveJobDisplayStatus(
     return { status: "queued", label: "Queued" }
   }
   if (groups.length > 0 && groups.every((group) => group.stepStatus === "complete" && group.outputCount > 0)) {
-    return { status: "complete", label: "Review pending" }
+    return groups.every((group) => group.approved)
+      ? { status: "complete", label: "Approved final" }
+      : { status: "complete", label: "Review pending" }
   }
   return {
     status: fallbackStatus,
@@ -110,6 +113,7 @@ function humanTitle(value: string) {
 export function deriveListingStatus(input: ListingStatusInput): ListingStatusSummary {
   const listingHref = `/listings/${input.listingId}`
   const items: ListingStatusItem[] = []
+  const approvedSources = new Set(input.approvedSourcePhotoIds ?? [])
 
   for (const upload of input.uploadItems ?? []) {
     if (upload.status === "reserved" || upload.status === "finalizing") {
@@ -256,13 +260,15 @@ export function deriveListingStatus(input: ListingStatusInput): ListingStatusSum
             action: "Recover image",
             source: "result",
           })
-        } else {
+        } else if (!group.primaryPhotoId || !approvedSources.has(group.primaryPhotoId)) {
           items.push({
             key: `result:${group.id}`,
             status: "review_pending",
             title,
             detail: "A finished image is ready to review.",
-            href,
+            href: group.primaryPhotoId
+              ? `${listingHref}/proofing?photo=${group.primaryPhotoId}`
+              : href,
             action: "Review result",
             source: "result",
           })

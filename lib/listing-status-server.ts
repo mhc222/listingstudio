@@ -16,7 +16,7 @@ export async function loadListingStatuses(
   const uniqueIds = [...new Set(listingIds)]
   if (uniqueIds.length === 0) return new Map()
 
-  const [uploadsQ, photoGroupsQ, roomRunsQ, roomProposalsQ, jobsQ] = await Promise.all([
+  const [uploadsQ, photoGroupsQ, roomRunsQ, roomProposalsQ, jobsQ, finalsQ] = await Promise.all([
     supabase
       .from("upload_items")
       .select("id, original_filename, status, error, is_floor_plan, upload_batches!inner(listing_id)")
@@ -40,6 +40,10 @@ export async function loadListingStatuses(
       .select(
         "id, listing_id, title, status, file_groups(id, primary_photo_id, step_status, last_error, output_versions(id, version_number, storage_path))"
       )
+      .in("listing_id", uniqueIds),
+    supabase
+      .from("photo_finals")
+      .select("listing_id, source_photo_id")
       .in("listing_id", uniqueIds),
   ])
 
@@ -113,6 +117,12 @@ export async function loadListingStatuses(
         })),
       })),
     })
+  }
+
+  for (const row of finalsQ.data ?? []) {
+    const input = inputs.get(row.listing_id)
+    if (!input) continue
+    ;(input.approvedSourcePhotoIds ??= []).push(row.source_photo_id)
   }
 
   return new Map(

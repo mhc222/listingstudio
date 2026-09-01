@@ -115,6 +115,19 @@ const recovered = deriveListingStatus({
 equal(recovered.headline, "Review pending", "reload derives recovered output truth without a stored listing state")
 equal(recovered.counts.review_pending, 1, "recovered image returns to review immediately")
 
+const approved = deriveListingStatus({
+  ...base,
+  approvedSourcePhotoIds: ["photo-final"],
+  jobs: [{
+    id: "approved-job",
+    title: "enhance",
+    status: "complete",
+    fileGroups: [{ id: "approved", primaryPhotoId: "photo-final", stepStatus: "complete", outputVersions: [{ id: "v3", versionNumber: 3, accessible: true }] }],
+  }],
+})
+equal(approved.counts.review_pending, 0, "an explicitly approved logical source is no longer review pending")
+equal(approved.headline, "No active work", "approved work leaves no false active workflow item")
+
 const orphan = deriveListingStatus({
   ...base,
   jobs: [{ id: "orphan", title: "prepare edits", status: "pending", fileGroups: [] }],
@@ -132,5 +145,8 @@ equal(deriveJobDisplayStatus([
 equal(deriveJobDisplayStatus([
   { stepStatus: "complete", outputCount: 1 },
 ], "complete").label, "Review pending", "finished work is not approval")
+equal(deriveJobDisplayStatus([
+  { stepStatus: "complete", outputCount: 1, approved: true },
+], "complete").label, "Approved final", "explicit final selection changes the completed activity label")
 
 console.log(`listing status: ${assertions} assertions passed`)

@@ -52,5 +52,28 @@ for (const invariant of [
   "read own photo finals",
 ]) matches(migration, new RegExp(invariant.replace(/[()]/g, "\\$&"), "i"), `migration contains ${invariant}`)
 
-console.log(`proofing: ${assertions} assertions passed`)
+const server = readFileSync(new URL("../lib/proofing-server.ts", import.meta.url), "utf8")
+const workspace = readFileSync(new URL("../app/listings/[id]/proofing/proofing-workspace.tsx", import.meta.url), "utf8")
+const page = readFileSync(new URL("../app/listings/[id]/proofing/page.tsx", import.meta.url), "utf8")
+const route = readFileSync(new URL("../app/api/listings/[id]/proofing/route.ts", import.meta.url), "utf8")
+const oldZip = readFileSync(new URL("../app/api/listings/[id]/download-all/route.ts", import.meta.url), "utf8")
+for (const invariant of [
+  "logicalPhotoIds",
+  "photo_finals",
+  "review_state",
+]) matches(server, new RegExp(invariant), `proofing loader contains ${invariant}`)
+for (const invariant of [
+  "Proofing contact sheet",
+  "ArrowLeft",
+  "ArrowRight",
+  "Approve final",
+  "Needs changes",
+  "All review states",
+  "All QA states",
+]) matches(workspace, new RegExp(invariant), `proofing workspace contains ${invariant}`)
+matches(page, /Opening a photo never approves it/, "proofing page makes passive viewing semantics explicit")
+matches(route, /set_photo_review/, "authenticated route uses the validated atomic review RPC")
+matches(oldZip, /status: 410/, "unsafe latest-output archive is disabled")
+equal(/JSZip|generateAsync|output_versions/.test(oldZip), false, "disabled archive cannot collect latest output versions")
 
+console.log(`proofing: ${assertions} assertions passed`)

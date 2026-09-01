@@ -11,7 +11,7 @@ import { ListingProgress } from "../listing-progress"
 export default async function ActivityPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const supabase = await createClient()
-  const [{ data: listing }, { data: photos }, { data: jobs }] = await Promise.all([
+  const [{ data: listing }, { data: photos }, { data: jobs }, { data: finals }] = await Promise.all([
     supabase.from("listings").select("id, address").eq("id", id).single(),
     supabase
       .from("photos")
@@ -28,6 +28,7 @@ export default async function ActivityPage({ params }: { params: Promise<{ id: s
       )
       .eq("listing_id", id)
       .order("created_at", { ascending: false }),
+    supabase.from("photo_finals").select("source_photo_id").eq("listing_id", id),
   ])
   if (!listing) notFound()
   const listingStatuses = await loadListingStatuses(supabase, [id])
@@ -62,6 +63,7 @@ export default async function ActivityPage({ params }: { params: Promise<{ id: s
     ...job,
     file_groups: job.file_groups.map((group) => ({
       ...group,
+      approved: (finals ?? []).some((final) => final.source_photo_id === group.primary_photo_id),
       output_versions: group.output_versions.map((version) => ({
         id: version.id,
         version_number: version.version_number,
