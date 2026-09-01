@@ -13,7 +13,8 @@
     "test:room-analysis": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/test-room-analysis.mjs",
     "test:batch-scope": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/test-batch-scope.mjs",
     "test:edit-presets": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/test-edit-presets.mjs",
-    "test:listing-status": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/test-listing-status.mjs"
+    "test:listing-status": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/test-listing-status.mjs",
+    "test:proofing": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/test-proofing.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.122.0",
