@@ -92,4 +92,16 @@ const migration = readFileSync(new URL("../supabase/migrations/0013_batch_scope.
 includes(migration, /unique index jobs_listing_target_request_unique/i, "migration reserves one job per request identity")
 includes(migration, /job target scope is immutable/i, "migration blocks scope mutation")
 
+const route = readFileSync(new URL("../app/api/jobs/route.ts", import.meta.url), "utf8")
+const workspace = readFileSync(new URL("../app/listings/[id]/listing-workspace.tsx", import.meta.url), "utf8")
+const composer = readFileSync(new URL("../app/listings/[id]/composer.tsx", import.meta.url), "utf8")
+includes(route, /buildBatchScope\(/, "jobs route executes the pure scope validator")
+includes(route, /target_snapshot: scope\.snapshot/, "jobs route persists the validated snapshot")
+includes(route, /batchScopesEqual\(priorJob\.target_snapshot, scope\.snapshot\)/, "job retries require the identical snapshot")
+includes(workspace, /Select all visible/, "visible-filter selection is discoverable")
+includes(workspace, /same_room_group/, "durable same-room groups are a selection method")
+includes(workspace, /rangeMode/, "touch range selection is implemented")
+includes(composer, /Use each photo&apos;s confirmed room settings/, "mixed-room recovery is explicit")
+includes(composer, /Nothing selected never expands to the whole listing/, "empty scope never implies all")
+
 console.log(`batch scope: ${assertions} assertions passed`)
