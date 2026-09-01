@@ -304,12 +304,18 @@ async function liveContract({ baseUrl, heic }) {
     originalPaths.add(orientedPhoto.storage_path)
     originalPaths.add(orientedPhoto.source_storage_path)
 
-    const immutableUpdate = await user.storage
+    await user.storage
       .from("originals")
       .update(photo.source_storage_path, Buffer.from("overwrite"), { contentType: "image/jpeg" })
-    assert(immutableUpdate.error, "authenticated user could overwrite an original")
-    const immutableDelete = await user.storage.from("originals").remove([photo.source_storage_path])
-    assert(immutableDelete.error, "authenticated user could delete an original")
+    await user.storage.from("originals").remove([photo.source_storage_path])
+    const { data: sourceAfterMutationAttempts, error: sourceMutationError } = await admin.storage
+      .from("originals")
+      .download(photo.source_storage_path)
+    if (sourceMutationError) throw sourceMutationError
+    assert(
+      sha256(Buffer.from(await sourceAfterMutationAttempts.arrayBuffer())) === sha256(jpeg),
+      "authenticated overwrite/delete changed an immutable original"
+    )
 
     const spoof = Buffer.alloc(64, 1)
     const spoofed = await prepare({ name: "spoofed.jpg", size: spoof.byteLength, type: "image/jpeg" })

@@ -16,6 +16,11 @@ export type IntakeItem = {
   intake_path: string
   source_storage_path: string
   canonical_storage_path: string | null
+  source_content_type: string | null
+  canonical_content_type: string | null
+  source_byte_size: number | null
+  width: number | null
+  height: number | null
   status: "reserved" | "finalizing" | "complete" | "failed" | "canceled"
 }
 

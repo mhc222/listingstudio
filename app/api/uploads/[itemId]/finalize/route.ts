@@ -75,7 +75,26 @@ export async function POST(
   }
 
   try {
-    const materialized = await materializeIntakeItem(item, admin)
+    // The atomic RPC normally makes photo creation + item completion
+    // indivisible. Retain a recovery path for a row-created/status-not-finished
+    // checkpoint (for example, data written by an older finalizer) without
+    // requiring the already-cleaned intake object to still exist.
+    const materialized =
+      item.status === "finalizing" &&
+      item.canonical_storage_path &&
+      item.source_content_type &&
+      item.canonical_content_type &&
+      item.source_byte_size
+        ? {
+            sourceStoragePath: item.source_storage_path,
+            canonicalStoragePath: item.canonical_storage_path,
+            sourceContentType: item.source_content_type,
+            canonicalContentType: item.canonical_content_type,
+            sourceByteSize: item.source_byte_size,
+            width: item.width,
+            height: item.height,
+          }
+        : await materializeIntakeItem(item, admin)
     const { data: photoId, error } = await admin.rpc("finalize_upload_item", {
       p_item_id: item.id,
       p_user_id: user.id,
