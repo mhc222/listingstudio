@@ -85,7 +85,7 @@ matches(route, /set_photo_review/, "authenticated route uses the validated atomi
 matches(activity, /final\.output_version_id !== null[\s\S]*group\.output_versions\.some/, "activity marks only the file group containing the exact approved output")
 matches(server, /createAdminClient[\s\S]*storageClient/, "owned proofing rows support legacy output storage paths")
 matches(individualDownload, /download\("outputs", version\.storage_path, storageClient\)/, "individual downloads retain legacy output compatibility after ownership proof")
-matches(oldZip, /status: 410/, "unsafe latest-output archive is disabled")
-equal(/JSZip|generateAsync|output_versions/.test(oldZip), false, "disabled archive cannot collect latest output versions")
+matches(oldZip, /loadDeliveryPackageContext/, "Phase 51 archive recomputes the explicit approved set")
+equal(/JSZip|generateAsync|output_versions/.test(oldZip), false, "approved archive cannot collect latest output versions or whole-package buffer")
 
 console.log(`proofing: ${assertions} assertions passed`)

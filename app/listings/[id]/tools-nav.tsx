@@ -13,6 +13,7 @@ const TOOLS = [
   { seg: "plan", label: "Plan" },
   { seg: "copy", label: "Copy" },
   { seg: "proofing", label: "Proofing" },
+  { seg: "delivery", label: "Delivery" },
   { seg: "activity", label: "Activity" },
 ] as const
 

@@ -28,7 +28,10 @@ export default async function ProofingPage({
           <p className="ls-section-label text-muted-foreground">Full-shoot review</p>
           <h1 className="mt-1.5 text-3xl font-semibold tracking-[-0.035em]">Proofing</h1>
         </div>
-        {listing.mlsNumber && <p className="text-xs text-muted-foreground">MLS {listing.mlsNumber}</p>}
+        <div className="flex flex-wrap items-center gap-3">
+          {listing.mlsNumber && <p className="text-xs text-muted-foreground">MLS {listing.mlsNumber}</p>}
+          <Link href={`/listings/${id}/delivery`} className="text-sm font-medium underline underline-offset-4">Prepare delivery →</Link>
+        </div>
       </div>
       <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
         Compare every logical photo, choose the exact version, then approve it. Opening a photo never approves it.
@@ -40,4 +43,3 @@ export default async function ProofingPage({
     </main>
   )
 }
-

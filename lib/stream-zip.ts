@@ -1,5 +1,3 @@
-import "server-only"
-
 export type StreamingZipEntry = {
   name: string
   data: () => Promise<Uint8Array>
