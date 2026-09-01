@@ -50,11 +50,29 @@
 - [x] Phase 47 — Safe batch scope (local complete; migration 0013 queued for final SQL batch)
 - [x] Phase 48 — Named persistent presets (local complete; migration 0014 queued for final SQL batch)
 - [x] Phase 49 — Listing-level progress truth (local complete; no migration)
-- [ ] Phase 50 — Contact-sheet proofing and final selection
+- [x] Phase 50 — Contact-sheet proofing and final selection
 - [ ] Phase 51 — Approved finals and MLS delivery
 - [ ] Phase 52 — Version naming and variation comparison
 - [ ] Phase 53 — Scoped conversational batch rework
 - [ ] Phase 54 — Mobile intake/proofing and workflow-state hardening
+
+## ACTIVE HANDOFF — Phase 50 contact-sheet proofing and final selection complete in local code (2026-09-01)
+
+**Read this first.** Phase 50 is complete and committed in local code. A listing now has one full-shoot proofing surface and one explicit, durable final per current logical photo. `Ready`, opening, comparing, downloading, and creating a later version never imply approval. Stop here. Phase 51 alone owns approved-finals delivery packages.
+
+**Workflow shipped:** `/listings/[id]/proofing` shows the current logical shoot as a desktop contact sheet or touch filmstrip with room, review-state, and QA filters; exact `?photo=` links; Previous/Next and Arrow-key movement; `N of M approved`; before/after; every stored version plus the untouched original; explicit **Approve final** and **Needs changes** with an optional note. Processing and failed items stay visible beside finished work. The exact approved version is reflected in its FileGroup workspace and Activity; a completed group says **Approved final** only when it contains that exact selected output.
+
+**Final-selection contract:** verified migration `0015_proofing_and_finals.sql` adds server-managed per-version review fields, one `photo_finals` pointer per logical source, and immutable request receipts. The service-only atomic function revalidates listing ownership, output lineage, and current HDR representative identity; null output deliberately approves the untouched original. Reusing one request ID with the same payload is a no-op and with a different payload is rejected. A later output never moves an existing final. Needs-changes attaches to the reviewed version and clears a final only when that exact version was selected. Authenticated clients can read owned state but cannot forge review/final writes.
+
+**Delivery boundary and compatibility:** the unsafe listing-wide latest-output ZIP now returns `410` and no longer enumerates or buffers output versions. Individual owned downloads remain. Server-only storage signing/downloading happens only after an RLS-owned listing/FileGroup read, retaining access to legacy unprefixed outputs while owner-prefixed paths converge. Phase 51 must build packages solely from `photo_finals`; it may never fall back to latest output.
+
+**Browser proof:** authenticated isolated-local QA used `50 Proofing Lane`: 8 immutable source files, 6 logical proofing photos, one confirmed three-frame HDR stack represented once, two Kitchen versions, an original-only Bedroom, one processing item, one failed item, and QA warnings. The operator approved Kitchen's older revision, the untouched Bedroom original, and the HDR merged result; marked Living and Kitchen's newer revision needs-changes; reloaded to the same exact pointers/notes and `3 of 6 approved`; filtered QA/approved sets; crossed the shoot with keyboard/buttons; and deep-linked to the approved older FileGroup version. A browser-found refresh race that could snap an alternate selection back to the final before review was fixed and regression-tested. Desktop and the browser's 481px phone minimum had usable controls and no horizontal overflow; browser warnings/errors were empty. No model/generation call ran.
+
+**Database/verification:** migrations `0001`–`0015` applied from scratch in an isolated Supabase stack and database lint found no schema errors. SQL proved own/cross-owner visibility, direct authenticated mutation rejection, logical/HDR/lineage rejection, original approval, atomic replacement, exact-request idempotency, needs-changes persistence, and that inserting a newer version leaves the older final unchanged. All Phase 43–50 suites pass: intake 16, queue 24, shoot organization 21, room analysis 47, batch scope 34, presets 38, listing status 26, proofing 42 — 248 assertions. TypeScript, lint, diff check, and the clean 28-route production build pass. The isolated fixture was stopped and moved to Trash.
+
+**SQL/release/port state:** Matt asked to run remaining SQL at the end. Live migrations remain through `0012`; apply `0013_batch_scope.sql`, then `0014_edit_presets.sql`, then `0015_proofing_and_finals.sql` before using these local workflows against live data. Nothing was pushed, deployed, paid, or written to production. Production remains the Phase 38–41 release. Port 3000 was stopped before the build and restored on port 3000 against normal `.env.local`; `/` returns 200.
+
+**Next action:** run `/clear`, then say: `Execute Phase 51 from PLAN.md. Read the ACTIVE HANDOFF first.` Do not start Phase 52, push, deploy, apply live SQL, or run paid generation inside Phase 51 without a new explicit instruction.
 
 ## ACTIVE HANDOFF — Phase 49 listing-level progress truth complete in local code (2026-09-01)
 

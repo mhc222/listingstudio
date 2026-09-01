@@ -274,6 +274,7 @@ export function ProofingWorkspace({
                 aria-pressed={item.id === selectedItem?.id}
                 className={`ls-pressable min-w-0 overflow-hidden rounded-xl border-2 text-left ${item.id === selectedItem?.id ? "border-primary bg-card shadow-sm" : "border-transparent bg-muted/55 hover:bg-card"}`}>
                 <div className="relative aspect-[4/3] bg-muted">
+                  {/* eslint-disable-next-line @next/next/no-img-element -- signed Storage URLs expire */}
                   {preview && <img src={preview} alt="" className="h-full w-full object-cover" />}
                   <span className="absolute left-1.5 top-1.5 rounded bg-black/65 px-1.5 py-0.5 text-[10px] text-white">{index + 1}</span>
                 </div>
@@ -294,6 +295,7 @@ export function ProofingWorkspace({
               <BeforeAfter beforeUrl={selectedItem.originalUrl} afterUrl={selectedVersion.url} />
             ) : selectedItem.originalUrl ? (
               <div className="flex min-h-[52vh] items-center justify-center overflow-hidden rounded-2xl bg-[#1b1917] p-3 shadow-[var(--shadow-surface)]">
+                {/* eslint-disable-next-line @next/next/no-img-element -- signed Storage URLs expire */}
                 <img src={selectedItem.originalUrl} alt="Untouched original listing photo" className="max-h-[70vh] max-w-full object-contain" />
               </div>
             ) : (

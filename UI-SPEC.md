@@ -1,6 +1,6 @@
 # Listing Studio — End-to-End UX Contract
 
-Phase 46 · 2026-09-01 · implementation contract
+Phase 50 · 2026-09-01 · implementation contract
 
 ## Product promise
 
@@ -25,6 +25,7 @@ The application may store Jobs, FileGroups, edit chains, providers, prompts, and
 Public home → Sign in → Dashboard → Listing
                                    ├─ Photos → Task Studio → Edit Workspace → Download
                                    │                          └─ Refine → new version
+                                   ├─ Proofing → explicit final selection
                                    ├─ Aerial
                                    ├─ Reel
                                    ├─ Tour
@@ -128,6 +129,17 @@ The Photos route owns upload, room filtering/tagging, photo selection, and entry
 - Activity derives each parent edit label from child FileGroup/output truth. A stale complete Job cannot hide a failed or running child, and fully finished work says **Review pending**, not approved or delivered.
 - Durable changes refresh through realtime subscriptions. While generation is active, the authenticated listing reconcile endpoint runs on the same five-second local-development cadence as the edit workspace; reload and realtime both return to the same server-derived projection.
 - A browser-only signed-image load failure is recovered at the exact result workspace with a neutral original-photo frame and **Retry image**. It is not persisted as false listing workflow truth because a fresh secure URL/reload may resolve it.
+
+#### Full-shoot proofing and final selection
+
+- **Proofing** is a focused listing route, not another photo library. It contains exactly the current logical-photo set: confirmed HDR source brackets collapse to their current merged representative, while processing, failed, original-only, and multi-version photos remain visible together.
+- Desktop uses a compact contact sheet; touch uses a horizontal filmstrip. Room, review state, and QA are independent filters. Previous/Next and Left/Right Arrow move through the currently filtered order, and the selected position says **N of M shown**.
+- The main canvas compares the untouched source with the explicitly selected stored version. The version control includes every immutable output and **Untouched original**. Selecting, opening, comparing, refreshing, or downloading never writes approval state.
+- Each logical photo has one durable final pointer. **Approve final** may select the untouched original or one lineage-valid version; selecting another replaces it atomically. The counter says **N of M approved** and counts logical photos, not output versions or HDR bracket members.
+- **Needs changes** applies to the exact selected output version and accepts an optional note. It clears approval only when that exact version is the current final; reviewing an alternate experiment does not silently unset a different approved final.
+- Background realtime/reconciliation refresh preserves a deliberate alternate-version selection. A newly replaced final becomes selected, but an unchanged final cannot snap the reviewer away from the version they are inspecting.
+- Creating a later version never moves the final pointer. The FileGroup workspace identifies the exact approved version, and Activity may say **Approved final** only for the completed group containing that exact output. An approved untouched original does not falsely approve a generated group.
+- The listing-wide latest-output ZIP is unavailable until Phase 51. Individual owned version/original downloads remain; future delivery must read only explicit finals and may never fall back to latest output.
 
 ### 5. Task Studio
 
@@ -251,6 +263,11 @@ Internal “chain” may appear only inside the Advanced disclosure as **Edit or
 | Generation active | Source photo, truthful state, leave-page reassurance |
 | Generation failed | Source photo, plain error, Try again, Activity link |
 | Output ready | Result dominant, Download primary, Refine secondary |
+| Proofing original-only | Show the untouched original as reviewable; approval remains explicit |
+| Proofing processing | Keep the item in sequence and show Processing without inventing a result |
+| Proofing failed | Keep the item in sequence, show Needs attention, and preserve other review work |
+| Proofing needs changes | Keep the exact version/note durable and offer its refinement workspace |
+| Proofing approved | Name Approved final and preserve the exact original/version across reload and later outputs |
 | QA warning | Keep output viewable; explain what needs visual review |
 | Signed URL/image fails | Neutral frame, Retry image, never collapse controls |
 
@@ -262,6 +279,7 @@ Internal “chain” may appear only inside the Advanced disclosure as **Edit or
 - All form controls have persistent labels; placeholders are examples, not labels.
 - Minimum pointer target is 40×40px for the task studio and photo selection.
 - Batch order is announced and not encoded only by colour.
+- Proofing order/status is announced in text; contact-sheet buttons expose selection state, and Left/Right Arrow navigation never steals input/select editing keys.
 - Status uses text plus colour. Motion respects `prefers-reduced-motion`.
 - Upload progressbars have per-file accessible names and numeric values; status is never colour-only.
 - On mobile, the sticky footer never covers the last control and safe-area padding is included.

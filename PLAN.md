@@ -711,6 +711,8 @@ The implementation arc below is approved for planning, not pre-authorized as one
 
 ## Phase 50 — Contact-sheet proofing and final selection
 
+**Status (2026-09-01):** Complete in local code. Migration `0015_proofing_and_finals.sql` is verified and queued after pending `0013_batch_scope.sql` and `0014_edit_presets.sql` for Matt's end-of-run SQL batch; live migrations remain through `0012`. Nothing was pushed or deployed.
+
 **Goal:** Separate `Ready` from `Approved final` and make full-shoot review efficient enough to support safe delivery in Phase 51.
 
 **Proofing workflow:** add a focused listing proofing workspace with contact sheet/filmstrip, room/status/QA filters, keyboard next/previous, fast before/after, version selection, `Approve final`, `Needs changes`, and `N of M approved`. Finished outputs can be reviewed while others process. Opening or comparing an image never implies approval.
