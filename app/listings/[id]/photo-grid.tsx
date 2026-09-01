@@ -38,7 +38,7 @@ export function PhotoGrid({
 
   if (!photos.length)
     return (
-      <div className="rounded-lg border border-dashed p-10 text-center text-muted-foreground">
+      <div className="rounded-2xl border border-dashed border-input/70 bg-card/45 p-10 text-center text-muted-foreground">
         No photos yet. Upload some above.
       </div>
     )
@@ -52,8 +52,8 @@ export function PhotoGrid({
         return (
           <div
             key={p.id}
-            className={`overflow-hidden rounded-lg border-2 ${
-              selected ? "border-primary" : "border-transparent ring-1 ring-border"
+            className={`ls-pressable overflow-hidden rounded-2xl border-2 bg-card shadow-[0_2px_12px_rgba(45,35,23,0.06)] ${
+              selected ? "border-primary shadow-[0_8px_24px_rgba(112,78,34,0.14)]" : "border-transparent hover:-translate-y-0.5 hover:shadow-[0_10px_28px_rgba(45,35,23,0.1)]"
             }`}
           >
             {p.url && !p.storage_path.endsWith(".pdf") ? (

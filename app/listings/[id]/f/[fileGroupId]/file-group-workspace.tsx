@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Select } from "@/components/ui/select"
+import { Textarea } from "@/components/ui/textarea"
 import { StatePill } from "@/components/brand"
 import { BeforeAfter } from "@/components/before-after"
 import { TourViewer } from "@/components/tour-viewer"
@@ -186,12 +187,12 @@ export function FileGroupWorkspace({ listingId, fg, before, siblings }: {
   return (
     <div>
       {siblings.length > 1 && (
-        <nav aria-label="Photos in this edit" className="mb-4 flex items-center gap-3 overflow-x-auto border-b border-border pb-4">
-          <p className="shrink-0 font-ui text-xs uppercase tracking-[0.12em] text-muted-foreground">Photo {selectedSiblingIndex + 1} of {siblings.length}</p>
+        <nav aria-label="Photos in this edit" className="mb-4 flex items-center gap-3 overflow-x-auto rounded-2xl bg-muted/60 p-2">
+          <p className="shrink-0 px-2 text-xs font-semibold text-muted-foreground">Photo {selectedSiblingIndex + 1} of {siblings.length}</p>
           <div className="flex gap-2">
             {siblings.map((sibling, index) => (
               <Link key={sibling.id} href={`/listings/${listingId}/f/${sibling.id}`} aria-current={sibling.id === fg.id ? "page" : undefined}
-                className={`relative block h-12 w-16 shrink-0 overflow-hidden border-2 ${sibling.id === fg.id ? "border-primary" : "border-transparent ring-1 ring-border"}`}
+                className={`ls-pressable relative block h-12 w-16 shrink-0 overflow-hidden rounded-lg border-2 ${sibling.id === fg.id ? "border-primary shadow-sm" : "border-transparent opacity-75 hover:opacity-100"}`}
                 title={`Open photo ${index + 1}`}>
                 {sibling.url && (
                   // eslint-disable-next-line @next/next/no-img-element -- signed listing-photo URL
@@ -204,7 +205,7 @@ export function FileGroupWorkspace({ listingId, fg, before, siblings }: {
         </nav>
       )}
 
-      <div className="grid min-w-0 items-start gap-6 xl:grid-cols-[minmax(0,1fr)_20rem]">
+      <div className="grid min-w-0 items-start gap-5 lg:grid-cols-[minmax(0,1fr)_21rem]">
         <section aria-label="Photo result" className="min-w-0">
           {latest?.url ? (
             is360 && preview360 ? (
@@ -213,13 +214,13 @@ export function FileGroupWorkspace({ listingId, fg, before, siblings }: {
               </div>
             ) : <BeforeAfter beforeUrl={before.url} afterUrl={latest.url} />
           ) : (
-            <div className="sweep relative flex min-h-[56vh] items-center justify-center overflow-hidden bg-[#241f1a] p-5 sm:p-10">
+            <div className="sweep relative flex min-h-[56vh] items-center justify-center overflow-hidden rounded-2xl bg-[#1b1917] p-5 shadow-[var(--shadow-surface)] sm:p-10">
               {before.url && (
                 // eslint-disable-next-line @next/next/no-img-element -- signed listing-photo URL
                 <img src={before.url} alt="Original photo" className="max-h-[70vh] w-full object-contain opacity-75" />
               )}
               <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent px-6 pb-6 pt-20 text-white">
-                <p className="font-serif text-2xl">{copy.heading}</p>
+                <p className="text-2xl font-semibold tracking-[-0.03em]">{copy.heading}</p>
                 <p className="mt-1 text-sm text-white/75">You can leave this page. The edit will keep running.</p>
               </div>
             </div>
@@ -232,9 +233,9 @@ export function FileGroupWorkspace({ listingId, fg, before, siblings }: {
           )}
         </section>
 
-        <aside className="min-w-0 border-t border-border pt-5 xl:sticky xl:top-5 xl:border-l xl:border-t-0 xl:pl-6 xl:pt-0">
+        <aside className="ls-surface min-w-0 p-4 sm:p-5 lg:sticky lg:top-5">
           <StatePill status={fg.step_status} label={copy.label} />
-          <h2 className="mt-2 font-serif text-2xl">{copy.heading}</h2>
+          <h2 className="mt-2 text-2xl font-semibold tracking-[-0.03em]">{copy.heading}</h2>
 
           {fg.step_status === "failed" && (
             <div className="mt-4 border-l-2 border-state-failed pl-3">
@@ -247,8 +248,8 @@ export function FileGroupWorkspace({ listingId, fg, before, siblings }: {
           )}
 
           {latest?.url && !isPlan && (
-            <section className="mt-5 border-t border-border pt-4">
-              <h3 className="font-ui text-xs font-semibold uppercase tracking-[0.12em]">Download</h3>
+            <section className="mt-5 rounded-xl bg-muted/45 p-3">
+              <h3 className="text-xs font-semibold">Download</h3>
               <Select aria-label="Download size" value={dlVariant} onChange={(event) => setDlVariant(event.target.value)} className="mt-2">
                 {DOWNLOAD_VARIANTS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
               </Select>
@@ -261,8 +262,8 @@ export function FileGroupWorkspace({ listingId, fg, before, siblings }: {
           )}
 
           {latest?.url && isPlan && (
-            <section className="mt-5 border-t border-border pt-4">
-              <h3 className="font-ui text-xs font-semibold uppercase tracking-[0.12em]">Export plan</h3>
+            <section className="mt-5 rounded-xl bg-muted/45 p-3">
+              <h3 className="text-xs font-semibold">Export plan</h3>
               <div className="mt-2 grid grid-cols-3 gap-2">
                 {(["png", "svg", "pdf"] as const).map((format) => <Button key={format} asChild size="sm" variant="outline"><a href={`/api/file-groups/${fg.id}/plan-export?format=${format}&version=${latest.id}`}>{format.toUpperCase()}</a></Button>)}
               </div>
@@ -271,22 +272,22 @@ export function FileGroupWorkspace({ listingId, fg, before, siblings }: {
           )}
 
           {latest?.url && settled && (
-            <section className="mt-5 border-t border-border pt-4">
-              <label htmlFor="refine-result" className="font-ui text-xs font-semibold uppercase tracking-[0.12em]">Refine this version</label>
+            <section className="mt-5 rounded-xl bg-muted/45 p-3">
+              <label htmlFor="refine-result" className="text-xs font-semibold">Refine this version</label>
               <p className="mt-1 text-xs text-muted-foreground">A refinement creates a new version. This one stays safe.</p>
-              <textarea id="refine-result" value={reworkText} onChange={(event) => setReworkText(event.target.value)} placeholder="What should change? e.g. use a gray sofa and remove the wall art" rows={3}
-                className="mt-2 w-full resize-none border border-input bg-card px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50" />
+              <Textarea id="refine-result" value={reworkText} onChange={(event) => setReworkText(event.target.value)} placeholder="What should change? e.g. use a gray sofa and remove the wall art" rows={3}
+                className="mt-2 w-full resize-none bg-card" />
               <Button className="mt-2 w-full" variant="outline" onClick={() => sendRework(latest.id)} disabled={!reworkText.trim() || reworking}>{reworking ? "Creating version…" : "Create new version"}</Button>
             </section>
           )}
 
           {versionsDesc.length > 0 && (
-            <section className="mt-5 border-t border-border pt-4">
-              <h3 className="font-ui text-xs font-semibold uppercase tracking-[0.12em]">Versions</h3>
+            <section className="mt-5 rounded-xl bg-muted/45 p-3">
+              <h3 className="text-xs font-semibold">Versions</h3>
               <div className="mt-2 grid gap-1">
                 {[...versionsDesc].reverse().map((version, index) => (
                   <button key={version.id} type="button" onClick={() => setSelectedVersionId(version.id)}
-                    className={`flex min-h-10 items-center justify-between border-b px-1 text-left text-sm ${latest?.id === version.id ? "border-primary font-medium" : "border-border text-muted-foreground hover:text-foreground"}`}>
+                    className={`ls-pressable flex min-h-10 items-center justify-between rounded-lg px-2 text-left text-sm ${latest?.id === version.id ? "bg-card font-semibold text-foreground shadow-sm" : "text-muted-foreground hover:bg-card/60 hover:text-foreground"}`}>
                     <span>{index === 0 ? "Original edit" : `Revision ${index}`}</span><span className="text-xs">v{version.version_number}</span>
                   </button>
                 ))}
@@ -295,8 +296,8 @@ export function FileGroupWorkspace({ listingId, fg, before, siblings }: {
           )}
 
           {latest?.url && (
-            <details className="mt-5 border-t border-border pt-4">
-              <summary className="cursor-pointer font-ui text-xs font-semibold uppercase tracking-[0.12em]">{qaNeedsReview ? "Review recommended" : "Ready for MLS"}</summary>
+            <details className="mt-5 rounded-xl bg-muted/45 p-3">
+              <summary className="cursor-pointer text-xs font-semibold">{qaNeedsReview ? "Review recommended" : "Ready for MLS"}</summary>
               <div className="mt-3 text-xs text-muted-foreground">
                 {latest.qa_note && <p>{latest.qa_note}</p>}
                 {complianceChecks.map((check) => <p key={check.id} className="mt-2 flex items-start gap-2"><span className={check.pass ? "text-state-complete" : "text-state-failed"}>{check.pass ? "✓" : "✕"}</span><span>{check.label}{check.note ? ` — ${check.note}` : ""}</span></p>)}
@@ -305,8 +306,8 @@ export function FileGroupWorkspace({ listingId, fg, before, siblings }: {
             </details>
           )}
 
-          <details className="mt-5 border-t border-border pt-4">
-            <summary className="cursor-pointer font-ui text-xs font-semibold uppercase tracking-[0.12em]">Edit details</summary>
+          <details className="mt-5 rounded-xl bg-muted/45 p-3">
+            <summary className="cursor-pointer text-xs font-semibold">Edit details</summary>
             <div className="mt-3 grid gap-3 text-xs text-muted-foreground">
               <p><span className="text-foreground">Edit order:</span> {editOrder(fg.edit_chain)}</p>
               {fg.comment && <p><span className="text-foreground">Direction:</span> {fg.comment}</p>}
@@ -315,8 +316,8 @@ export function FileGroupWorkspace({ listingId, fg, before, siblings }: {
           </details>
 
           {isDusk && latest?.url && complianceChecks.length === 0 && (
-            <details className="mt-5 border-t border-border pt-4">
-              <summary className="cursor-pointer font-ui text-xs font-semibold uppercase tracking-[0.12em]">Dusk visual check</summary>
+            <details className="mt-5 rounded-xl bg-muted/45 p-3">
+              <summary className="cursor-pointer text-xs font-semibold">Dusk visual check</summary>
               <div className="mt-3 grid gap-2">{DUSK_CHECKS.map((check) => <label key={check} className="flex items-start gap-2 text-xs"><input type="checkbox" className="mt-0.5" />{check}</label>)}</div>
             </details>
           )}

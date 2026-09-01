@@ -70,11 +70,11 @@ export default async function ActivityPage({ params }: { params: Promise<{ id: s
   }))
 
   return (
-    <main className="mx-auto max-w-6xl p-6">
+    <main className="mx-auto max-w-7xl p-4 sm:p-6 lg:p-8">
       <Link href={`/listings/${id}`} className="text-sm text-muted-foreground hover:underline">
         ← {listing.address}
       </Link>
-      <h1 className="mt-2 font-serif text-3xl">Activity</h1>
+      <h1 className="mt-2 text-3xl font-semibold tracking-[-0.035em]">Activity</h1>
       <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
         Edits in progress and completed images for this listing.
       </p>

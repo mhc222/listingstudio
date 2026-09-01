@@ -2,6 +2,7 @@
 
 import dynamic from "next/dynamic"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { Select } from "@/components/ui/select"
 import { ROOM_TYPES } from "@/lib/roomTypes"
 import { ENHANCEMENT_STYLES, FURNITURE_STYLES, LIGHT_PRESETS } from "@/lib/prompts"
@@ -66,11 +67,10 @@ export function ChainStepEditor({
               </label>
               <label className="grid gap-1.5 text-xs text-muted-foreground">
                 What should be removed?
-                <input
+                <Input
                   value={String(edit.options.items ?? "")}
                   onChange={(e) => onOption(i, "items", e.target.value)}
                   placeholder="e.g. the boxes and cat tree"
-                  className="border border-input bg-card px-3 py-2 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
                 />
               </label>
             </div>
@@ -139,7 +139,7 @@ export function ChainStepEditor({
           ) && (
             <div className="mt-2 flex flex-wrap items-center gap-3 text-sm">
               <label className="flex items-center gap-1.5">
-                <input
+                <Input
                   type="checkbox"
                   checked={Boolean(edit.options.sky_replacement)}
                   onChange={(e) => onOption(i, "sky_replacement", e.target.checked)}
@@ -170,8 +170,8 @@ export function ChainStepEditor({
             </div>
           )}
           {["VIRTUAL_STAGING", "360_VIRTUAL_STAGING"].includes(edit.edit_type) && (
-            <div className="grid gap-3 sm:grid-cols-2">
-              <label className="grid gap-1.5 text-xs text-muted-foreground">
+            <div className="grid gap-4">
+              <label className="grid gap-1.5 text-xs font-medium text-muted-foreground">
                 Room type
                 <Select
                   value={String(edit.options.room_type)}
@@ -184,52 +184,71 @@ export function ChainStepEditor({
                   ))}
                 </Select>
               </label>
-              <label className="grid gap-1.5 text-xs text-muted-foreground">
-                Furniture style
-                <Select
-                  value={String(edit.options.furniture_style)}
-                  onChange={(e) => onOption(i, "furniture_style", e.target.value)}
-                >
-                  {Object.entries(FURNITURE_STYLES).map(([k, { label }]) => (
-                    <option key={k} value={k}>
-                      {label}
-                    </option>
-                  ))}
-                </Select>
-              </label>
-              <label className="grid gap-1.5 text-xs text-muted-foreground">
-                Furnishing level
-                <Select
-                  value={String(edit.options.furnishing_level ?? "light")}
-                  onChange={(e) => onOption(i, "furnishing_level", e.target.value)}
-                >
-                  {Object.entries(FURNISHING_LEVEL_LABELS).map(([k, label]) => (
-                    <option key={k} value={k}>
-                      {label}
-                    </option>
-                  ))}
-                </Select>
-              </label>
-              <label className="grid gap-1.5 text-xs text-muted-foreground">
-                Showcase
-                <Select
-                  value={String(edit.options.showcase ?? "auto")}
-                  onChange={(e) => onOption(i, "showcase", e.target.value)}
-                >
-                  {Object.entries(SHOWCASE_LABELS).map(([k, label]) => (
-                    <option key={k} value={k}>
-                      {label}
-                    </option>
-                  ))}
-                </Select>
-              </label>
-              <label className="grid gap-1.5 text-xs text-muted-foreground sm:col-span-2">
+              <fieldset className="grid gap-2">
+                <legend className="text-xs font-medium text-muted-foreground">Furniture style</legend>
+                <div className="flex flex-wrap gap-1.5">
+                  {Object.entries(FURNITURE_STYLES).map(([k, { label }]) => {
+                    const selected = String(edit.options.furniture_style) === k
+                    return (
+                      <button
+                        key={k}
+                        type="button"
+                        aria-pressed={selected}
+                        onClick={() => onOption(i, "furniture_style", k)}
+                        className={`ls-pressable rounded-full px-2.5 py-1.5 text-xs font-medium ${selected ? "bg-foreground text-background shadow-sm" : "bg-card text-muted-foreground hover:bg-accent hover:text-foreground"}`}
+                      >
+                        {label}
+                      </button>
+                    )
+                  })}
+                </div>
+              </fieldset>
+              <div className="grid items-start gap-4 sm:grid-cols-2">
+                <fieldset className="grid self-start gap-2">
+                  <legend className="text-xs font-medium text-muted-foreground">Furnishing level</legend>
+                  <div className="grid grid-cols-2 rounded-xl bg-muted p-1">
+                    {Object.entries(FURNISHING_LEVEL_LABELS).map(([k, label]) => {
+                      const selected = String(edit.options.furnishing_level ?? "light") === k
+                      return (
+                        <button
+                          key={k}
+                          type="button"
+                          aria-pressed={selected}
+                          onClick={() => onOption(i, "furnishing_level", k)}
+                          className={`ls-pressable min-h-9 rounded-lg px-2 text-xs font-semibold ${selected ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+                        >
+                          {label}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </fieldset>
+                <fieldset className="grid self-start gap-2">
+                  <legend className="text-xs font-medium text-muted-foreground">Showcase</legend>
+                  <div className="flex flex-wrap gap-1.5">
+                    {Object.entries(SHOWCASE_LABELS).map(([k, label]) => {
+                      const selected = String(edit.options.showcase ?? "auto") === k
+                      return (
+                        <button
+                          key={k}
+                          type="button"
+                          aria-pressed={selected}
+                          onClick={() => onOption(i, "showcase", k)}
+                          className={`ls-pressable rounded-full px-2.5 py-1.5 text-xs font-medium ${selected ? "bg-accent text-accent-foreground shadow-sm" : "bg-card text-muted-foreground hover:bg-muted hover:text-foreground"}`}
+                        >
+                          {label}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </fieldset>
+              </div>
+              <label className="grid gap-1.5 text-xs font-medium text-muted-foreground">
                 Must include or avoid <span className="sr-only">(optional)</span>
-                <input
+                <Input
                   value={String(edit.options.furniture_required ?? "")}
                   onChange={(e) => onOption(i, "furniture_required", e.target.value)}
                   placeholder="Optional · e.g. include a reading chair; no wall art"
-                  className="border border-input bg-card px-3 py-2 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
                 />
               </label>
             </div>
@@ -255,18 +274,17 @@ export function ChainStepEditor({
                   value={String(edit.options.changes ?? "")}
                   onChange={(e) => onOption(i, "changes", e.target.value)}
                   placeholder="e.g. white shaker cabinets and quartz counters"
-                  className="border border-input bg-card px-3 py-2 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
                 />
               </label>
             </div>
           )}
           {edit.edit_type === "VIRTUAL_LANDSCAPING" && (
             <div className="mt-2">
-              <input
+              <Input
                 value={String(edit.options.instructions ?? "")}
                 onChange={(e) => onOption(i, "instructions", e.target.value)}
                 placeholder="Optional extras, e.g. paint the front door navy, add porch furniture"
-                className="w-full rounded-md border bg-transparent px-2 py-1.5 text-sm"
+                className="w-full"
               />
             </div>
           )}
@@ -289,20 +307,18 @@ export function ChainStepEditor({
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="grid gap-1.5 text-xs text-muted-foreground">
                 Surface or object
-                <input
+                <Input
                   value={String(edit.options.element ?? "")}
                   onChange={(e) => onOption(i, "element", e.target.value)}
                   placeholder="e.g. the front door"
-                  className="border border-input bg-card px-3 py-2 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
                 />
               </label>
               <label className="grid gap-1.5 text-xs text-muted-foreground">
                 New color
-                <input
+                <Input
                   value={String(edit.options.colour ?? "")}
                   onChange={(e) => onOption(i, "colour", e.target.value)}
                   placeholder="e.g. deep navy blue"
-                  className="border border-input bg-card px-3 py-2 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
                 />
               </label>
             </div>

@@ -170,10 +170,10 @@ export function JobFeed({
     <section aria-labelledby="activity-feed-title">
       <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="font-ui text-[0.65rem] uppercase tracking-[0.14em] text-muted-foreground">
+          <p className="ls-section-label text-muted-foreground">
             Listing history
           </p>
-          <h2 id="activity-feed-title" className="mt-1 font-serif text-2xl">Recent edits</h2>
+          <h2 id="activity-feed-title" className="mt-1.5 text-2xl font-semibold tracking-[-0.03em]">Recent edits</h2>
         </div>
         {hasFinals && (
           <a
@@ -186,8 +186,8 @@ export function JobFeed({
       </div>
 
       {jobs.length === 0 ? (
-        <div className="border-y border-border py-10">
-          <p className="font-serif text-xl">No edits yet</p>
+        <div className="ls-surface p-8">
+          <p className="text-xl font-semibold tracking-[-0.025em]">No edits yet</p>
           <p className="mt-1 text-sm text-muted-foreground">
             Return to Photos and open an image to begin.
           </p>
@@ -202,7 +202,7 @@ export function JobFeed({
             <article key={job.id} className="border-b border-border py-6">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <h3 className="font-serif text-xl">{humanTitle(job.title)}</h3>
+                  <h3 className="text-xl font-semibold tracking-[-0.025em]">{humanTitle(job.title)}</h3>
                   {job.created_at && (
                     <time className="mt-1 block text-xs text-muted-foreground">
                       {new Intl.DateTimeFormat("en-US", {

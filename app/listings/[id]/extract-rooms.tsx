@@ -203,7 +203,7 @@ export function ExtractRooms({
         <div className="fixed inset-0 z-50 flex flex-col bg-background" role="dialog" aria-modal="true">
           {/* header */}
           <div className="flex items-center justify-between gap-3 border-b px-4 py-2">
-            <span className="font-serif text-base">Rooms from floor plan</span>
+            <span className="text-base font-semibold tracking-[-0.02em]">Rooms from floor plan</span>
             <div className="flex items-center gap-2">
               <Button size="sm" onClick={createAll} disabled={saving || includedCount === 0}>
                 {saving ? "Creating…" : `Create ${includedCount} room${includedCount === 1 ? "" : "s"}`}

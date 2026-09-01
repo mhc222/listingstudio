@@ -159,7 +159,7 @@ export function ListingWorkspace({
   }
 
   return (
-    <div className="grid gap-8">
+    <div className="grid gap-7">
       <RoomBrowser
         listingId={listingId}
         rooms={rooms}
@@ -168,15 +168,15 @@ export function ListingWorkspace({
         activeRoom={activeRoom}
         onActiveRoomChange={changeRoomFilter}
       />
-      <section>
+      <section className="min-w-0">
         <div className="mb-3 flex items-center justify-between gap-3">
-          <h2 className="text-lg font-medium">
+          <h2 className="text-xl font-semibold tracking-[-0.025em]">
             Photos ({filteredPhotos.length}
             {activeRoom !== ALL_ROOMS ? ` of ${photos.length}` : ""})
           </h2>
           {selectedIds.length > 0 && (
             <div className="flex items-center gap-3 text-xs text-muted-foreground">
-              <span className="rounded-full border border-primary bg-accent px-2 py-0.5 font-ui uppercase tracking-wide text-accent-foreground">
+              <span className="rounded-full bg-accent px-2.5 py-1 font-ui text-[0.68rem] font-semibold text-accent-foreground">
                 {selectedIds.length} selected
               </span>
               <Button size="sm" onClick={openSelection}>
@@ -211,34 +211,31 @@ export function ListingWorkspace({
       {openPhoto && (
         <div
           ref={dialogRef}
-          className="fixed inset-0 z-50 flex flex-col bg-background/95 backdrop-blur-sm"
+          className="fixed inset-0 z-50 bg-black/45 md:p-3"
           role="dialog"
           aria-modal="true"
           aria-labelledby="photo-editor-title"
         >
-          <div className="flex items-center justify-between border-b px-4 py-2">
-            <span id="photo-editor-title" className="font-serif text-lg">Edit photo</span>
-            <button
-              type="button"
-              onClick={closeEditor}
-              disabled={editorSubmitting}
-              className="border px-3 py-1 text-sm hover:bg-muted disabled:cursor-wait disabled:opacity-50"
-            >
-              {editorSubmitting ? "Starting…" : "Close ✕"}
-            </button>
-          </div>
-          <div className="grid min-h-0 flex-1 overflow-y-auto lg:grid-cols-[minmax(21rem,25rem)_minmax(0,1fr)] lg:overflow-hidden">
-            <div className="order-1 flex min-h-[32vh] items-center justify-center bg-[#241f1a] p-4 lg:order-2 lg:min-h-0 lg:p-8">
+          <div className="flex h-full min-h-0 flex-col overflow-hidden bg-background md:rounded-[1.25rem] md:border md:border-white/55 md:shadow-[0_30px_100px_rgba(15,12,9,0.35)]">
+            <div className="ls-scroll-edge z-20 flex h-14 shrink-0 items-center justify-between bg-card/78 px-4 backdrop-blur-2xl md:px-5">
+              <span id="photo-editor-title" className="text-[0.95rem] font-semibold tracking-[-0.015em]">Photo studio</span>
+              <Button type="button" variant="outline" size="sm" onClick={closeEditor} disabled={editorSubmitting}>
+                {editorSubmitting ? "Starting…" : "Close"}
+                {!editorSubmitting && <span aria-hidden="true">×</span>}
+              </Button>
+            </div>
+            <div className="grid min-h-0 flex-1 overflow-y-auto md:grid-cols-[minmax(0,1fr)_minmax(20rem,23.5rem)] md:overflow-hidden">
+            <div className="order-1 flex min-h-[36vh] items-center justify-center bg-[#1b1917] p-3 sm:p-5 md:min-h-0 md:p-7 lg:p-10">
               {openPhoto.url && (
                 // eslint-disable-next-line @next/next/no-img-element -- signed URLs expire; next/image caching fights that
                 <img
                   src={openPhoto.url}
                   alt="Listing photo being edited"
-                  className="max-h-[42vh] w-full object-contain shadow-[0_24px_80px_rgba(0,0,0,0.28)] lg:max-h-[calc(100vh-9rem)]"
+                  className="max-h-[48vh] w-full rounded-md object-contain shadow-[0_26px_80px_rgba(0,0,0,0.3)] md:max-h-[calc(100dvh-8.5rem)]"
                 />
               )}
             </div>
-            <div className="order-2 min-w-0 overflow-y-auto bg-card p-4 pb-8 lg:order-1 lg:p-5">
+            <div className="order-2 min-w-0 overflow-y-auto bg-background px-4 py-5 pb-10 sm:px-5 md:px-5 md:py-6">
               <Composer
                 listingId={listingId}
                 photos={photos}
@@ -264,6 +261,7 @@ export function ListingWorkspace({
                 }
               />
             </div>
+            </div>
           </div>
         </div>
       )}
@@ -271,24 +269,21 @@ export function ListingWorkspace({
       {batchOpen && selectedPhotos.length > 1 && (
         <div
           ref={dialogRef}
-          className="fixed inset-0 z-50 flex flex-col bg-background/95 backdrop-blur-sm"
+          className="fixed inset-0 z-50 bg-black/45 md:p-3"
           role="dialog"
           aria-modal="true"
           aria-label={`Edit ${selectedPhotos.length} photos`}
         >
-          <div className="flex items-center justify-between border-b px-4 py-2">
-            <span className="font-serif text-lg">Batch edit · {selectedPhotos.length} photos</span>
-            <button
-              type="button"
-              onClick={closeEditor}
-              disabled={editorSubmitting}
-              className="border px-3 py-1 text-sm hover:bg-muted disabled:cursor-wait disabled:opacity-50"
-            >
-              {editorSubmitting ? "Starting…" : "Close ✕"}
-            </button>
+          <div className="flex h-full min-h-0 flex-col overflow-hidden bg-background md:rounded-[1.25rem] md:border md:border-white/55 md:shadow-[0_30px_100px_rgba(15,12,9,0.35)]">
+          <div className="ls-scroll-edge z-20 flex h-14 shrink-0 items-center justify-between bg-card/78 px-4 backdrop-blur-2xl md:px-5">
+            <span className="text-[0.95rem] font-semibold tracking-[-0.015em]">Batch studio · {selectedPhotos.length} photos</span>
+            <Button type="button" variant="outline" size="sm" onClick={closeEditor} disabled={editorSubmitting}>
+              {editorSubmitting ? "Starting…" : "Close"}
+              {!editorSubmitting && <span aria-hidden="true">×</span>}
+            </Button>
           </div>
-          <div className="grid min-h-0 flex-1 gap-6 overflow-y-auto p-4 lg:grid-cols-[minmax(16rem,0.75fr)_minmax(30rem,1.25fr)]">
-            <div className="grid content-start grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-2">
+          <div className="grid min-h-0 flex-1 overflow-y-auto md:grid-cols-[minmax(0,1fr)_minmax(20rem,23.5rem)] md:overflow-hidden">
+            <div className="order-1 grid content-start grid-cols-2 gap-2 bg-[#1b1917] p-3 sm:grid-cols-3 md:grid-cols-2 md:overflow-y-auto md:p-5 lg:grid-cols-3">
               {selectedPhotos.map((photo) =>
                 photo.url ? (
                   // eslint-disable-next-line @next/next/no-img-element -- signed URLs expire; next/image caching fights that
@@ -296,12 +291,12 @@ export function ListingWorkspace({
                     key={photo.id}
                     src={photo.url}
                     alt="Selected listing photo"
-                    className="aspect-[4/3] w-full object-cover"
+                    className="aspect-[4/3] w-full rounded-lg object-cover shadow-lg"
                   />
                 ) : null
               )}
             </div>
-            <div className="min-w-0">
+            <div className="order-2 min-w-0 overflow-y-auto px-4 py-5 pb-10 sm:px-5 md:px-5 md:py-6">
               <Composer
                 listingId={listingId}
                 photos={photos}
@@ -317,6 +312,7 @@ export function ListingWorkspace({
                 onSubmittingChange={setEditorSubmitting}
               />
             </div>
+          </div>
           </div>
         </div>
       )}

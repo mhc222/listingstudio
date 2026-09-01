@@ -3,7 +3,9 @@
 import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import { Armchair, ChevronRight, Eraser, Hammer, Moon, Paintbrush, Plus, Sparkles } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { Select } from "@/components/ui/select"
 import { ROOM_TYPES } from "@/lib/roomTypes"
 import { FURNITURE_STYLES } from "@/lib/prompts"
@@ -31,12 +33,12 @@ type InterpreterResponse = {
 type ChainLike = { edit_type: string; options?: Record<string, unknown> }
 
 const PRIMARY_TASKS = [
-  { editType: "IMAGE_ENHANCEMENT", label: "Enhance", description: "Balance light and finish" },
-  { editType: "VIRTUAL_STAGING", label: "Stage", description: "Furnish an empty room" },
-  { editType: "DAY_TO_DUSK", label: "Dusk", description: "Create an evening hero" },
-  { editType: "ITEM_REMOVAL", label: "Remove", description: "Clear objects or clutter" },
-  { editType: "VIRTUAL_RENOVATION", label: "Renovate", description: "Update finishes and fixtures" },
-  { editType: "COLOUR_CHANGE", label: "Change color", description: "Repaint a chosen surface" },
+  { editType: "IMAGE_ENHANCEMENT", label: "Enhance", description: "Balance light and finish", icon: Sparkles },
+  { editType: "VIRTUAL_STAGING", label: "Stage", description: "Furnish an empty room", icon: Armchair },
+  { editType: "DAY_TO_DUSK", label: "Dusk", description: "Create an evening hero", icon: Moon },
+  { editType: "ITEM_REMOVAL", label: "Remove", description: "Clear objects or clutter", icon: Eraser },
+  { editType: "VIRTUAL_RENOVATION", label: "Renovate", description: "Update finishes and fixtures", icon: Hammer },
+  { editType: "COLOUR_CHANGE", label: "Change color", description: "Repaint a chosen surface", icon: Paintbrush },
 ] as const
 
 const PRIMARY_TASK_TYPES = new Set<string>(PRIMARY_TASKS.map((task) => task.editType))
@@ -389,11 +391,11 @@ export function Composer({
 
   return (
     <section>
-      <header className="mb-5 border-b border-border pb-4">
-        <p className="font-ui text-[0.65rem] uppercase tracking-[0.14em] text-muted-foreground">
+      <header className="mb-5">
+        <p className="ls-section-label text-muted-foreground">
           {contextLabel}
         </p>
-        <h2 className="mt-1 font-serif text-3xl">
+        <h2 className="mt-1.5 text-[1.75rem] font-semibold tracking-[-0.035em]">
           {chain.length === 1
             ? TASK_HEADINGS[chain[0].edit_type] ?? EDIT_TYPES[chain[0].edit_type]?.label
             : chain.length > 1
@@ -407,7 +409,7 @@ export function Composer({
               setChain([])
               setIdeas(null)
             }}
-            className="mt-1 text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground"
+            className="ls-pressable mt-2 rounded-full px-2 py-1 text-xs font-medium text-primary hover:bg-accent/60"
           >
             Choose a different task
           </button>
@@ -419,7 +421,7 @@ export function Composer({
         <>
           {/* selection lives in the grid above (phase 29) — the composer just
               reflects the current arity */}
-          <p className="mb-4 text-xs text-muted-foreground">
+          <p className="mb-4 text-xs leading-relaxed text-muted-foreground">
             {photoIds.length === 0
               ? "Select photos above — one to describe/markup, several to batch."
               : photoIds.length === 1
@@ -428,30 +430,34 @@ export function Composer({
           </p>
 
           {chain.length === 0 && !ideas && (
-            <div>
-              <div className="grid grid-cols-2 gap-px overflow-hidden border border-border bg-border">
+            <div className="mb-1">
+              <div className="grid gap-1">
                 {PRIMARY_TASKS.map((task) => (
                   <button
                     key={task.editType}
                     type="button"
                     onClick={() => chooseTask(task.editType)}
-                    className="min-h-20 bg-card px-3 py-3 text-left transition-colors hover:bg-accent focus-visible:relative focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    className="ls-pressable group flex min-h-14 w-full items-center gap-3 rounded-xl px-2.5 py-2 text-left hover:bg-card hover:shadow-[0_1px_2px_rgba(45,35,23,0.06)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
                   >
-                    <span className="block font-ui text-sm font-semibold">{task.label}</span>
-                    <span className="mt-1 block text-xs leading-snug text-muted-foreground">
-                      {task.description}
+                    <span className="flex size-9 shrink-0 items-center justify-center rounded-[0.7rem] bg-muted text-muted-foreground transition-colors group-hover:bg-accent group-hover:text-primary">
+                      <task.icon aria-hidden="true" className="size-4" />
                     </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-sm font-semibold">{task.label}</span>
+                      <span className="mt-0.5 block text-xs leading-snug text-muted-foreground">{task.description}</span>
+                    </span>
+                    <ChevronRight aria-hidden="true" className="size-4 text-muted-foreground/55 transition-transform group-hover:translate-x-0.5 group-hover:text-primary" />
                   </button>
                 ))}
               </div>
-              <details className="group border-x border-b border-border bg-card">
-                <summary className="cursor-pointer list-none px-3 py-3 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">
+              <details className="group mt-1.5">
+                <summary className="ls-pressable cursor-pointer list-none rounded-xl px-3 py-2.5 text-sm font-medium text-muted-foreground hover:bg-card hover:text-foreground">
                   <span className="flex items-center justify-between">
                     All edit tools
-                    <span aria-hidden="true" className="transition-transform group-open:rotate-90">→</span>
+                    <ChevronRight aria-hidden="true" className="size-4 transition-transform group-open:rotate-90" />
                   </span>
                 </summary>
-                <div className="grid grid-cols-2 gap-px border-t border-border bg-border">
+                <div className="mt-1 grid gap-1 rounded-xl bg-card/65 p-1.5 sm:grid-cols-2">
                   {Object.entries(EDIT_TYPES)
                     .filter(([editType]) => !PRIMARY_TASK_TYPES.has(editType))
                     .map(([editType, { label }]) => (
@@ -459,7 +465,7 @@ export function Composer({
                         key={editType}
                         type="button"
                         onClick={() => chooseTask(editType)}
-                        className="min-h-12 bg-card px-3 py-2 text-left text-xs transition-colors hover:bg-accent focus-visible:relative focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        className="ls-pressable min-h-10 rounded-lg px-2.5 py-2 text-left text-xs font-medium hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
                       >
                         {label}
                       </button>
@@ -471,8 +477,8 @@ export function Composer({
 
           {/* phase 31 accelerators: reuse a chain without rebuilding it */}
           {(lastChain || defaultChain || chain.length > 0) && (
-            <details className="mb-4 border-b border-border pb-3">
-              <summary className="cursor-pointer font-ui text-xs uppercase tracking-[0.12em] text-muted-foreground hover:text-foreground">
+            <details className="mb-4 rounded-xl bg-card/55 px-3 py-2.5">
+              <summary className="cursor-pointer text-xs font-semibold text-muted-foreground hover:text-foreground">
                 Saved edits
               </summary>
               <div className="mt-2 flex flex-wrap items-center gap-1.5">
@@ -481,7 +487,7 @@ export function Composer({
                     type="button"
                     onClick={() => applyChain(lastChain)}
                     title={chainSummary(lastChain)}
-                    className="border border-border px-2 py-1 text-xs hover:bg-muted"
+                    className="ls-pressable rounded-full bg-muted px-2.5 py-1.5 text-xs font-medium hover:bg-accent"
                   >
                     ↻ Apply last edit
                   </button>
@@ -491,7 +497,7 @@ export function Composer({
                     type="button"
                     onClick={() => applyChain(defaultChain)}
                     title={chainSummary(defaultChain)}
-                    className="border border-border px-2 py-1 text-xs hover:bg-muted"
+                    className="ls-pressable rounded-full bg-muted px-2.5 py-1.5 text-xs font-medium hover:bg-accent"
                   >
                     ★ Apply listing default
                   </button>
@@ -500,7 +506,7 @@ export function Composer({
                   <button
                     type="button"
                     onClick={saveDefault}
-                    className="border border-border px-2 py-1 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
+                    className="ls-pressable rounded-full px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
                   >
                     Save current edit as default
                   </button>
@@ -510,7 +516,7 @@ export function Composer({
           )}
 
           {(chain.length === 0 || chatMessages.length > 0) && <div className="mt-4">
-            <label htmlFor="describe-edit" className="font-ui text-xs font-semibold uppercase tracking-[0.12em]">
+            <label htmlFor="describe-edit" className="text-xs font-semibold">
               {chain.length === 0 ? "Or describe the result" : "Refine the setup"}
             </label>
             <p className="mt-1 text-xs text-muted-foreground">
@@ -536,7 +542,7 @@ export function Composer({
                 dropdowns (Matt, 2026-08-31). Room/style/refs live under a quiet
                 "Add detail" toggle; the interpreter infers them from language. */}
             <div className="mt-3 flex items-center gap-2">
-              <input
+              <Input
                 id="describe-edit"
                 value={chatText}
                 onChange={(e) => setChatText(e.target.value)}
@@ -548,7 +554,7 @@ export function Composer({
                       ? "Chat works one photo at a time — keep exactly one selected"
                       : "Select a photo first, then describe what you want"
                 }
-                className="min-w-0 flex-1 border border-input bg-card px-3 py-2.5 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                className="min-w-0 flex-1"
               />
               <Button
                 onClick={sendChat}
@@ -559,8 +565,8 @@ export function Composer({
             </div>
             {chatError && <p className="mt-2 text-sm text-destructive">{chatError}</p>}
 
-            <details className="mt-2">
-              <summary className="cursor-pointer text-xs text-muted-foreground hover:text-foreground">
+            <details className="mt-3 rounded-xl bg-card/55 px-3 py-2.5">
+              <summary className="cursor-pointer text-xs font-medium text-muted-foreground hover:text-foreground">
                 Add detail — room, style, references
               </summary>
               <div className="mt-2 grid gap-2">
@@ -583,7 +589,7 @@ export function Composer({
                   </Select>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
-                  <label className="cursor-pointer rounded-md border px-2 py-1 text-xs hover:bg-muted">
+                  <label className="ls-pressable cursor-pointer rounded-lg bg-muted px-2.5 py-2 text-xs font-medium hover:bg-accent">
                     {uploadingRef ? "Uploading…" : "📎 Upload ref"}
                     <input
                       type="file"
@@ -598,7 +604,7 @@ export function Composer({
                     onChange={(e) => setUrlText(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && fetchUrlImages()}
                     placeholder="Paste an inspiration URL (Zillow, Pinterest…)"
-                    className="min-w-0 flex-1 rounded-md border bg-transparent px-2 py-1 text-xs"
+                    className="min-w-0 flex-1 rounded-lg border border-border/70 bg-card px-2.5 py-2 text-xs outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30"
                   />
                   <Button size="sm" variant="outline" onClick={fetchUrlImages} disabled={urlBusy || !urlText.trim()}>
                     {urlBusy ? "Reading…" : "Fetch"}
@@ -629,7 +635,7 @@ export function Composer({
 
           {/* materialized ideas: 4 labeled mini-chains, one Run */}
           {ideas && (
-            <div className="mt-2 rounded-md border p-3">
+            <div className="mt-3 rounded-xl bg-card/65 p-3">
               <div className="flex items-center justify-between">
                 <p className="text-sm font-medium">4 directions to explore</p>
                 <button
@@ -642,7 +648,7 @@ export function Composer({
               </div>
               <div className="mt-2 grid gap-1.5 sm:grid-cols-2">
                 {ideas.map((d, i) => (
-                  <div key={i} className="rounded-md border px-2 py-1.5 text-xs">
+                  <div key={i} className="rounded-lg bg-muted/65 px-2.5 py-2 text-xs">
                     <p className="font-medium">{d.label}</p>
                     <p className="text-muted-foreground">
                       {d.edit_chain
@@ -665,8 +671,8 @@ export function Composer({
           />
 
           {chain.length > 0 && additionalViews.length > 0 && onToggleAdditionalView && (
-            <details className="mt-4 border-t border-border pt-3">
-              <summary className="cursor-pointer font-ui text-xs uppercase tracking-[0.12em] text-muted-foreground hover:text-foreground">
+            <details className="mt-4 rounded-xl bg-card/55 px-3 py-2.5">
+              <summary className="cursor-pointer text-xs font-semibold text-muted-foreground hover:text-foreground">
                 Apply these settings to another view
               </summary>
               <p className="mt-2 text-xs text-muted-foreground">
@@ -702,20 +708,20 @@ export function Composer({
           {/* The ordered chain is powerful, but only appears after the first
               outcome has been chosen. There is no second empty-state picker. */}
           {chain.length > 0 && (
-            <details className="group mt-4 border-t border-border pt-3">
-              <summary className="cursor-pointer list-none font-ui text-xs uppercase tracking-[0.12em] text-muted-foreground hover:text-foreground">
+            <details className="group mt-4 rounded-xl bg-card/55 px-3 py-2.5">
+              <summary className="cursor-pointer list-none text-xs font-semibold text-muted-foreground hover:text-foreground">
                 <span className="flex items-center justify-between">
                   Add another edit
-                  <span aria-hidden="true" className="transition-transform group-open:rotate-45">＋</span>
+                  <Plus aria-hidden="true" className="size-4 transition-transform group-open:rotate-45" />
                 </span>
               </summary>
-              <div className="mt-3 grid grid-cols-2 gap-px border border-border bg-border">
+              <div className="mt-3 grid gap-1 sm:grid-cols-2">
                 {Object.entries(EDIT_TYPES).map(([editType, { label }]) => (
                   <button
                     key={editType}
                     type="button"
                     onClick={() => addEdit(editType)}
-                    className="min-h-12 bg-card px-3 py-2 text-left text-xs transition-colors hover:bg-accent focus-visible:relative focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    className="ls-pressable min-h-10 rounded-lg px-2.5 py-2 text-left text-xs font-medium hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
                   >
                     {label}
                   </button>
@@ -764,25 +770,25 @@ export function Composer({
 
           {chain.length > 0 && (
             <div className="mt-4">
-              <label htmlFor="edit-notes" className="font-ui text-xs font-semibold uppercase tracking-[0.12em]">
+              <label htmlFor="edit-notes" className="text-xs font-semibold">
                 Anything else? <span className="font-normal normal-case tracking-normal text-muted-foreground">Optional</span>
               </label>
-              <input
+              <Input
                 id="edit-notes"
                 value={comment}
                 onChange={(e) => setComment(e.target.value)}
                 placeholder="e.g. keep the fireplace as-is and use warm neutral fabrics"
-                className="mt-2 w-full border border-input bg-card px-3 py-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                className="mt-2 w-full"
               />
             </div>
           )}
-          <div className="-mx-4 mt-5 border-t border-border bg-background/95 px-4 py-4 backdrop-blur sm:mx-0 sm:px-0 lg:sticky lg:bottom-0 lg:z-10">
+          <div className="ls-scroll-edge -mx-4 mt-5 bg-background/88 px-4 py-4 backdrop-blur-xl sm:-mx-5 sm:px-5 md:sticky md:bottom-0 md:z-10">
             <div className="flex items-center gap-3">
               <details className="relative">
                 <summary className="cursor-pointer list-none text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground">
                   Output size
                 </summary>
-                <div className="absolute bottom-[calc(100%+0.5rem)] left-0 z-20 w-44 border border-border bg-popover p-2 shadow-lg">
+                <div className="ls-material absolute bottom-[calc(100%+0.5rem)] left-0 z-20 w-48 p-2">
                   <Select
                     aria-label="Output size"
                     value={sizePreset}

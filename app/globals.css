@@ -1,31 +1,34 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
-/* Editorial Luxury identity (phase 25, DECISIONS 2026-08-31, supersedes
-   Darkroom). Light-only by design — the realtor audience research killed dark
-   mode; no dark blocks are maintained. Warm linen ground, brass accent, serif
-   display. Mockup of record: artifact c302dc51. */
+/* Calm precision identity (phase 38). The warm brass character remains, but
+   hierarchy now comes from space, weight and physical surfaces instead of
+   decorative type and a border around every object. */
 
 :root {
-  --radius: 0.1875rem; /* 3px — hairline-and-square, not rounded SaaS */
-  --background: oklch(0.945 0.014 85); /* #F3EEE4 warm linen */
-  --foreground: oklch(0.235 0.012 60); /* #241F1A warm near-black */
-  --card: oklch(0.985 0.005 85); /* #FDFBF7 */
+  --radius: 0.75rem;
+  --background: oklch(0.965 0.006 85);
+  --foreground: oklch(0.225 0.01 70);
+  --card: oklch(0.995 0.002 85);
   --card-foreground: oklch(0.235 0.012 60);
-  --popover: oklch(0.915 0.02 85); /* #EDE4D5 */
+  --popover: oklch(0.995 0.002 85);
   --popover-foreground: oklch(0.235 0.012 60);
-  --primary: oklch(0.585 0.085 75); /* #A57C3F brass */
-  --primary-foreground: oklch(0.97 0.012 85); /* #FBF6EC cream, not white */
-  --secondary: oklch(0.915 0.02 85); /* #EDE4D5 */
-  --secondary-foreground: oklch(0.47 0.075 70); /* #7A5A2A deep bronze */
-  --muted: oklch(0.915 0.02 85);
-  --muted-foreground: oklch(0.56 0.02 70); /* #83766A */
-  --accent: oklch(0.905 0.035 85); /* #EDE1C8 pale sand */
-  --accent-foreground: oklch(0.47 0.075 70); /* #7A5A2A */
-  --destructive: oklch(0.5 0.13 27); /* #A8483F */
-  --border: oklch(0.865 0.025 85); /* #DED0BC hairline */
-  --input: oklch(0.79 0.045 85); /* #CBB994 */
+  --primary: oklch(0.55 0.09 72);
+  --primary-foreground: oklch(0.985 0.006 85);
+  --secondary: oklch(0.925 0.014 85);
+  --secondary-foreground: oklch(0.41 0.055 70);
+  --muted: oklch(0.935 0.009 85);
+  --muted-foreground: oklch(0.53 0.014 70);
+  --accent: oklch(0.925 0.025 82);
+  --accent-foreground: oklch(0.41 0.055 70);
+  --destructive: oklch(0.5 0.13 27);
+  --border: oklch(0.885 0.014 82);
+  --input: oklch(0.86 0.018 82);
   --ring: oklch(0.585 0.085 75);
+  --font-system: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Segoe UI", sans-serif;
+  --ease-fluid: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --shadow-surface: 0 1px 2px rgb(43 35 26 / 0.05), 0 12px 36px rgb(43 35 26 / 0.07);
+  --shadow-float: 0 18px 60px rgb(28 23 18 / 0.18);
   /* Semantic — job/step state only. Never decorative (Darkroom rule carries over). */
   --state-queued: oklch(0.56 0.02 70); /* #83766A */
   --state-running: oklch(0.585 0.085 75); /* #A57C3F brass — the system acting */
@@ -62,11 +65,10 @@
   --color-state-complete: var(--state-complete);
   --color-state-failed: var(--state-failed);
   --color-state-qa: var(--state-qa);
-  --font-sans: var(--font-public-sans);
-  --font-display: var(--font-cormorant);
-  --font-ui: var(--font-dm-sans);
-  /* mono is interim-Wordmark-only — TODO(brand); nothing else may use it */
-  --font-mono: var(--font-jetbrains-mono);
+  --font-sans: var(--font-system);
+  --font-display: var(--font-system);
+  --font-ui: var(--font-system);
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
 @layer base {
@@ -74,19 +76,25 @@
     @apply border-border outline-ring/50;
   }
   body {
-    /* font-sans here, not preflight: the next/font variable is body-scoped */
     @apply bg-background font-sans text-foreground;
+    min-height: 100dvh;
+    font-feature-settings: "kern" 1, "liga" 1;
+    text-rendering: optimizeLegibility;
   }
-  /* Serif display carries the hero moments (addresses, titles); everything
-     functional is DM Sans (font-ui) or Public Sans (body). Mono is gone from
-     the UI — TODO(brand): interim Wordmark only. */
   h1,
   h2 {
-    /* --font-cormorant directly (next/font var, body-scoped) — the @theme
-       inline --font-display alias is not emitted as a runtime var */
-    font-family: var(--font-cormorant), Georgia, serif;
-    font-weight: 500;
-    letter-spacing: 0.002em;
+    font-family: var(--font-system);
+    font-weight: 650;
+    letter-spacing: -0.028em;
+    line-height: 1.08;
+  }
+  button,
+  a,
+  input,
+  select,
+  textarea,
+  summary {
+    -webkit-tap-highlight-color: transparent;
   }
 }
 
@@ -97,6 +105,49 @@
    CSS-only, disabled wholesale under prefers-reduced-motion. */
 
 @layer utilities {
+  .ls-surface {
+    border: 1px solid color-mix(in oklch, var(--border) 70%, white);
+    border-radius: 1rem;
+    background: color-mix(in oklch, var(--card) 96%, transparent);
+    box-shadow: var(--shadow-surface);
+  }
+
+  .ls-material {
+    border: 1px solid rgb(255 255 255 / 0.68);
+    border-radius: 1rem;
+    background: rgb(253 251 247 / 0.78);
+    box-shadow: var(--shadow-float);
+    backdrop-filter: blur(24px) saturate(145%);
+  }
+
+  .ls-pressable {
+    touch-action: manipulation;
+    transition:
+      transform 180ms var(--ease-fluid),
+      background-color 180ms ease,
+      border-color 180ms ease,
+      box-shadow 180ms ease,
+      color 180ms ease;
+  }
+
+  .ls-pressable:active:not(:disabled) {
+    transform: scale(0.98);
+    transition-duration: 80ms;
+  }
+
+  .ls-section-label {
+    font-family: var(--font-system);
+    font-size: 0.6875rem;
+    font-weight: 650;
+    letter-spacing: 0.06em;
+    line-height: 1.2;
+    text-transform: uppercase;
+  }
+
+  .ls-scroll-edge {
+    box-shadow: 0 1px 0 rgb(76 62 43 / 0.08), 0 10px 24px rgb(76 62 43 / 0.05);
+  }
+
   /* The signature move: a print coming up in the tray. Fires on mount via
      @starting-style — no JS, no effect hook, no mount flag. */
   .develop-in {
@@ -177,6 +228,14 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
   .develop-in {
     transition: none;
   }
@@ -185,5 +244,24 @@
   }
   .sweep::after {
     display: none;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .ls-material {
+    background: var(--card);
+    backdrop-filter: none;
+  }
+}
+
+@media (prefers-contrast: more) {
+  :root {
+    --border: oklch(0.58 0.018 70);
+    --input: oklch(0.48 0.018 70);
+  }
+  .ls-surface,
+  .ls-material {
+    border-color: var(--foreground);
+    background: var(--card);
   }
 }

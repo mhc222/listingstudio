@@ -26,18 +26,17 @@ export function Mark({ size = 26 }: { size?: number }) {
   )
 }
 
-// JetBrains Mono Bold uppercase .2em; LISTING full weight, STUDIO regular grey.
 export function Wordmark({ stacked = false }: { stacked?: boolean }) {
   return (
     <span className={`flex items-center gap-3 ${stacked ? "flex-col gap-2.5" : ""}`}>
       <Mark size={stacked ? 44 : 26} />
       <span
-        className={`font-mono text-sm font-bold uppercase leading-snug tracking-[0.2em] ${
-          stacked ? "text-center tracking-[0.24em]" : "whitespace-nowrap"
+        className={`font-ui text-[0.95rem] font-semibold leading-none tracking-[-0.025em] ${
+          stacked ? "text-center text-lg" : "whitespace-nowrap"
         }`}
       >
         Listing{stacked ? <br /> : " "}
-        <span className="font-normal text-muted-foreground">Studio</span>
+        <span className="font-medium text-muted-foreground">Studio</span>
       </span>
     </span>
   )
@@ -62,7 +61,7 @@ export function StatePill({ status, label }: { status: string; label?: string })
   const live = status === "running" || status === "processing"
   return (
     <span
-      className={`inline-flex items-center gap-1.5 font-ui text-[0.64rem] font-semibold uppercase tracking-[0.11em] ${
+      className={`inline-flex items-center gap-1.5 font-ui text-[0.68rem] font-semibold tracking-[0.02em] ${
         PILL_STATES[status] ?? PILL_STATES.queued
       }`}
     >

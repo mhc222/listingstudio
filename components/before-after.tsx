@@ -8,7 +8,7 @@ export function BeforeAfter({ beforeUrl, afterUrl }: { beforeUrl: string | null;
   const [pos, setPos] = useState(50)
   if (!beforeUrl) {
     return (
-      <div className="flex w-full justify-center overflow-hidden bg-[#241f1a]">
+      <div className="flex w-full justify-center overflow-hidden rounded-2xl bg-[#1b1917] shadow-[var(--shadow-surface)]">
         {/* eslint-disable-next-line @next/next/no-img-element -- signed URLs expire; next/image caching fights that */}
         <img
           src={afterUrl}
@@ -19,7 +19,7 @@ export function BeforeAfter({ beforeUrl, afterUrl }: { beforeUrl: string | null;
     )
   }
   return (
-    <div className="flex w-full max-w-full justify-center overflow-hidden bg-[#241f1a]">
+    <div className="flex w-full max-w-full justify-center overflow-hidden rounded-2xl bg-[#1b1917] shadow-[var(--shadow-surface)]">
       <div className="relative inline-block max-w-full touch-none select-none overflow-hidden">
         {/* The original controls the frame's intrinsic aspect ratio. Both
             images remain fully contained, so the review never crops evidence
@@ -44,7 +44,7 @@ export function BeforeAfter({ beforeUrl, afterUrl }: { beforeUrl: string | null;
           className="pointer-events-none absolute inset-y-0 w-0.5 -translate-x-1/2 bg-white/90 shadow"
           style={{ left: `${pos}%` }}
         >
-          <span className="absolute top-1/2 left-1/2 flex size-8 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-white/95 shadow-md">
+          <span className="absolute top-1/2 left-1/2 flex size-9 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-white/95 shadow-[0_4px_18px_rgba(0,0,0,0.22)]">
             <svg width="13" height="13" viewBox="0 0 24 24" aria-hidden="true">
               <path
                 d="M9 6L4 12l5 6M15 6l5 6-5 6"
@@ -69,9 +69,24 @@ export function BeforeAfter({ beforeUrl, afterUrl }: { beforeUrl: string | null;
           max={100}
           value={pos}
           onChange={(e) => setPos(Number(e.target.value))}
+          onKeyDown={(e) => {
+            if (e.key === "ArrowLeft" || e.key === "ArrowDown") {
+              e.preventDefault()
+              setPos((value) => Math.max(0, value - 1))
+            } else if (e.key === "ArrowRight" || e.key === "ArrowUp") {
+              e.preventDefault()
+              setPos((value) => Math.min(100, value + 1))
+            } else if (e.key === "Home") {
+              e.preventDefault()
+              setPos(0)
+            } else if (e.key === "End") {
+              e.preventDefault()
+              setPos(100)
+            }
+          }}
           aria-label="Before and after comparison"
           aria-valuetext={`${pos}% original, ${100 - pos}% edited`}
-          className="peer absolute inset-0 h-full w-full cursor-ew-resize opacity-0"
+          className="peer absolute inset-0 h-full w-full touch-none cursor-ew-resize opacity-0"
         />
         <span className="pointer-events-none absolute inset-1 opacity-0 ring-2 ring-white ring-offset-2 ring-offset-[#241f1a] transition-opacity peer-focus-visible:opacity-100" />
       </div>

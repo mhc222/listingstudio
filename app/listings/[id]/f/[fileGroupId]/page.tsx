@@ -118,7 +118,7 @@ export default async function FileGroupPage({
 
   return (
     <main className="min-h-screen bg-background">
-      <header className="border-b border-border bg-card">
+      <header className="ls-scroll-edge sticky top-0 z-30 bg-card/82 backdrop-blur-2xl">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-5 gap-y-2 px-4 py-3 sm:px-6">
           <Link
             href={`/listings/${id}`}
@@ -127,10 +127,10 @@ export default async function FileGroupPage({
             ← Photos
           </Link>
           <div className="min-w-0 flex-1">
-            <p className="truncate font-ui text-[0.65rem] uppercase tracking-[0.14em] text-muted-foreground">
+            <p className="truncate text-[0.68rem] font-semibold tracking-[0.04em] text-muted-foreground">
               {listing?.address ?? "Listing"}
             </p>
-            <h1 className="truncate font-serif text-xl sm:text-2xl">{workspaceTitle(workspaceFg.edit_chain)}</h1>
+            <h1 className="truncate text-xl font-semibold tracking-[-0.03em] sm:text-2xl">{workspaceTitle(workspaceFg.edit_chain)}</h1>
           </div>
           <Link
             href={`/listings/${id}/activity`}

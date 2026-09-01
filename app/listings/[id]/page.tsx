@@ -92,18 +92,18 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
   const cover = regular.find((p) => p.url)
 
   return (
-    <main className="mx-auto max-w-6xl p-6">
+    <main className="mx-auto max-w-7xl p-4 sm:p-6 lg:p-8">
       <Link href="/listings" className="text-sm text-muted-foreground hover:underline">
         ← Listings
       </Link>
 
       {cover ? (
-        <div className="relative mt-3 overflow-hidden rounded-lg">
+        <div className="relative mt-3 overflow-hidden rounded-[1.25rem] shadow-[var(--shadow-surface)]">
           {/* eslint-disable-next-line @next/next/no-img-element -- signed URLs expire; next/image caching fights that */}
           <img src={cover.url ?? ""} alt="" className="h-56 w-full object-cover sm:h-72" />
           <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
           <div className="absolute bottom-0 left-0 p-5">
-            <h1 className="text-3xl text-primary-foreground drop-shadow sm:text-4xl">
+            <h1 className="text-3xl font-semibold tracking-[-0.035em] text-primary-foreground drop-shadow sm:text-4xl">
               {listing.address}
             </h1>
             {listing.mls_number && (

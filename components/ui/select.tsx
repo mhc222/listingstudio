@@ -22,8 +22,8 @@ function Select({ className, style, ...props }: React.ComponentProps<"select">) 
         ...style,
       }}
       className={cn(
-        "h-9 w-full min-w-0 appearance-none rounded-md border border-input bg-transparent px-2 py-1 pr-6 text-sm shadow-xs transition-[color,box-shadow] outline-none disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50",
-        "focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50",
+        "h-10 w-full min-w-0 appearance-none rounded-[0.65rem] border border-border/80 bg-card/80 px-3 py-1 pr-8 text-sm shadow-[inset_0_1px_1px_rgba(47,37,25,0.03)] transition-[background-color,border-color,box-shadow] duration-200 outline-none disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50",
+        "hover:border-input focus-visible:border-ring focus-visible:bg-card focus-visible:ring-2 focus-visible:ring-ring/30",
         className
       )}
       {...props}

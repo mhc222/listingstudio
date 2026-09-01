@@ -181,7 +181,7 @@ function RoomPicker({
         aria-haspopup="listbox"
         aria-expanded={open}
         onClick={() => setOpen((current) => !current)}
-        className="flex h-10 w-full items-center justify-between border-b border-input bg-transparent px-1 text-left text-sm transition-colors hover:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+        className="ls-pressable flex h-11 w-full items-center justify-between rounded-xl bg-card px-3 text-left text-sm shadow-[0_1px_2px_rgba(45,35,23,0.06)] hover:bg-accent/45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
       >
         <span className="truncate font-medium">{selectedLabel}</span>
         <span className="ml-3 shrink-0 text-xs text-muted-foreground">
@@ -190,7 +190,7 @@ function RoomPicker({
       </button>
 
       {open && (
-        <div className="absolute right-0 top-[calc(100%+0.35rem)] z-30 w-full min-w-[18rem] border border-border bg-popover p-2 shadow-[0_18px_45px_rgba(76,58,35,0.16)]">
+        <div className="ls-material absolute right-0 top-[calc(100%+0.45rem)] z-30 w-full min-w-[18rem] p-2">
           <Input
             ref={searchRef}
             value={query}
@@ -286,13 +286,13 @@ export function RoomBrowser({
   const photoCount = room ? photos.filter((photo) => photo.room_id === room.id).length : 0
 
   return (
-    <section aria-labelledby="room-browser-title" className="border-y border-border py-4">
+    <section aria-labelledby="room-browser-title" className="ls-surface p-4 sm:p-5">
       <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
         <div>
-          <p className="font-ui text-[0.65rem] uppercase tracking-[0.14em] text-muted-foreground">
+          <p className="ls-section-label text-muted-foreground">
             Browse the listing
           </p>
-          <h2 id="room-browser-title" className="mt-1 font-serif text-xl">
+          <h2 id="room-browser-title" className="mt-1.5 text-xl font-semibold tracking-[-0.025em]">
             Rooms & photos
           </h2>
         </div>
@@ -300,9 +300,9 @@ export function RoomBrowser({
       </div>
 
       {room ? (
-        <div className="mt-4 grid gap-3 border-t border-border/70 pt-4 sm:grid-cols-[1fr_auto] sm:items-start">
+        <div className="mt-4 grid gap-3 rounded-xl bg-muted/45 p-4 sm:grid-cols-[1fr_auto] sm:items-start">
           <div>
-            <p className="font-serif text-2xl">{labels.get(room.id) ?? room.name}</p>
+            <p className="text-xl font-semibold tracking-[-0.025em]">{labels.get(room.id) ?? room.name}</p>
             <p className="mt-1 text-sm text-muted-foreground">
               {typeLabel} · {roomDimensions(room)} · {photoCount} tagged photo{photoCount === 1 ? "" : "s"}
             </p>

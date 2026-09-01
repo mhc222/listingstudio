@@ -19,7 +19,7 @@ export function ToolsNav({ listingId }: { listingId: string }) {
   const pathname = usePathname()
   const base = `/listings/${listingId}`
   return (
-    <nav className="flex flex-wrap gap-x-6 gap-y-2 border-b border-border pb-3 text-xs uppercase tracking-[0.18em]">
+    <nav className="flex max-w-full gap-1 overflow-x-auto rounded-2xl bg-muted/60 p-1.5 text-sm" aria-label="Listing tools">
       {TOOLS.map((t) => {
         const href = t.seg ? `${base}/${t.seg}` : base
         const active = pathname === href
@@ -27,7 +27,7 @@ export function ToolsNav({ listingId }: { listingId: string }) {
           <Link
             key={t.label}
             href={href}
-            className={active ? "text-primary" : "text-muted-foreground hover:text-foreground"}
+            className={`ls-pressable shrink-0 rounded-xl px-3 py-2 font-medium ${active ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:bg-card/55 hover:text-foreground"}`}
           >
             {t.label}
           </Link>

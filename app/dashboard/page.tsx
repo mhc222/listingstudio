@@ -66,9 +66,9 @@ export default async function Dashboard() {
   const coverUrls = await getUrls("originals", [...coverPath.values()])
 
   return (
-    <main className="mx-auto max-w-6xl p-6">
+    <main className="mx-auto max-w-7xl p-4 sm:p-6 lg:p-8">
       <DashboardLive />
-      <div className="flex items-center justify-between">
+      <div className="ls-material sticky top-3 z-20 flex items-center justify-between px-4 py-3">
         <Wordmark />
         <div className="flex items-center gap-4">
           <Link href="/listings" className="text-sm text-muted-foreground hover:underline">
@@ -85,8 +85,8 @@ export default async function Dashboard() {
         </div>
       </div>
 
-      <header className="mt-10">
-        <h1>Welcome back</h1>
+      <header className="mt-12">
+        <h1 className="text-4xl font-semibold tracking-[-0.04em]">Welcome back</h1>
         <p className="mt-1 text-sm text-muted-foreground">{user?.email}</p>
       </header>
 
@@ -100,7 +100,7 @@ export default async function Dashboard() {
       {/* create a listing right here — no need to detour to /listings first */}
       <form
         action={createListing}
-        className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center"
+        className="ls-surface mt-4 flex flex-col gap-2 p-3 sm:flex-row sm:items-center"
       >
         <Input name="address" placeholder="New listing address" required className="flex-1" />
         <Input name="mls_number" placeholder="MLS # (optional)" className="sm:w-48" />
@@ -123,7 +123,7 @@ export default async function Dashboard() {
             const meta = `${l.mls_number ? `MLS ${l.mls_number} · ` : ""}${count} photo${count === 1 ? "" : "s"}`
             return (
               <Link key={l.id} href={`/listings/${l.id}`} className="group">
-                <Card className="overflow-hidden p-0 transition-colors hover:border-input">
+                <Card className="ls-pressable overflow-hidden p-0 hover:-translate-y-1 hover:shadow-[0_18px_46px_rgba(45,35,23,0.12)]">
                   <div className="relative aspect-[4/3] w-full bg-muted">
                     {cover ? (
                       // eslint-disable-next-line @next/next/no-img-element
@@ -134,16 +134,13 @@ export default async function Dashboard() {
                       />
                     ) : (
                       <div className="flex h-full w-full items-center justify-center px-4 text-center text-muted-foreground">
-                        <span className="text-2xl" style={{ fontFamily: "var(--font-cormorant)" }}>
+                        <span className="text-xl font-semibold tracking-[-0.03em]">
                           {l.address}
                         </span>
                       </div>
                     )}
                     <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-4 pt-10">
-                      <div
-                        className="text-xl leading-tight text-white"
-                        style={{ fontFamily: "var(--font-cormorant)" }}
-                      >
+                      <div className="text-lg font-semibold leading-tight tracking-[-0.025em] text-white">
                         {l.address}
                       </div>
                       <div className="mt-0.5 text-xs uppercase tracking-wide text-white/70">
