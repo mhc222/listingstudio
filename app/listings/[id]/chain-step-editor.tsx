@@ -237,7 +237,7 @@ export function ChainStepEditor({
                   })}
                 </div>
               </fieldset>
-              <div className="grid items-start gap-4 sm:grid-cols-2">
+              <div className="grid items-start gap-4">
                 <fieldset className="grid self-start gap-2">
                   <legend className="text-xs font-medium text-muted-foreground">Furnishing level</legend>
                   <div className="grid grid-cols-2 rounded-xl bg-muted p-1">

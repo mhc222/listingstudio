@@ -79,7 +79,7 @@ function TaskModeRail({ activeTask, onSelect }: { activeTask?: string; onSelect:
   }
 
   return (
-    <div className="-mx-1 overflow-x-auto px-1 pb-1" aria-label="Edit task">
+    <div className="-mx-1 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" aria-label="Edit task">
       <div ref={rail} className="relative flex min-w-max items-center gap-1 rounded-xl bg-muted/72 p-1">
         <span
           aria-hidden="true"
@@ -185,6 +185,7 @@ export function Composer({
   const [sampleIds, setSampleIds] = useState<string[]>([])
   const [running, setRunning] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const taskDrafts = useRef<Record<string, ChainEdit>>({})
 
   // interpreter chat (phase 7): conversation is ephemeral until a job is
   // created, then persisted to chat_messages on the new file group
@@ -253,8 +254,17 @@ export function Composer({
   }
 
   function chooseTask(editType: string) {
+    if (chain[0]?.edit_type === editType) return
+    if (chain[0]) {
+      taskDrafts.current[chain[0].edit_type] = {
+        edit_type: chain[0].edit_type,
+        options: { ...chain[0].options },
+      }
+    }
+    const saved = taskDrafts.current[editType]
     const defaults = { ...EDIT_TYPES[editType].defaults }
     if (
+      !saved &&
       editType === "VIRTUAL_STAGING" &&
       initialRoomType &&
       ROOM_TYPES.some((room) => room.value === initialRoomType)
@@ -262,7 +272,7 @@ export function Composer({
       defaults.room_type = initialRoomType
     }
     setIdeas(null)
-    setChain([{ edit_type: editType, options: defaults }])
+    setChain(saved ? [{ edit_type: editType, options: { ...saved.options } }] : [{ edit_type: editType, options: defaults }])
     setError(null)
   }
 
@@ -518,9 +528,10 @@ export function Composer({
           {/* phase 31 accelerators: reuse a chain without rebuilding it */}
           {(lastChain || defaultChain || chain.length > 0) && (
             <Disclosure
-              className="mb-4 mt-3 rounded-xl bg-card/45 p-1"
+              className="mb-4 mt-3"
               summary="Saved edits"
-              triggerClassName="text-xs font-semibold"
+              triggerClassName="px-1 text-xs font-semibold"
+              contentClassName="px-1"
             >
               <div className="flex flex-wrap items-center gap-1.5">
                 {lastChain && (
@@ -607,9 +618,10 @@ export function Composer({
             {chatError && <p className="mt-2 text-sm text-destructive">{chatError}</p>}
 
             <Disclosure
-              className="mt-3 rounded-xl bg-card/45 p-1"
+              className="mt-3"
               summary="Add detail — room, style, references"
-              triggerClassName="text-xs"
+              triggerClassName="px-1 text-xs"
+              contentClassName="px-1"
             >
               <div className="grid gap-2">
                 <div className="flex flex-wrap items-center gap-2">
@@ -716,9 +728,10 @@ export function Composer({
 
           {chain.length > 0 && additionalViews.length > 0 && onToggleAdditionalView && (
             <Disclosure
-              className="mt-4 rounded-xl bg-card/45 p-1"
+              className="mt-4"
               summary="Apply these settings to another view"
-              triggerClassName="text-xs font-semibold"
+              triggerClassName="px-1 text-xs font-semibold"
+              contentClassName="px-1"
             >
               <p className="text-xs text-muted-foreground">
                 Each photo is edited separately with the same settings. Same-room views are shown first.
@@ -754,9 +767,10 @@ export function Composer({
               outcome has been chosen. There is no second empty-state picker. */}
           {chain.length > 0 && (
             <Disclosure
-              className="mt-4 rounded-xl bg-card/45 p-1"
+              className="mt-4"
               summary={<span className="flex items-center gap-2"><Plus aria-hidden="true" className="size-3.5" />Add another edit</span>}
-              triggerClassName="text-xs font-semibold"
+              triggerClassName="px-1 text-xs font-semibold"
+              contentClassName="px-1"
             >
               <div className="grid gap-1 sm:grid-cols-2">
                 {Object.entries(EDIT_TYPES).map(([editType, { label }]) => (

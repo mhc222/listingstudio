@@ -152,17 +152,23 @@
     display: grid;
     grid-template-rows: 0fr;
     opacity: 0;
+    pointer-events: none;
     transform: translateY(-3px);
+    visibility: hidden;
     transition:
       grid-template-rows 200ms var(--ease-fluid),
       opacity 160ms ease,
-      transform 200ms var(--ease-fluid);
+      transform 200ms var(--ease-fluid),
+      visibility 0s linear 200ms;
   }
 
   .ls-disclosure-content[data-state="open"] {
     grid-template-rows: 1fr;
     opacity: 1;
+    pointer-events: auto;
     transform: translateY(0);
+    visibility: visible;
+    transition-delay: 0s;
   }
 
   .ls-mode-panel {

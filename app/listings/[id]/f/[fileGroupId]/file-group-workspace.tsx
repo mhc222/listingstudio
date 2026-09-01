@@ -259,7 +259,7 @@ export function FileGroupWorkspace({ listingId, fg, before, siblings }: {
           )}
 
           {latest?.url && !isPlan && (
-            <section className="mt-5 rounded-xl bg-muted/45 p-3">
+            <section className="mt-6">
               <h3 className="text-xs font-semibold">Download</h3>
               <Select aria-label="Download size" value={dlVariant} onChange={(event) => setDlVariant(event.target.value)} className="mt-2">
                 {DOWNLOAD_VARIANTS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
@@ -273,7 +273,7 @@ export function FileGroupWorkspace({ listingId, fg, before, siblings }: {
           )}
 
           {latest?.url && isPlan && (
-            <section className="mt-5 rounded-xl bg-muted/45 p-3">
+            <section className="mt-6">
               <h3 className="text-xs font-semibold">Export plan</h3>
               <div className="mt-2 grid grid-cols-3 gap-2">
                 {(["png", "svg", "pdf"] as const).map((format) => <Button key={format} asChild size="sm" variant="outline"><a href={`/api/file-groups/${fg.id}/plan-export?format=${format}&version=${latest.id}`}>{format.toUpperCase()}</a></Button>)}
@@ -283,7 +283,7 @@ export function FileGroupWorkspace({ listingId, fg, before, siblings }: {
           )}
 
           {latest?.url && settled && (
-            <section className="mt-5 rounded-xl bg-muted/45 p-3">
+            <section className="mt-6">
               <label htmlFor="refine-result" className="text-xs font-semibold">Refine this version</label>
               <p className="mt-1 text-xs text-muted-foreground">A refinement creates a new version. This one stays safe.</p>
               <Textarea id="refine-result" value={reworkText} onChange={(event) => setReworkText(event.target.value)} placeholder="What should change? e.g. use a gray sofa and remove the wall art" rows={3}
@@ -293,7 +293,7 @@ export function FileGroupWorkspace({ listingId, fg, before, siblings }: {
           )}
 
           {versionsDesc.length > 0 && (
-            <section className="mt-5 rounded-xl bg-muted/45 p-3">
+            <section className="mt-6">
               <h3 className="text-xs font-semibold">Versions</h3>
               <div className="mt-2 grid gap-1">
                 {[...versionsDesc].reverse().map((version, index) => (
@@ -308,9 +308,10 @@ export function FileGroupWorkspace({ listingId, fg, before, siblings }: {
 
           {latest?.url && (
             <Disclosure
-              className="mt-5 rounded-xl bg-muted/45 p-1"
+              className="mt-5 border-t border-border/55 pt-2"
               summary={qaNeedsReview ? "Review recommended" : "Ready for MLS"}
-              triggerClassName="text-xs font-semibold text-foreground"
+              triggerClassName="px-0 text-xs font-semibold text-foreground"
+              contentClassName="px-0"
             >
               <div className="text-xs text-muted-foreground">
                 {latest.qa_note && <p>{latest.qa_note}</p>}
@@ -320,7 +321,7 @@ export function FileGroupWorkspace({ listingId, fg, before, siblings }: {
             </Disclosure>
           )}
 
-          <Disclosure className="mt-5 rounded-xl bg-muted/45 p-1" summary="Edit details" triggerClassName="text-xs font-semibold text-foreground">
+          <Disclosure className="mt-2" summary="Edit details" triggerClassName="px-0 text-xs font-semibold text-foreground" contentClassName="px-0">
             <div className="grid gap-3 text-xs text-muted-foreground">
               <p><span className="text-foreground">Edit order:</span> {editOrder(fg.edit_chain)}</p>
               {fg.comment && <p><span className="text-foreground">Direction:</span> {fg.comment}</p>}
@@ -329,7 +330,7 @@ export function FileGroupWorkspace({ listingId, fg, before, siblings }: {
           </Disclosure>
 
           {isDusk && latest?.url && complianceChecks.length === 0 && (
-            <Disclosure className="mt-5 rounded-xl bg-muted/45 p-1" summary="Dusk visual check" triggerClassName="text-xs font-semibold text-foreground">
+            <Disclosure className="mt-2" summary="Dusk visual check" triggerClassName="px-0 text-xs font-semibold text-foreground" contentClassName="px-0">
               <div className="grid gap-2">{DUSK_CHECKS.map((check) => <label key={check} className="flex items-start gap-2 text-xs"><input type="checkbox" className="mt-0.5" />{check}</label>)}</div>
             </Disclosure>
           )}
