@@ -47,8 +47,8 @@
 - [x] Phase 44 — Full-shoot upload queue and recovery
 - [x] Phase 45 — Shoot inventory, counts, and HDR bracket organization
 - [x] Phase 46 — Room and same-view organization review
-- [x] Phase 47 — Safe batch scope (local complete; migration 0013 queued for final SQL batch)
-- [x] Phase 48 — Named persistent presets (local complete; migration 0014 queued for final SQL batch)
+- [x] Phase 47 — Safe batch scope (migration 0013 applied live 2026-09-02)
+- [x] Phase 48 — Named persistent presets (migration 0014 applied live 2026-09-02)
 - [x] Phase 49 — Listing-level progress truth (local complete; no migration)
 - [x] Phase 50 — Contact-sheet proofing and final selection
 - [x] Phase 51 — Approved finals and MLS delivery
@@ -66,9 +66,9 @@
 
 **Automated verification:** the complete Phase 43–54 suite passes with **443 assertions** (16 intake + 24 queue + 21 shoot organization + 47 room analysis + 34 batch scope + 38 presets + 26 listing status + 42 proofing + 49 delivery + 47 versioning + 48 scoped rework + 51 mobile workflow). TypeScript, full lint, diff check, migrations `0001`–`0018` from scratch in the isolated stack, `supabase db lint --level warning`, focused browser QA, and the 29-page production build all pass. Port 3000 was stopped before the build.
 
-**SQL/release/port state:** Phase 54 adds no migration. Live migrations remain through `0012`; Matt's deferred SQL order is `0013_batch_scope.sql`, `0014_edit_presets.sql`, `0015_proofing_and_finals.sql`, `0016_delivery_profiles.sql`, `0017_version_labels.sql`, then `0018_scoped_rework.sql`. Nothing was pushed, deployed, paid, or written to production; production remains the Phase 38–41 release. The isolated stack was stopped and its recoverable fixture moved to `/Users/mattcronin/.Trash/listing-studio-p54-MzOlRt-20260901`. Port 3000 is restored against normal `.env.local` (PID `63041`); `/` returns 200.
+**SQL/release/port state:** Phase 54 adds no migration. Matt confirmed the ordered live SQL batch succeeded on 2026-09-02: `0013_batch_scope.sql`, `0014_edit_presets.sql`, `0015_proofing_and_finals.sql`, `0016_delivery_profiles.sql`, `0017_version_labels.sql`, then `0018_scoped_rework.sql`. The live schema is now current through `0018`; no Phase 43–54 SQL remains pending. No application code was pushed or deployed and no paid generation ran; the production frontend remains the Phase 38–41 release until explicitly authorized. The isolated stack was stopped and its recoverable fixture moved to `/Users/mattcronin/.Trash/listing-studio-p54-MzOlRt-20260901`. Port 3000 is restored against normal `.env.local` (PID `63041`); `/` returns 200.
 
-**Next action:** run `/clear`. Then either explicitly authorize the ordered SQL/release work, or append and approve a new milestone in `PLAN.md`. Do not push, deploy, apply live SQL, run paid generation, or start another implementation phase from this handoff without that explicit direction.
+**Next action:** run `/clear`. The SQL gate is cleared. Then either explicitly authorize push/deployment of the completed Phase 43–54 application code, or append and approve a new milestone in `PLAN.md`. Do not push, deploy, run paid generation, or start another implementation phase from this handoff without that explicit direction.
 
 ## ACTIVE HANDOFF — Phase 53 scoped conversational batch rework complete in local code (2026-09-01)
 
