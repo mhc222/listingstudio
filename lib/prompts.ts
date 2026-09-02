@@ -570,16 +570,20 @@ export type ReworkOptions = {
   // storage path (outputs bucket) of the version being branched from
   source_path?: string
   parent_version_id?: string
+  // Batch rework resolves this from the immutable source chain and persists it
+  // in the request snapshot; ordinary legacy reworks remain interior by default.
+  protected_geometry?: "interior" | "exterior"
 }
 
 export function REWORK(options: ReworkOptions = {}): string {
   const instructions = (options.instructions ?? "").trim() || "improve the requested edit"
+  const geometry = options.protected_geometry === "exterior" ? GEOMETRY_EXTERIOR : GEOMETRY_INTERIOR
   const parts = [
     // brightness cue inside the first ten words
     "Bright natural real estate photo; apply only these corrections.",
     `Corrections: ${instructions}.`,
     "Change nothing else — every element not named above stays identical to the input image.",
-    GEOMETRY_INTERIOR,
+    geometry,
     LISTING_SUFFIX,
   ]
   return parts.join(" ")
