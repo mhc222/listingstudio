@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { BeforeAfter } from "@/components/before-after"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { Select } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { createClient } from "@/lib/supabase/client"
@@ -20,8 +21,13 @@ import {
   type ProofingStateInput,
   type ProofingStatus,
 } from "@/lib/proofing"
-import type { ProofingItemRow, ProofingVersionRow } from "@/lib/proofing-server"
-import { automaticVersionLabel } from "@/lib/versioning"
+import type { ProofingItemRow, ProofingScopedReworkRow, ProofingVersionRow } from "@/lib/proofing-server"
+import { automaticVersionLabel, formatGenerationCost } from "@/lib/versioning"
+import {
+  protectedGeometryLabel,
+  validateScopedReworkInput,
+  type ScopedReworkMethod,
+} from "@/lib/scoped-rework"
 
 const STATUS_LABELS: Record<ProofingStatus, string> = {
   unreviewed: "Unreviewed",
@@ -58,10 +64,12 @@ function versionLabel(version: ProofingVersionRow) {
 export function ProofingWorkspace({
   listingId,
   items,
+  scopedReworks,
   initialPhotoId,
 }: {
   listingId: string
   items: ProofingItemRow[]
+  scopedReworks: ProofingScopedReworkRow[]
   initialPhotoId?: string
 }) {
   const router = useRouter()
@@ -77,7 +85,17 @@ export function ProofingWorkspace({
   const [reviewNote, setReviewNote] = useState("")
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [batchOpen, setBatchOpen] = useState(false)
+  const [batchTargets, setBatchTargets] = useState<Record<string, { versionId: string; exception: string }>>({})
+  const [batchMethod, setBatchMethod] = useState<ScopedReworkMethod>("explicit")
+  const [batchScopeId, setBatchScopeId] = useState<string | null>(null)
+  const [batchCorrection, setBatchCorrection] = useState("")
+  const [batchBusy, setBatchBusy] = useState(false)
+  const [batchError, setBatchError] = useState<string | null>(null)
+  const [batchNotice, setBatchNotice] = useState<string | null>(null)
+  const [retryingGroupId, setRetryingGroupId] = useState<string | null>(null)
   const retryRef = useRef<{ key: string; id: string } | null>(null)
+  const batchRetryRef = useRef<{ key: string; id: string } | null>(null)
   const finalByPhotoRef = useRef<Record<string, string>>(
     Object.fromEntries(items.map((item) => [item.id, proofingFinalKey(stateInput(item))]))
   )
@@ -158,6 +176,123 @@ export function ProofingWorkspace({
     : "original"
   const counts = proofingApprovalCounts(items.map(stateInput))
   const activeIndex = Math.max(0, filtered.findIndex((item) => item.id === selectedItem?.id))
+  const selectedBatchEntries = items.flatMap((item) => {
+    const draft = batchTargets[item.id]
+    const version = draft ? item.versions.find((candidate) => candidate.id === draft.versionId) : null
+    return draft && version ? [{ item, draft, version }] : []
+  })
+  const batchGenerationCost = selectedBatchEntries.reduce(
+    (sum, entry) => sum + entry.version.generationCostCents,
+    0
+  )
+
+  function preferredBatchVersion(item: ProofingItemRow) {
+    const current = versionByPhoto[item.id]
+    if (current && current !== ORIGINAL_SELECTION && item.versions.some((version) => version.id === current)) return current
+    if (item.final?.outputVersionId && item.versions.some((version) => version.id === item.final?.outputVersionId)) {
+      return item.final.outputVersionId
+    }
+    return sortedProofingVersions(item.versions)[0]?.id ?? null
+  }
+
+  function applyBatchScope(method: ScopedReworkMethod, scopeId: string | null, candidates: ProofingItemRow[]) {
+    const next: Record<string, { versionId: string; exception: string }> = {}
+    for (const item of candidates) {
+      const versionId = preferredBatchVersion(item)
+      if (versionId) next[item.id] = { versionId, exception: batchTargets[item.id]?.exception ?? "" }
+    }
+    setBatchMethod(method)
+    setBatchScopeId(scopeId)
+    setBatchTargets(next)
+    setBatchError(Object.keys(next).length < 2 ? "This scope needs at least two generated results." : null)
+    setBatchNotice(null)
+  }
+
+  function toggleBatchTarget(item: ProofingItemRow) {
+    const existing = batchTargets[item.id]
+    if (existing) {
+      const next = { ...batchTargets }
+      delete next[item.id]
+      setBatchTargets(next)
+    } else {
+      const versionId = preferredBatchVersion(item)
+      if (!versionId) return
+      setBatchTargets((current) => ({ ...current, [item.id]: { versionId, exception: "" } }))
+    }
+    setBatchMethod("explicit")
+    setBatchScopeId(null)
+    setBatchError(null)
+    setBatchNotice(null)
+  }
+
+  async function submitBatchRework() {
+    if (batchBusy) return
+    let input
+    try {
+      const targets = selectedBatchEntries.map(({ item, draft }) => ({
+        sourcePhotoId: item.id,
+        sourceOutputVersionId: draft.versionId,
+        exception: draft.exception,
+      }))
+      const preflight = {
+        selectionMethod: batchMethod,
+        scopeId: batchScopeId,
+        instructions: batchCorrection,
+        targets,
+      }
+      const payloadKey = JSON.stringify(preflight)
+      const requestId = batchRetryRef.current?.key === payloadKey
+        ? batchRetryRef.current.id
+        : crypto.randomUUID()
+      batchRetryRef.current = { key: payloadKey, id: requestId }
+      input = validateScopedReworkInput({ ...preflight, requestId })
+    } catch (validationError) {
+      setBatchError(validationError instanceof Error ? validationError.message : "Review the batch scope.")
+      return
+    }
+
+    setBatchBusy(true)
+    setBatchError(null)
+    setBatchNotice(null)
+    try {
+      const response = await fetch(`/api/listings/${listingId}/batch-rework`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(input),
+      })
+      const data = await response.json().catch(() => null)
+      if (!response.ok) {
+        setBatchError(data?.error ?? "The batch refinement could not be started. Your scope is still here—try again.")
+        return
+      }
+      batchRetryRef.current = null
+      setBatchNotice(`${data.requestedGenerationCount} refinements started. Each photo will report its own result.`)
+      router.refresh()
+    } catch {
+      setBatchError("The connection was interrupted. Your exact targets and retry identity are preserved—try again.")
+    } finally {
+      setBatchBusy(false)
+    }
+  }
+
+  async function retryBatchTarget(fileGroupId: string) {
+    if (retryingGroupId) return
+    setRetryingGroupId(fileGroupId)
+    setBatchError(null)
+    try {
+      const response = await fetch(`/api/file-groups/${fileGroupId}/rerun`, { method: "POST" })
+      const data = await response.json().catch(() => null)
+      if (!response.ok) {
+        setBatchError(data?.error ?? "This photo could not be retried.")
+        return
+      }
+      router.refresh()
+    } catch {
+      setBatchError("The connection was interrupted. Try this photo again.")
+    } finally {
+      setRetryingGroupId(null)
+    }
+  }
 
   function move(delta: number) {
     if (filtered.length < 2) return
@@ -237,6 +372,9 @@ export function ProofingWorkspace({
           <p className="mt-1 text-xs text-muted-foreground">Only an explicit approval counts. New refinements never move a final.</p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <Button type="button" variant="outline" onClick={() => { setBatchOpen((open) => !open); setBatchError(null) }}>
+            {batchOpen ? "Close batch refine" : "Refine several photos"}
+          </Button>
           <div className="min-w-40">
             <Select aria-label="Filter by room" value={roomFilter} onChange={(event) => setRoomFilter(event.target.value)}>
               <option value="all">All rooms</option>
@@ -263,6 +401,125 @@ export function ProofingWorkspace({
           </div>
         </div>
       </div>
+
+      {batchOpen && (
+        <section aria-label="Scoped batch refinement" className="ls-surface mt-4 min-w-0 p-4 sm:p-5">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-semibold tracking-[-0.025em]">Refine an exact set</h2>
+              <p className="mt-1 max-w-2xl text-xs text-muted-foreground">
+                Choose the exact saved result for each photo. No selection never means all, and new results never replace approved finals.
+              </p>
+            </div>
+            <p className="rounded-full bg-muted px-2.5 py-1 text-xs font-semibold">
+              {selectedBatchEntries.length} selected
+            </p>
+          </div>
+
+          <div className="mt-4 flex flex-wrap gap-2" aria-label="Batch scope shortcuts">
+            {selectedItem && (
+              <Button type="button" size="sm" variant="outline" onClick={() => {
+                const versionId = preferredBatchVersion(selectedItem)
+                if (!versionId) return
+                setBatchTargets((current) => ({ ...current, [selectedItem.id]: current[selectedItem.id] ?? { versionId, exception: "" } }))
+                setBatchMethod("explicit")
+                setBatchScopeId(null)
+                setBatchError(null)
+              }} disabled={selectedItem.versions.length === 0}>Add current photo</Button>
+            )}
+            {selectedItem?.roomId && (
+              <Button type="button" size="sm" variant="outline" onClick={() => applyBatchScope(
+                "room",
+                selectedItem.roomId,
+                items.filter((item) => item.roomId === selectedItem.roomId)
+              )}>Use {selectedItem.roomName} room</Button>
+            )}
+            {selectedItem?.sameRoomGroupId && (
+              <Button type="button" size="sm" variant="outline" onClick={() => applyBatchScope(
+                "same_room_group",
+                selectedItem.sameRoomGroupId,
+                items.filter((item) => item.sameRoomGroupId === selectedItem.sameRoomGroupId)
+              )}>Use {selectedItem.sameRoomGroupName ?? "same-room views"}</Button>
+            )}
+            {selectedBatchEntries.length > 0 && (
+              <Button type="button" size="sm" variant="ghost" onClick={() => {
+                setBatchTargets({})
+                setBatchMethod("explicit")
+                setBatchScopeId(null)
+                setBatchError(null)
+                setBatchNotice(null)
+              }}>Clear selection</Button>
+            )}
+          </div>
+
+          <div className="mt-4 grid min-w-0 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {items.map((item) => {
+              const draft = batchTargets[item.id]
+              const preview = previewFor(item)
+              return (
+                <div key={item.id} className={`min-w-0 rounded-xl border p-3 ${draft ? "border-primary bg-card" : "border-border/70 bg-muted/25"}`}>
+                  <label className={`flex min-h-10 items-center gap-3 ${item.versions.length ? "cursor-pointer" : "opacity-55"}`}>
+                    <input type="checkbox" checked={Boolean(draft)} onChange={() => toggleBatchTarget(item)} disabled={item.versions.length === 0} className="size-4 shrink-0 accent-[var(--primary)]" />
+                    <span className="size-12 shrink-0 overflow-hidden rounded-md bg-muted">
+                      {/* eslint-disable-next-line @next/next/no-img-element -- signed Storage URLs expire */}
+                      {preview && <img src={preview} alt="" className="h-full w-full object-cover" />}
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block truncate text-sm font-semibold">{item.filename}</span>
+                      <span className="block truncate text-xs text-muted-foreground">{item.roomName}{item.versions.length ? "" : " · No generated result"}</span>
+                    </span>
+                  </label>
+                  {draft && (
+                    <div className="mt-3 border-t border-border/60 pt-3">
+                      <label htmlFor={`batch-version-${item.id}`} className="text-xs font-semibold">Exact source version</label>
+                      <Select id={`batch-version-${item.id}`} value={draft.versionId} onChange={(event) => {
+                        setBatchTargets((current) => ({
+                          ...current,
+                          [item.id]: { ...current[item.id], versionId: event.target.value },
+                        }))
+                        setBatchMethod("explicit")
+                        setBatchScopeId(null)
+                        setBatchNotice(null)
+                      }} className="mt-1.5">
+                        {sortedProofingVersions(item.versions).map((version) => (
+                          <option key={version.id} value={version.id}>
+                            {versionLabel(version)}{item.final?.outputVersionId === version.id ? " · Approved" : ""}
+                          </option>
+                        ))}
+                      </Select>
+                      {(() => {
+                        const version = item.versions.find((candidate) => candidate.id === draft.versionId)
+                        return version ? <p className="mt-2 text-[0.7rem] text-muted-foreground">Protected: {protectedGeometryLabel(version.protectedGeometry)}.</p> : null
+                      })()}
+                      <label htmlFor={`batch-exception-${item.id}`} className="mt-3 block text-xs font-semibold">Target-specific exception <span className="font-normal text-muted-foreground">Optional</span></label>
+                      <Input id={`batch-exception-${item.id}`} value={draft.exception} maxLength={500} onChange={(event) => {
+                        setBatchTargets((current) => ({ ...current, [item.id]: { ...current[item.id], exception: event.target.value } }))
+                        setBatchNotice(null)
+                      }} placeholder="e.g. Keep this porch light warm" className="mt-1.5" />
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+
+          <div className="mt-5 grid min-w-0 gap-4 lg:grid-cols-[minmax(0,1fr)_18rem] lg:items-end">
+            <div>
+              <label htmlFor="batch-correction" className="text-sm font-semibold">What should change across these results?</label>
+              <Textarea id="batch-correction" value={batchCorrection} onChange={(event) => { setBatchCorrection(event.target.value); setBatchNotice(null) }} maxLength={1000} rows={3} className="mt-2" placeholder="e.g. Make the blue sky a little softer and more natural" />
+            </div>
+            <div className="min-w-0 rounded-xl bg-muted/50 p-3">
+              <p className="text-sm font-semibold">{selectedBatchEntries.length} initial generation{selectedBatchEntries.length === 1 ? "" : "s"} · {formatGenerationCost(batchGenerationCost)}</p>
+              <p className="mt-1 text-xs text-muted-foreground">One child per exact source. Provider retries and any QA correction are counted separately only if needed.</p>
+              <Button type="button" className="mt-3 w-full" onClick={submitBatchRework} disabled={batchBusy || selectedBatchEntries.length < 2 || !batchCorrection.trim()}>
+                {batchBusy ? "Starting batch refinement…" : `Start on ${selectedBatchEntries.length} photos`}
+              </Button>
+            </div>
+          </div>
+          {batchError && <p role="alert" className="mt-3 text-sm text-destructive">{batchError}</p>}
+          {batchNotice && <p role="status" className="mt-3 text-sm font-medium">{batchNotice}</p>}
+        </section>
+      )}
 
       {filtered.length === 0 ? (
         <div className="mt-4 border-y border-border py-8 text-center">
@@ -291,6 +548,57 @@ export function ProofingWorkspace({
             )
           })}
         </div>
+      )}
+
+      {scopedReworks.length > 0 && (
+        <section aria-label="Recent batch refinements" className="mt-5 border-y border-border/70 py-4">
+          <h2 className="text-sm font-semibold">Recent batch refinements</h2>
+          <div className="mt-3 grid gap-3">
+            {scopedReworks.map((request) => {
+              const ready = request.targets.filter((target) => target.status === "complete").length
+              const failed = request.targets.filter((target) => target.status === "failed").length
+              const active = request.targets.length - ready - failed
+              return (
+                <details key={request.id} className="rounded-xl border border-border/70 bg-card p-3" open={scopedReworks[0]?.id === request.id}>
+                  <summary className="cursor-pointer list-none text-sm font-semibold">
+                    {request.instructions} · {ready} ready{active ? ` · ${active} editing` : ""}{failed ? ` · ${failed} needs attention` : ""}
+                  </summary>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {request.generationCount} initial generations · {formatGenerationCost(request.generationCostCents)}. Approved finals stay unchanged.
+                  </p>
+                  <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                    {request.targets.map((target) => {
+                      const item = items.find((candidate) => candidate.id === target.sourcePhotoId)
+                      const source = item?.versions.find((version) => version.id === target.sourceOutputVersionId)
+                      const status = target.status === "complete" ? "Ready" : target.status === "failed" ? "Needs attention" : "Editing"
+                      return (
+                        <div key={target.fileGroupId} className="min-w-0 rounded-lg bg-muted/45 p-3 text-xs">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <p className="truncate font-semibold">{item?.filename ?? "Photo"}</p>
+                              <p className="mt-0.5 truncate text-muted-foreground">From {source ? versionLabel(source) : "exact saved version"}</p>
+                            </div>
+                            <span className={target.status === "failed" ? "font-semibold text-destructive" : "font-semibold"}>{status}</span>
+                          </div>
+                          {target.exception && <p className="mt-2 text-muted-foreground">Exception: {target.exception}</p>}
+                          {target.error && <p className="mt-2 text-destructive">{target.error}</p>}
+                          <div className="mt-2 flex flex-wrap gap-3">
+                            <Link href={`/listings/${listingId}/f/${target.fileGroupId}`} className="underline underline-offset-4">Open result</Link>
+                            {target.status === "failed" && (
+                              <button type="button" onClick={() => retryBatchTarget(target.fileGroupId)} disabled={Boolean(retryingGroupId)} className="font-semibold underline underline-offset-4 disabled:opacity-50">
+                                {retryingGroupId === target.fileGroupId ? "Retrying…" : "Try again"}
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </details>
+              )
+            })}
+          </div>
+        </section>
       )}
 
       {selectedItem && (

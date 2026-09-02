@@ -5,6 +5,9 @@ import { logicalPhotoIds } from "@/lib/hdr-groups"
 import { getUrls } from "@/lib/storage"
 import { createAdminClient } from "@/lib/supabase/admin"
 import type { ComplianceNote } from "@/app/listings/[id]/job-feed"
+import { MODELS, type ProviderKey } from "@/config/models"
+import { protectedGeometryForChain, type ProtectedGeometry } from "@/lib/scoped-rework"
+import type { EditStep } from "@/lib/prompts"
 
 export type ProofingVersionRow = {
   id: string
@@ -21,12 +24,16 @@ export type ProofingVersionRow = {
   qaNote: string | null
   qaNeedsReview: boolean
   url: string | null
+  generationCostCents: number
+  protectedGeometry: ProtectedGeometry
 }
 
 export type ProofingItemRow = {
   id: string
   roomId: string | null
   roomName: string
+  sameRoomGroupId: string | null
+  sameRoomGroupName: string | null
   filename: string
   originalUrl: string | null
   final: {
@@ -42,18 +49,40 @@ export type ProofingItemRow = {
   versions: ProofingVersionRow[]
 }
 
+export type ProofingScopedReworkRow = {
+  id: string
+  instructions: string
+  selectionMethod: "explicit" | "room" | "same_room_group"
+  scopeId: string | null
+  targetCount: number
+  generationCount: number
+  generationCostCents: number
+  createdAt: string
+  targets: Array<{
+    position: number
+    sourcePhotoId: string
+    sourceOutputVersionId: string
+    fileGroupId: string
+    exception: string | null
+    protectedGeometry: ProtectedGeometry
+    status: string
+    error: string | null
+  }>
+}
+
 export type ProofingListing = {
   id: string
   address: string
   mlsNumber: string | null
   items: ProofingItemRow[]
+  scopedReworks: ProofingScopedReworkRow[]
 }
 
 export async function loadProofingListing(
   supabase: SupabaseClient,
   listingId: string
 ): Promise<ProofingListing | null> {
-  const [listingQ, roomsQ, photosQ, groupsQ, membersQ, jobsQ, finalsQ] = await Promise.all([
+  const [listingQ, roomsQ, photosQ, groupsQ, membersQ, jobsQ, finalsQ, sameRoomGroupsQ, sameRoomMembersQ, scopedReworksQ] = await Promise.all([
     supabase.from("listings").select("id, address, mls_number").eq("id", listingId).single(),
     supabase.from("rooms").select("id, name").eq("listing_id", listingId),
     supabase
@@ -74,7 +103,7 @@ export async function loadProofingListing(
     supabase
       .from("jobs")
       .select(
-        `id, title, file_groups (id, primary_photo_id, step_status, last_error, variation_index,
+        `id, title, file_groups (id, primary_photo_id, step_status, last_error, variation_index, edit_chain, provider,
           output_versions (id, version_number, version_label, parent_version_id, storage_path, qa_note, compliance, created_at, review_state, review_note, reviewed_at))`
       )
       .eq("listing_id", listingId),
@@ -82,13 +111,28 @@ export async function loadProofingListing(
       .from("photo_finals")
       .select("id, source_photo_id, output_version_id, selected_at")
       .eq("listing_id", listingId),
+    supabase.from("same_room_groups").select("id, name").eq("listing_id", listingId),
+    supabase
+      .from("same_room_group_members")
+      .select("group_id, photo_id, same_room_groups!inner(listing_id)")
+      .eq("same_room_groups.listing_id", listingId),
+    supabase
+      .from("scoped_rework_requests")
+      .select(`id, instructions, selection_method, scope_id, target_count, generation_count,
+        generation_cost_cents, created_at,
+        scoped_rework_targets(position, source_photo_id, source_output_version_id, file_group_id,
+          exception, protected_geometry, file_groups(step_status, last_error))`)
+      .eq("listing_id", listingId)
+      .order("created_at", { ascending: false })
+      .limit(5),
   ])
 
   if (!listingQ.data) return null
-  if (photosQ.error || groupsQ.error || membersQ.error || jobsQ.error || finalsQ.error) {
+  if (photosQ.error || groupsQ.error || membersQ.error || jobsQ.error || finalsQ.error || sameRoomGroupsQ.error || sameRoomMembersQ.error || scopedReworksQ.error) {
     throw new Error(
       photosQ.error?.message || groupsQ.error?.message || membersQ.error?.message ||
-      jobsQ.error?.message || finalsQ.error?.message || "Could not load proofing data"
+      jobsQ.error?.message || finalsQ.error?.message || sameRoomGroupsQ.error?.message ||
+      sameRoomMembersQ.error?.message || scopedReworksQ.error?.message || "Could not load proofing data"
     )
   }
   // The listing query above is RLS-scoped. Sign only the paths discovered
@@ -108,6 +152,8 @@ export async function loadProofingListing(
   const logicalIds = new Set(logicalPhotoIds(photosQ.data ?? [], confirmed))
   const logicalPhotos = (photosQ.data ?? []).filter((photo) => logicalIds.has(photo.id))
   const roomNames = new Map((roomsQ.data ?? []).map((room) => [room.id, room.name]))
+  const sameRoomNames = new Map((sameRoomGroupsQ.data ?? []).map((group) => [group.id, group.name]))
+  const sameRoomByPhoto = new Map((sameRoomMembersQ.data ?? []).map((member) => [member.photo_id, member.group_id]))
 
   const originalUrls = await getUrls(
     "originals",
@@ -133,6 +179,7 @@ export async function loadProofingListing(
       const versionList = versionsByPhoto.get(group.primary_photo_id) ?? []
       for (const version of group.output_versions) {
         const compliance = version.compliance as ComplianceNote
+        const provider = group.provider as ProviderKey | null
         versionList.push({
           id: version.id,
           fileGroupId: group.id,
@@ -149,11 +196,39 @@ export async function loadProofingListing(
           qaNeedsReview:
             Boolean(version.qa_note) || Boolean(compliance?.checks?.some((check) => !check.pass)),
           url: outputUrls[version.storage_path] ?? null,
+          generationCostCents: provider && provider in MODELS ? MODELS[provider].costCents : 0,
+          protectedGeometry: protectedGeometryForChain(group.edit_chain as EditStep[]),
         })
       }
       versionsByPhoto.set(group.primary_photo_id, versionList)
     }
   }
+
+  const scopedReworks: ProofingScopedReworkRow[] = (scopedReworksQ.data ?? []).map((request) => ({
+    id: request.id,
+    instructions: request.instructions,
+    selectionMethod: request.selection_method as ProofingScopedReworkRow["selectionMethod"],
+    scopeId: request.scope_id,
+    targetCount: request.target_count,
+    generationCount: request.generation_count,
+    generationCostCents: Number(request.generation_cost_cents),
+    createdAt: request.created_at,
+    targets: request.scoped_rework_targets
+      .map((target) => {
+        const fileGroup = Array.isArray(target.file_groups) ? target.file_groups[0] : target.file_groups
+        return {
+          position: target.position,
+          sourcePhotoId: target.source_photo_id,
+          sourceOutputVersionId: target.source_output_version_id,
+          fileGroupId: target.file_group_id,
+          exception: target.exception,
+          protectedGeometry: target.protected_geometry as ProtectedGeometry,
+          status: fileGroup?.step_status ?? "queued",
+          error: fileGroup?.last_error ?? null,
+        }
+      })
+      .sort((left, right) => left.position - right.position),
+  }))
 
   return {
     id: listingQ.data.id,
@@ -165,6 +240,10 @@ export async function loadProofingListing(
         id: photo.id,
         roomId: photo.room_id,
         roomName: photo.room_id ? roomNames.get(photo.room_id) ?? "Room" : "Untagged",
+        sameRoomGroupId: sameRoomByPhoto.get(photo.id) ?? null,
+        sameRoomGroupName: sameRoomByPhoto.has(photo.id)
+          ? sameRoomNames.get(sameRoomByPhoto.get(photo.id)!) ?? "Same-room views"
+          : null,
         filename: photo.original_filename?.trim() || `Photo ${photo.id.slice(0, 8)}`,
         originalUrl: originalUrls[photo.storage_path] ?? null,
         final: final
@@ -174,5 +253,6 @@ export async function loadProofingListing(
         versions: versionsByPhoto.get(photo.id) ?? [],
       }
     }),
+    scopedReworks,
   }
 }

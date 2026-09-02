@@ -91,6 +91,9 @@ throws(
 
 const migration = readFileSync("supabase/migrations/0018_scoped_rework.sql", "utf8")
 const prompts = readFileSync("lib/prompts.ts", "utf8")
+const route = readFileSync("app/api/listings/[id]/batch-rework/route.ts", "utf8")
+const loader = readFileSync("lib/proofing-server.ts", "utf8")
+const workspace = readFileSync("app/listings/[id]/proofing/proofing-workspace.tsx", "utf8")
 for (const invariant of [
   "scoped_rework_requests", "scoped_rework_targets", "create_scoped_rework_request",
   "requested_targets", "target_snapshot", "protected_geometry", "generation_cost_cents",
@@ -104,6 +107,16 @@ matches(migration, /jsonb_array_length\(v_chain\) - 1/, "every child begins only
 matches(migration, /unique \(request_id, source_photo_id\)/, "one request cannot target a photo twice")
 matches(migration, /to service_role/, "scoped request creation is server-only")
 matches(prompts, /protected_geometry === "exterior" \? GEOMETRY_EXTERIOR : GEOMETRY_INTERIOR/, "compiler retains the correct verbatim geometry constraint")
+matches(route, /select\("id"\)\.eq\("id", listingId\)/, "route proves listing ownership before privileged creation")
+matches(route, /buildScopedReworkSnapshot/, "route rebuilds cost and scope from owned source rows")
+matches(route, /create_scoped_rework_request/, "route persists the immutable request before submission")
+matches(route, /for \(const fileGroupId of fileGroupIds\) await submitStep/, "every target owns an independent state machine")
+equal(/photo_finals/.test(route), false, "batch rework cannot move an approved final")
+matches(loader, /scoped_rework_requests/, "proofing reloads durable batch recovery state")
+for (const invariant of [
+  "Refine several photos", "No selection never means all", "Exact source version",
+  "Target-specific exception", "Provider retries and any QA correction are counted separately",
+  "Recent batch refinements", "Needs attention", "Try again", "Approved finals stay unchanged",
+]) matches(workspace, new RegExp(invariant), `proofing workspace contains ${invariant}`)
 
 console.log(`scoped rework: ${assertions} assertions passed`)
-

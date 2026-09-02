@@ -38,7 +38,7 @@ export default async function ProofingPage({
       </p>
       <div className="mt-6"><ToolsNav listingId={id} /></div>
       <div className="mt-7">
-        <ProofingWorkspace listingId={id} items={listing.items} initialPhotoId={query.photo} />
+        <ProofingWorkspace listingId={id} items={listing.items} scopedReworks={listing.scopedReworks} initialPhotoId={query.photo} />
       </div>
     </main>
   )
