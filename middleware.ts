@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr"
 import { NextResponse, type NextRequest } from "next/server"
+import { safeNextPath } from "@/lib/workflow-recovery"
 
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({ request })
@@ -34,11 +35,15 @@ export async function middleware(request: NextRequest) {
   if (!user && !publicPaths.includes(request.nextUrl.pathname)) {
     const url = request.nextUrl.clone()
     url.pathname = "/login"
+    url.search = ""
+    url.searchParams.set("next", `${request.nextUrl.pathname}${request.nextUrl.search}`)
     return NextResponse.redirect(url)
   }
   if (user && request.nextUrl.pathname === "/login") {
     const url = request.nextUrl.clone()
-    url.pathname = "/dashboard"
+    const destination = new URL(safeNextPath(request.nextUrl.searchParams.get("next")), request.url)
+    url.pathname = destination.pathname
+    url.search = destination.search
     return NextResponse.redirect(url)
   }
 

@@ -29,7 +29,7 @@ export function ToolsNav({ listingId }: { listingId: string }) {
           <Link
             key={t.label}
             href={href}
-            className={`ls-pressable shrink-0 rounded-xl px-3 py-2 font-medium ${active ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:bg-card/55 hover:text-foreground"}`}
+            className={`ls-pressable flex min-h-10 shrink-0 items-center rounded-xl px-3 py-2 font-medium ${active ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:bg-card/55 hover:text-foreground"}`}
           >
             {t.label}
           </Link>

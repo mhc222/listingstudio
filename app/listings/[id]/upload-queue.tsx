@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import * as tus from "tus-js-client"
+import { WorkflowConnectivity, useOnlineState } from "@/components/workflow-connectivity"
 import { Button } from "@/components/ui/button"
 import { MAX_UPLOAD_FILES, UPLOAD_FILE_LIMIT_LABEL } from "@/config/uploads"
 import {
@@ -19,6 +20,7 @@ import {
   validateBrowserUpload,
 } from "@/lib/upload-queue"
 import { createClient } from "@/lib/supabase/client"
+import { workflowFailureMessage } from "@/lib/workflow-recovery"
 
 type QueueItem = PersistedUploadItem & {
   file: File | null
@@ -85,7 +87,14 @@ function transferErrorMessage(error: unknown) {
 
 async function jsonResponse<T>(response: Response): Promise<T> {
   const body = (await response.json().catch(() => ({}))) as T & { error?: string }
-  if (!response.ok) throw new Error(body.error || `Request failed (${response.status})`)
+  if (!response.ok) {
+    throw new Error(workflowFailureMessage({
+      status: response.status,
+      serverMessage: body.error,
+      fallback: `The upload request failed (${response.status}).`,
+      preserved: "Uploaded chunks, completed files, and the rest of the queue are preserved.",
+    }))
+  }
   return body
 }
 
@@ -127,6 +136,7 @@ function restoredStatus(item: PersistedUploadItem): Pick<QueueItem, "status" | "
 
 export function UploadQueue({ listingId }: { listingId: string }) {
   const router = useRouter()
+  const { online } = useOnlineState()
   const photoInput = useRef<HTMLInputElement>(null)
   const planInput = useRef<HTMLInputElement>(null)
   const recoveryInput = useRef<HTMLInputElement>(null)
@@ -479,6 +489,29 @@ export function UploadQueue({ listingId }: { listingId: string }) {
     []
   )
 
+  useEffect(() => {
+    if (online) return
+    let changed = false
+    for (const [itemId, upload] of activeUploads.current.entries()) {
+      void upload.abort(false)
+      activeUploads.current.delete(itemId)
+      activeIds.current.delete(itemId)
+      changed = true
+    }
+    if (!changed) return
+    const next = itemsRef.current.map((item) =>
+      item.status === "uploading"
+        ? {
+            ...item,
+            status: "waiting" as const,
+            paused: true,
+            error: `${item.name}: the device went offline. Uploaded chunks and completed files are preserved. Reconnect, then choose Resume.`,
+          }
+        : item
+    )
+    replaceItems(next)
+  }, [online, replaceItems])
+
   const reserveFiles = useCallback(
     async (selectedFiles: File[], kind: UploadKind) => {
       if (selectedFiles.length === 0) return
@@ -648,10 +681,12 @@ export function UploadQueue({ listingId }: { listingId: string }) {
     )
     const target = recoveryTargetRef.current
     const targetIds = target === "all" ? null : new Set([target])
+    const matchedIds = new Set<string>()
     let matched = 0
     for (const file of selected) {
       const item = candidates.find(
         (candidate) =>
+          !matchedIds.has(candidate.id) &&
           (!targetIds || targetIds.has(candidate.id)) &&
           candidate.name === file.name &&
           candidate.size === file.size
@@ -668,6 +703,7 @@ export function UploadQueue({ listingId }: { listingId: string }) {
           paused: false,
           error: null,
         })
+        matchedIds.add(item.id)
         matched += 1
       } catch (error) {
         updateItem(item.id, {
@@ -703,6 +739,7 @@ export function UploadQueue({ listingId }: { listingId: string }) {
 
   return (
     <section id="upload-queue" aria-labelledby="upload-heading" className="scroll-mt-24 space-y-3">
+      <WorkflowConnectivity preserved="The queue, uploaded chunks, and completed files are preserved. Active browser uploads pause until you reconnect." />
       <div className="flex flex-wrap items-center gap-2">
         <input
           ref={photoInput}
@@ -737,13 +774,14 @@ export function UploadQueue({ listingId }: { listingId: string }) {
             event.target.value = ""
           }}
         />
-        <Button onClick={() => photoInput.current?.click()}>Upload photos</Button>
-        <Button variant="outline" onClick={() => planInput.current?.click()}>
+        <Button onClick={() => photoInput.current?.click()} disabled={!online}>Upload photos</Button>
+        <Button variant="outline" onClick={() => planInput.current?.click()} disabled={!online}>
           Attach floor plan
         </Button>
         {interrupted.length > 1 && (
           <Button
             variant="ghost"
+            disabled={!online}
             onClick={() => {
               openRecoveryPicker("all")
             }}
@@ -754,7 +792,9 @@ export function UploadQueue({ listingId }: { listingId: string }) {
       </div>
       <p id="upload-heading" className="text-xs leading-relaxed text-muted-foreground">
         JPG, PNG, WebP, HEIC, or HEIF · up to {UPLOAD_FILE_LIMIT_LABEL} each · up to{" "}
-        {MAX_UPLOAD_FILES} files per selection. PDFs are accepted only as floor plans.
+        {MAX_UPLOAD_FILES} files per selection. PDFs are accepted only as floor plans. On a phone,
+        choose Camera Roll or Files. Keep this tab open while files are actively transferring; if
+        the browser or phone closes it, return and reselect the exact files to reconnect saved chunks.
       </p>
 
       {recoveryError && (

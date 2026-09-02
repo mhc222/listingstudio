@@ -2,16 +2,18 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Wordmark } from "@/components/brand"
+import { safeNextPath } from "@/lib/workflow-recovery"
 
 export default function LoginPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState<string | null>(null)
@@ -28,7 +30,7 @@ export default function LoginPage() {
       setLoading(false)
       return
     }
-    router.push("/dashboard")
+    router.push(safeNextPath(searchParams.get("next")))
     router.refresh()
   }
 

@@ -83,14 +83,14 @@ function ProposalControls({ listingId, proposal, rooms }: { listingId: string; p
         <span className="text-[0.68rem] tabular-nums text-muted-foreground">{Math.round(proposal.confidence * 100)}%</span>
       </div>
       <p className="text-xs leading-relaxed text-muted-foreground">{proposal.evidence}</p>
-      <Select value={roomChoice} onChange={(event) => setRoomChoice(event.target.value)} className="h-8 text-xs">
+      <Select value={roomChoice} onChange={(event) => setRoomChoice(event.target.value)} className="h-10 text-xs">
         <option value="__new">Create “{proposal.proposed_room_name}”</option>
         {rooms.map((room) => <option key={room.id} value={room.id}>{room.name}</option>)}
       </Select>
       {roomChoice === "__new" && (
         <div className="grid grid-cols-[1fr_auto] gap-2">
-          <Input value={roomName} onChange={(event) => setRoomName(event.target.value)} aria-label="Room name" className="h-8 text-xs" />
-          <Select value={roomType} onChange={(event) => setRoomType(event.target.value)} aria-label="Room type" className="h-8 text-xs">
+          <Input value={roomName} onChange={(event) => setRoomName(event.target.value)} aria-label="Room name" className="h-10 text-xs" />
+          <Select value={roomType} onChange={(event) => setRoomType(event.target.value)} aria-label="Room type" className="h-10 text-xs">
             {ROOM_TYPES.map((type) => <option key={type.value} value={type.value}>{type.label}</option>)}
           </Select>
         </div>
@@ -134,7 +134,7 @@ function GroupStatus({ listingId, group, photoId }: { listingId: string; group: 
     <div className="border-t border-border/60 px-2.5 py-2 text-xs">
       <div className="flex items-center justify-between gap-2">
         <span className="truncate text-muted-foreground">Same room · {group.memberPhotoIds.length} views</span>
-        <button type="button" onClick={unlink} disabled={busy} className="shrink-0 font-medium text-primary hover:underline disabled:opacity-50">{busy ? "Unlinking…" : "Unlink"}</button>
+        <button type="button" onClick={unlink} disabled={busy} className="min-h-10 shrink-0 px-1 font-medium text-primary hover:underline disabled:opacity-50">{busy ? "Unlinking…" : "Unlink"}</button>
       </div>
       {error && <p className="mt-1 text-destructive">{error}</p>}
     </div>
@@ -184,7 +184,7 @@ export function PhotoGrid({ photos, rooms, listingId, proposals = [], sameRoomGr
                 {/* eslint-disable-next-line @next/next/no-img-element -- signed URLs expire; next/image caching fights that */}
                 <img src={photo.url} alt={roomName ? `${roomName} listing photo` : "Untagged listing photo"} className="aspect-[4/3] w-full object-cover" />
                 {onSelect && (
-                  <span role="checkbox" aria-checked={selected} tabIndex={0} onClick={(event) => { event.stopPropagation(); onSelect(index, event.shiftKey) }} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); event.stopPropagation(); onSelect(index, event.shiftKey) } }} className={`absolute left-1.5 top-1.5 flex h-8 w-8 items-center justify-center rounded-full border text-[11px] font-medium ${selected ? "border-primary bg-primary text-primary-foreground" : "border-white/80 bg-black/35 text-white/90"}`}>
+                  <span role="checkbox" aria-label={selected ? `Remove photo ${order + 1} from selection` : "Add photo to selection"} aria-checked={selected} tabIndex={0} onClick={(event) => { event.stopPropagation(); onSelect(index, event.shiftKey) }} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); event.stopPropagation(); onSelect(index, event.shiftKey) } }} className={`absolute left-1.5 top-1.5 flex h-10 w-10 items-center justify-center rounded-full border text-[11px] font-medium ${selected ? "border-primary bg-primary text-primary-foreground" : "border-white/80 bg-black/35 text-white/90"}`}>
                     {selected ? order + 1 : "＋"}
                   </span>
                 )}
@@ -197,7 +197,7 @@ export function PhotoGrid({ photos, rooms, listingId, proposals = [], sameRoomGr
               <ProposalControls key={proposal.id} listingId={listingId} proposal={proposal} rooms={rooms} />
             ) : (
               <div className="p-2">
-                <Select value={photo.room_id ?? ""} onChange={(event) => proposal?.decision === "accepted" ? changeConfirmedProposal(proposal, event.target.value) : startTransition(() => tagPhoto(photo.id, event.target.value || null, listingId))} className="h-8 text-xs">
+                <Select value={photo.room_id ?? ""} onChange={(event) => proposal?.decision === "accepted" ? changeConfirmedProposal(proposal, event.target.value) : startTransition(() => tagPhoto(photo.id, event.target.value || null, listingId))} className="h-10 text-xs">
                   <option value="">Untagged</option>
                   {rooms.map((room) => <option key={room.id} value={room.id}>{room.name}</option>)}
                 </Select>
