@@ -56,15 +56,17 @@
 - [x] Phase 53 — Scoped conversational batch rework
 - [x] Phase 54 — Mobile intake/proofing and workflow-state hardening
 
-## ACTIVE HANDOFF — Phase 43–54 released to production (2026-09-02)
+## ACTIVE HANDOFF — Phase 43–54 production release + upload-launcher hotfix (2026-09-02)
 
 **Read this first.** Matt explicitly authorized the Phase 43–54 push/deployment checkpoint after confirming live SQL through `0018`. The complete 58-commit Phase 42 research + Phase 43–54 implementation arc was pushed from `main` to `origin/main` at application commit `bc51527b45d2f9025818db8823dfe512b3f92197`. Vercel production deployment `dpl_FS63fMyQSRHR15uV5TyMskdrd9Fr` built successfully and is Ready at the canonical alias: https://listing-studio-three.vercel.app. Production code and schema are now aligned through Phase 54 / migration `0018`.
 
 **Release verification:** immediately before push, all **443 Phase 43–54 assertions**, TypeScript, ESLint, `git diff --check`, and clean-tree checks passed. Vercel independently completed the 29-page Next.js production build. After alias promotion, `/`, `/login`, and `/terms` returned 200; unauthenticated `/dashboard` returned 307 to `/login?next=%2Fdashboard`; unauthenticated reconcile returned 401; the immutable deployment URL returned 200; and a real browser render of the production home page had no warning/error logs. The prior authenticated isolated phone/desktop workflow proof remains the release's signed-in coverage. No paid generation or destructive production fixture was run during release.
 
-**Repository/port state:** the release-record commit after `bc51527` contains documentation only; no application source changed after the deployed checkpoint. Port 3000 stayed pinned and running throughout; no local build was run while the dev server was active. The `gsd-ship` skill's referenced workflow file was not present on disk, so the established project release runbook in `README.md` and the CLAUDE execution protocol were used directly.
+**Production hotfix:** Matt's first signed-in acceptance click exposed that the centered empty-listing **Upload photos** CTA was only an anchor to `#upload-queue`, while the separate toolbar button owned the real file input. Commit `efc3d1a` gives the input a stable listing-scoped ID and makes both visible upload controls invoke that same multi-file chooser; both are explicit non-submit buttons. Upload/mobile regression suites, TypeScript, lint, diff check, and Vercel's 29-page production build pass. Deployment `dpl_BuxuT3tSxjVEC3r8djQwwUqEjkS2` is Ready at the canonical alias. A real click in Matt's signed-in Chrome listing produced a multiple-file chooser, with 2 upload buttons, 0 upload links, and no browser warning/error logs. No file was selected or uploaded during verification.
 
-**Next action:** leave the tree clean and do not begin another phase automatically. Matt's manual production test is: sign in, open one existing listing, confirm the resumable upload queue and organization controls load, open Proofing and Delivery, and confirm the saved finals/profile preview are intact. Do not submit a paid generation unless Matt explicitly approves it. Then run `/clear` before defining or executing a new milestone.
+**Repository/port state:** application production is at hotfix `efc3d1a`; the final handoff/decision commit after it contains documentation only. Port 3000 stayed pinned and running throughout; no local build was run while the dev server was active. The `gsd-ship` skill's referenced workflow file was not present on disk, so the established project release runbook in `README.md` and the CLAUDE execution protocol were used directly.
+
+**Next action:** leave the tree clean and do not begin another phase automatically. Matt may now select a small real photo batch in this listing and confirm reservation/direct upload/finalization before moving through Organization, Proofing, and Delivery. Do not submit a paid generation unless Matt explicitly approves it. Run `/clear` before defining or executing a new milestone.
 
 ## ACTIVE HANDOFF — Phase 43–54 implementation arc complete in local code (2026-09-01)
 
