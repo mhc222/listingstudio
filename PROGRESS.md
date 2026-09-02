@@ -56,6 +56,16 @@
 - [x] Phase 53 — Scoped conversational batch rework
 - [x] Phase 54 — Mobile intake/proofing and workflow-state hardening
 
+## ACTIVE HANDOFF — Phase 43–54 released to production (2026-09-02)
+
+**Read this first.** Matt explicitly authorized the Phase 43–54 push/deployment checkpoint after confirming live SQL through `0018`. The complete 58-commit Phase 42 research + Phase 43–54 implementation arc was pushed from `main` to `origin/main` at application commit `bc51527b45d2f9025818db8823dfe512b3f92197`. Vercel production deployment `dpl_FS63fMyQSRHR15uV5TyMskdrd9Fr` built successfully and is Ready at the canonical alias: https://listing-studio-three.vercel.app. Production code and schema are now aligned through Phase 54 / migration `0018`.
+
+**Release verification:** immediately before push, all **443 Phase 43–54 assertions**, TypeScript, ESLint, `git diff --check`, and clean-tree checks passed. Vercel independently completed the 29-page Next.js production build. After alias promotion, `/`, `/login`, and `/terms` returned 200; unauthenticated `/dashboard` returned 307 to `/login?next=%2Fdashboard`; unauthenticated reconcile returned 401; the immutable deployment URL returned 200; and a real browser render of the production home page had no warning/error logs. The prior authenticated isolated phone/desktop workflow proof remains the release's signed-in coverage. No paid generation or destructive production fixture was run during release.
+
+**Repository/port state:** the release-record commit after `bc51527` contains documentation only; no application source changed after the deployed checkpoint. Port 3000 stayed pinned and running throughout; no local build was run while the dev server was active. The `gsd-ship` skill's referenced workflow file was not present on disk, so the established project release runbook in `README.md` and the CLAUDE execution protocol were used directly.
+
+**Next action:** leave the tree clean and do not begin another phase automatically. Matt's manual production test is: sign in, open one existing listing, confirm the resumable upload queue and organization controls load, open Proofing and Delivery, and confirm the saved finals/profile preview are intact. Do not submit a paid generation unless Matt explicitly approves it. Then run `/clear` before defining or executing a new milestone.
+
 ## ACTIVE HANDOFF — Phase 43–54 implementation arc complete in local code (2026-09-01)
 
 **Read this first.** Phase 54 and the complete post-audit Phase 43–54 implementation arc are complete and committed in local code. Mobile intake now tells the truth about browser/OS eviction and exact-file reselection, pauses active transfers without discarding uploaded chunks when connectivity drops, and prevents one saved queue item from matching multiple duplicate files. Proofing and result drafts, exact retry identities, selected versions, notes, batch targets, and refinements survive reload/auth interruption. Delivery revalidates the current profile, approved finals, and fingerprint immediately before download. This is the stop point: do not begin release work or a new milestone automatically.
