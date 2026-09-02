@@ -93,6 +93,7 @@ export function ProofingWorkspace({
   const [batchBusy, setBatchBusy] = useState(false)
   const [batchError, setBatchError] = useState<string | null>(null)
   const [batchNotice, setBatchNotice] = useState<string | null>(null)
+  const [optimisticBatch, setOptimisticBatch] = useState<ProofingScopedReworkRow | null>(null)
   const [retryingGroupId, setRetryingGroupId] = useState<string | null>(null)
   const retryRef = useRef<{ key: string; id: string } | null>(null)
   const batchRetryRef = useRef<{ key: string; id: string } | null>(null)
@@ -185,6 +186,9 @@ export function ProofingWorkspace({
     (sum, entry) => sum + entry.version.generationCostCents,
     0
   )
+  const visibleScopedReworks = optimisticBatch && !scopedReworks.some((request) => request.id === optimisticBatch.id)
+    ? [optimisticBatch, ...scopedReworks]
+    : scopedReworks
 
   function preferredBatchVersion(item: ProofingItemRow) {
     const current = versionByPhoto[item.id]
@@ -265,8 +269,33 @@ export function ProofingWorkspace({
         setBatchError(data?.error ?? "The batch refinement could not be started. Your scope is still here—try again.")
         return
       }
+      const submittedEntries = [...selectedBatchEntries]
+      setOptimisticBatch({
+        id: data.requestId,
+        instructions: input.instructions,
+        selectionMethod: input.selectionMethod,
+        scopeId: input.scopeId,
+        targetCount: submittedEntries.length,
+        generationCount: data.requestedGenerationCount,
+        generationCostCents: data.generationCostCents,
+        createdAt: new Date().toISOString(),
+        targets: submittedEntries.map(({ item, draft, version }, position) => ({
+          position,
+          sourcePhotoId: item.id,
+          sourceOutputVersionId: draft.versionId,
+          fileGroupId: data.fileGroupIds[position],
+          exception: draft.exception.trim() || null,
+          protectedGeometry: version.protectedGeometry,
+          status: "queued",
+          error: null,
+        })),
+      })
       batchRetryRef.current = null
       setBatchNotice(`${data.requestedGenerationCount} refinements started. Each photo will report its own result.`)
+      setBatchTargets({})
+      setBatchCorrection("")
+      setBatchMethod("explicit")
+      setBatchScopeId(null)
       router.refresh()
     } catch {
       setBatchError("The connection was interrupted. Your exact targets and retry identity are preserved—try again.")
@@ -550,16 +579,16 @@ export function ProofingWorkspace({
         </div>
       )}
 
-      {scopedReworks.length > 0 && (
+      {visibleScopedReworks.length > 0 && (
         <section aria-label="Recent batch refinements" className="mt-5 border-y border-border/70 py-4">
           <h2 className="text-sm font-semibold">Recent batch refinements</h2>
           <div className="mt-3 grid gap-3">
-            {scopedReworks.map((request) => {
+            {visibleScopedReworks.map((request) => {
               const ready = request.targets.filter((target) => target.status === "complete").length
               const failed = request.targets.filter((target) => target.status === "failed").length
               const active = request.targets.length - ready - failed
               return (
-                <details key={request.id} className="rounded-xl border border-border/70 bg-card p-3" open={scopedReworks[0]?.id === request.id}>
+                <details key={request.id} className="rounded-xl border border-border/70 bg-card p-3" open={visibleScopedReworks[0]?.id === request.id}>
                   <summary className="cursor-pointer list-none text-sm font-semibold">
                     {request.instructions} · {ready} ready{active ? ` · ${active} editing` : ""}{failed ? ` · ${failed} needs attention` : ""}
                   </summary>
