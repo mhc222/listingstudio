@@ -697,9 +697,9 @@ export function ProofingWorkspace({
                           {target.exception && <p className="mt-2 text-muted-foreground">Exception: {target.exception}</p>}
                           {target.error && <p className="mt-2 text-destructive">{target.error}</p>}
                           <div className="mt-2 flex flex-wrap gap-3">
-                            <Link href={`/listings/${listingId}/f/${target.fileGroupId}`} className="underline underline-offset-4">Open result</Link>
+                            <Link href={`/listings/${listingId}/f/${target.fileGroupId}`} className="inline-flex min-h-10 items-center underline underline-offset-4">Open result</Link>
                             {target.status === "failed" && (
-                              <button type="button" onClick={() => retryBatchTarget(target.fileGroupId)} disabled={Boolean(retryingGroupId)} className="font-semibold underline underline-offset-4 disabled:opacity-50">
+                              <button type="button" onClick={() => retryBatchTarget(target.fileGroupId)} disabled={Boolean(retryingGroupId)} className="min-h-10 font-semibold underline underline-offset-4 disabled:opacity-50">
                                 {retryingGroupId === target.fileGroupId ? "Retrying…" : "Try again"}
                               </button>
                             )}
@@ -718,10 +718,10 @@ export function ProofingWorkspace({
       {selectedItem && (
         <div className="mt-5 grid min-w-0 items-start gap-5 lg:grid-cols-[minmax(0,1fr)_21rem]">
           <div className="min-w-0">
-            {imageFailed ? (
+            {imageFailed || (selectedVersion && !selectedVersion.url) ? (
               <div className="flex min-h-[52vh] items-center justify-center overflow-hidden rounded-2xl bg-[#1b1917] p-5 text-center text-white shadow-[var(--shadow-surface)]">
                 <div className="max-w-sm rounded-xl border border-white/20 bg-black/65 px-5 py-4 backdrop-blur-xl">
-                  <p className="font-semibold">This secure image link expired</p>
+                  <p className="font-semibold">The selected image could not load</p>
                   <p className="mt-1 text-xs text-white/70">The photo, selected version, review note, and approved final are still saved. Refresh the image link and continue.</p>
                   <Button type="button" size="sm" variant="secondary" className="mt-3" onClick={() => {
                     setImageFailed(false)
@@ -794,12 +794,12 @@ export function ProofingWorkspace({
 
             {selectedVersion && (
               <div className="mt-5 grid gap-2 border-t border-border/60 pt-4 text-sm">
-                <Link href={`/listings/${listingId}/f/${selectedVersion.fileGroupId}?version=${selectedVersion.id}`} className="underline underline-offset-4">Open edit and refine →</Link>
-                <a href={`/api/file-groups/${selectedVersion.fileGroupId}/download?version=${selectedVersion.id}`} className="underline underline-offset-4">Download this version</a>
+                <Link href={`/listings/${listingId}/f/${selectedVersion.fileGroupId}?version=${selectedVersion.id}`} className="flex min-h-10 items-center underline underline-offset-4">Open edit and refine →</Link>
+                <a href={`/api/file-groups/${selectedVersion.fileGroupId}/download?version=${selectedVersion.id}`} className="flex min-h-10 items-center underline underline-offset-4">Download this version</a>
               </div>
             )}
             {!selectedVersion && selectedItem.groups[0] && (
-              <a href={`/api/file-groups/${selectedItem.groups[0].id}/download?variant=original`} className="mt-5 block text-sm underline underline-offset-4">Download original</a>
+              <a href={`/api/file-groups/${selectedItem.groups[0].id}/download?variant=original`} className="mt-5 flex min-h-10 items-center text-sm underline underline-offset-4">Download original</a>
             )}
             {error && (
               <div role="alert" className="mt-4 text-sm text-destructive">

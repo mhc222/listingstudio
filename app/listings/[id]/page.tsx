@@ -155,7 +155,7 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
 
   return (
     <main className="mx-auto max-w-7xl p-4 sm:p-6 lg:p-8">
-      <Link href="/listings" className="text-sm text-muted-foreground hover:underline">
+      <Link href="/listings" className="inline-flex min-h-10 items-center text-sm text-muted-foreground hover:underline">
         ← Listings
       </Link>
 

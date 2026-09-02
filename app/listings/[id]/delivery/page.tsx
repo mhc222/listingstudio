@@ -16,7 +16,7 @@ export default async function DeliveryPage({ params }: { params: Promise<{ id: s
 
   return (
     <main className="mx-auto max-w-7xl p-4 sm:p-6 lg:p-8">
-      <Link href={`/listings/${id}/proofing`} className="text-sm text-muted-foreground hover:underline">
+      <Link href={`/listings/${id}/proofing`} className="inline-flex min-h-10 items-center text-sm text-muted-foreground hover:underline">
         ← Proofing
       </Link>
       <div className="mt-2 flex flex-wrap items-end justify-between gap-3">

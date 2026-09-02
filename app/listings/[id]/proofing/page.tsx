@@ -20,7 +20,7 @@ export default async function ProofingPage({
 
   return (
     <main className="mx-auto max-w-7xl p-4 sm:p-6 lg:p-8">
-      <Link href={`/listings/${id}`} className="text-sm text-muted-foreground hover:underline">
+      <Link href={`/listings/${id}`} className="inline-flex min-h-10 items-center text-sm text-muted-foreground hover:underline">
         ← {listing.address}
       </Link>
       <div className="mt-2 flex flex-wrap items-end justify-between gap-3">
@@ -30,7 +30,7 @@ export default async function ProofingPage({
         </div>
         <div className="flex flex-wrap items-center gap-3">
           {listing.mlsNumber && <p className="text-xs text-muted-foreground">MLS {listing.mlsNumber}</p>}
-          <Link href={`/listings/${id}/delivery`} className="text-sm font-medium underline underline-offset-4">Prepare delivery →</Link>
+          <Link href={`/listings/${id}/delivery`} className="inline-flex min-h-10 items-center text-sm font-medium underline underline-offset-4">Prepare delivery →</Link>
         </div>
       </div>
       <p className="mt-2 max-w-2xl text-sm text-muted-foreground">

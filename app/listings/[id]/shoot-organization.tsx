@@ -241,7 +241,7 @@ export function ShootOrganization({
             </div>
             <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
               {ungrouped.map((photo) => (
-                <label key={photo.id} className="flex min-w-0 cursor-pointer items-center gap-2 rounded-lg bg-background/70 p-2 text-xs">
+                <label key={photo.id} className="flex min-h-10 min-w-0 cursor-pointer items-center gap-2 rounded-lg bg-background/70 p-2 text-xs">
                   <input type="checkbox" checked={manual.includes(photo.id)} onChange={() => setManual((current) => current.includes(photo.id) ? current.filter((id) => id !== photo.id) : current.length < 9 ? [...current, photo.id] : current)} />
                   {photo.url && (
                     // eslint-disable-next-line @next/next/no-img-element -- short-lived signed Storage URL

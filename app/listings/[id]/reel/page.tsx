@@ -79,7 +79,7 @@ export default async function ReelPage({ params }: { params: Promise<{ id: strin
 
   return (
     <main className="mx-auto max-w-6xl p-6">
-      <Link href="/listings" className="text-sm text-muted-foreground hover:underline">
+      <Link href="/listings" className="inline-flex min-h-10 items-center text-sm text-muted-foreground hover:underline">
         ← Listings
       </Link>
       <h1 className="mt-2 text-2xl font-semibold">{listing.address}</h1>
