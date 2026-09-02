@@ -7,6 +7,7 @@ import { useState } from "react"
 export function BeforeAfter({
   beforeUrl,
   afterUrl,
+  onBeforeError,
   onAfterError,
   beforeLabel = "Before",
   afterLabel = "After",
@@ -16,6 +17,7 @@ export function BeforeAfter({
 }: {
   beforeUrl: string | null
   afterUrl: string
+  onBeforeError?: () => void
   onAfterError?: () => void
   beforeLabel?: string
   afterLabel?: string
@@ -47,6 +49,7 @@ export function BeforeAfter({
         <img
           src={beforeUrl}
           alt={beforeAlt}
+          onError={onBeforeError}
           className="block h-auto max-h-[calc(100dvh-10rem)] max-w-full object-contain"
         />
         {/* eslint-disable-next-line @next/next/no-img-element -- signed URLs expire; next/image caching fights that */}

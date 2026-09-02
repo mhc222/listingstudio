@@ -4,6 +4,7 @@ import Link from "next/link"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { BeforeAfter } from "@/components/before-after"
+import { WorkflowConnectivity } from "@/components/workflow-connectivity"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select } from "@/components/ui/select"
@@ -28,6 +29,7 @@ import {
   validateScopedReworkInput,
   type ScopedReworkMethod,
 } from "@/lib/scoped-rework"
+import { connectionFailureMessage, workflowFailureMessage } from "@/lib/workflow-recovery"
 
 const STATUS_LABELS: Record<ProofingStatus, string> = {
   unreviewed: "Unreviewed",
@@ -59,6 +61,10 @@ function versionLabel(version: ProofingVersionRow) {
     versionNumber: version.versionNumber,
     variationIndex: version.variationIndex,
   })
+}
+
+function proofingDraftKey(listingId: string) {
+  return `listing-studio:proofing-draft:v1:${listingId}`
 }
 
 export function ProofingWorkspace({
@@ -95,8 +101,12 @@ export function ProofingWorkspace({
   const [batchNotice, setBatchNotice] = useState<string | null>(null)
   const [optimisticBatch, setOptimisticBatch] = useState<ProofingScopedReworkRow | null>(null)
   const [retryingGroupId, setRetryingGroupId] = useState<string | null>(null)
-  const retryRef = useRef<{ key: string; id: string } | null>(null)
-  const batchRetryRef = useRef<{ key: string; id: string } | null>(null)
+  const [reviewRetry, setReviewRetry] = useState<{ key: string; id: string } | null>(null)
+  const [batchRetry, setBatchRetry] = useState<{ key: string; id: string } | null>(null)
+  const [draftHydrated, setDraftHydrated] = useState(false)
+  const [imageFailed, setImageFailed] = useState(false)
+  const [imageRetryKey, setImageRetryKey] = useState(0)
+  const draftLoadedRef = useRef(false)
   const finalByPhotoRef = useRef<Record<string, string>>(
     Object.fromEntries(items.map((item) => [item.id, proofingFinalKey(stateInput(item))]))
   )
@@ -116,6 +126,66 @@ export function ProofingWorkspace({
       return next
     })
   }, [items])
+
+  useEffect(() => {
+    if (draftLoadedRef.current) return
+    draftLoadedRef.current = true
+    try {
+      const raw = localStorage.getItem(proofingDraftKey(listingId))
+      if (raw) {
+        const draft = JSON.parse(raw) as {
+          selectedPhotoId?: string
+          versionByPhoto?: Record<string, string>
+          reviewNote?: string
+          batchTargets?: Record<string, { versionId: string; exception: string }>
+          batchMethod?: ScopedReworkMethod
+          batchScopeId?: string | null
+          batchCorrection?: string
+          reviewRetry?: { key: string; id: string } | null
+          batchRetry?: { key: string; id: string } | null
+        }
+        if (draft.selectedPhotoId && items.some((item) => item.id === draft.selectedPhotoId)) setSelectedPhotoId(draft.selectedPhotoId)
+        if (draft.versionByPhoto) {
+          setVersionByPhoto((current) => Object.fromEntries(items.map((item) => {
+            const candidate = draft.versionByPhoto?.[item.id]
+            const valid = candidate === ORIGINAL_SELECTION || item.versions.some((version) => version.id === candidate)
+            return [item.id, valid && candidate ? candidate : current[item.id] ?? initialProofingSelection(stateInput(item))]
+          })))
+        }
+        if (typeof draft.reviewNote === "string") setReviewNote(draft.reviewNote.slice(0, 2000))
+        if (draft.batchTargets) {
+          setBatchTargets(Object.fromEntries(Object.entries(draft.batchTargets).filter(([photoId, target]) => {
+            const item = items.find((candidate) => candidate.id === photoId)
+            return item?.versions.some((version) => version.id === target.versionId)
+          })))
+        }
+        if (["explicit", "room", "same_room_group"].includes(draft.batchMethod ?? "")) setBatchMethod(draft.batchMethod!)
+        setBatchScopeId(draft.batchScopeId ?? null)
+        if (typeof draft.batchCorrection === "string") setBatchCorrection(draft.batchCorrection.slice(0, 1000))
+        setReviewRetry(draft.reviewRetry ?? null)
+        setBatchRetry(draft.batchRetry ?? null)
+      }
+    } catch {
+      localStorage.removeItem(proofingDraftKey(listingId))
+    } finally {
+      setDraftHydrated(true)
+    }
+  }, [items, listingId])
+
+  useEffect(() => {
+    if (!draftHydrated) return
+    localStorage.setItem(proofingDraftKey(listingId), JSON.stringify({
+      selectedPhotoId,
+      versionByPhoto,
+      reviewNote,
+      batchTargets,
+      batchMethod,
+      batchScopeId,
+      batchCorrection,
+      reviewRetry,
+      batchRetry,
+    }))
+  }, [batchCorrection, batchMethod, batchRetry, batchScopeId, batchTargets, draftHydrated, listingId, reviewNote, reviewRetry, selectedPhotoId, versionByPhoto])
 
   useEffect(() => {
     const supabase = createClient()
@@ -175,6 +245,9 @@ export function ProofingWorkspace({
   const selectedQa = selectedItem
     ? deriveProofingQaStatus(stateInput(selectedItem), selectedVersionId)
     : "original"
+  useEffect(() => {
+    setImageFailed(false)
+  }, [selectedItem?.id, selectedItem?.originalUrl, selectedVersion?.url, selectedVersionId])
   const counts = proofingApprovalCounts(items.map(stateInput))
   const activeIndex = Math.max(0, filtered.findIndex((item) => item.id === selectedItem?.id))
   const selectedBatchEntries = items.flatMap((item) => {
@@ -189,6 +262,7 @@ export function ProofingWorkspace({
   const visibleScopedReworks = optimisticBatch && !scopedReworks.some((request) => request.id === optimisticBatch.id)
     ? [optimisticBatch, ...scopedReworks]
     : scopedReworks
+  const signInHref = `/login?next=${encodeURIComponent(`/listings/${listingId}/proofing${selectedItem ? `?photo=${selectedItem.id}` : ""}`)}`
 
   function preferredBatchVersion(item: ProofingItemRow) {
     const current = versionByPhoto[item.id]
@@ -245,10 +319,10 @@ export function ProofingWorkspace({
         targets,
       }
       const payloadKey = JSON.stringify(preflight)
-      const requestId = batchRetryRef.current?.key === payloadKey
-        ? batchRetryRef.current.id
+      const requestId = batchRetry?.key === payloadKey
+        ? batchRetry.id
         : crypto.randomUUID()
-      batchRetryRef.current = { key: payloadKey, id: requestId }
+      setBatchRetry({ key: payloadKey, id: requestId })
       input = validateScopedReworkInput({ ...preflight, requestId })
     } catch (validationError) {
       setBatchError(validationError instanceof Error ? validationError.message : "Review the batch scope.")
@@ -266,7 +340,12 @@ export function ProofingWorkspace({
       })
       const data = await response.json().catch(() => null)
       if (!response.ok) {
-        setBatchError(data?.error ?? "The batch refinement could not be started. Your scope is still here—try again.")
+        setBatchError(workflowFailureMessage({
+          status: response.status,
+          serverMessage: data?.error,
+          fallback: "The batch refinement could not be started.",
+          preserved: "Your exact targets, correction, exceptions, and retry identity are preserved.",
+        }))
         return
       }
       const submittedEntries = [...selectedBatchEntries]
@@ -290,7 +369,7 @@ export function ProofingWorkspace({
           error: null,
         })),
       })
-      batchRetryRef.current = null
+      setBatchRetry(null)
       setBatchNotice(`${data.requestedGenerationCount} refinements started. Each photo will report its own result.`)
       setBatchTargets({})
       setBatchCorrection("")
@@ -298,7 +377,7 @@ export function ProofingWorkspace({
       setBatchScopeId(null)
       router.refresh()
     } catch {
-      setBatchError("The connection was interrupted. Your exact targets and retry identity are preserved—try again.")
+      setBatchError(connectionFailureMessage("Your exact targets, correction, exceptions, and retry identity are preserved."))
     } finally {
       setBatchBusy(false)
     }
@@ -312,12 +391,12 @@ export function ProofingWorkspace({
       const response = await fetch(`/api/file-groups/${fileGroupId}/rerun`, { method: "POST" })
       const data = await response.json().catch(() => null)
       if (!response.ok) {
-        setBatchError(data?.error ?? "This photo could not be retried.")
+        setBatchError(workflowFailureMessage({ status: response.status, serverMessage: data?.error, fallback: "This photo could not be retried.", preserved: "Every ready sibling and approved final is preserved." }))
         return
       }
       router.refresh()
     } catch {
-      setBatchError("The connection was interrupted. Try this photo again.")
+      setBatchError(connectionFailureMessage("Every ready sibling and approved final is preserved."))
     } finally {
       setRetryingGroupId(null)
     }
@@ -351,8 +430,8 @@ export function ProofingWorkspace({
     if (!selectedItem || busy) return
     const outputVersionId = selectedVersionId === ORIGINAL_SELECTION ? null : selectedVersionId
     const payloadKey = JSON.stringify({ sourcePhotoId: selectedItem.id, action, outputVersionId, note: action === "needs_changes" ? reviewNote.trim() : null })
-    const requestId = retryRef.current?.key === payloadKey ? retryRef.current.id : crypto.randomUUID()
-    retryRef.current = { key: payloadKey, id: requestId }
+    const requestId = reviewRetry?.key === payloadKey ? reviewRetry.id : crypto.randomUUID()
+    setReviewRetry({ key: payloadKey, id: requestId })
     setBusy(true)
     setError(null)
     try {
@@ -369,15 +448,15 @@ export function ProofingWorkspace({
       })
       const data = await response.json().catch(() => null)
       if (!response.ok) {
-        setError(data?.error ?? "The review decision could not be saved. Try again.")
+        setError(workflowFailureMessage({ status: response.status, serverMessage: data?.error, fallback: "The review decision could not be saved.", preserved: "Your selected photo, version, note, and existing approved final are preserved." }))
         return
       }
-      retryRef.current = null
+      setReviewRetry(null)
       setReviewNote("")
       router.refresh()
       if (action === "approve" && filtered.length > 1) move(1)
     } catch {
-      setError("The connection was interrupted. Your choice is still here—try again.")
+      setError(connectionFailureMessage("Your selected photo, version, note, and existing approved final are preserved."))
     } finally {
       setBusy(false)
     }
@@ -395,6 +474,7 @@ export function ProofingWorkspace({
 
   return (
     <section aria-label="Listing proofing workspace" className="min-w-0">
+      <WorkflowConnectivity preserved="Your selected versions, review note, batch-refinement draft, and approved finals are preserved." />
       <div className="ls-surface flex flex-wrap items-center justify-between gap-4 p-4 sm:p-5">
         <div>
           <p className="text-2xl font-semibold tracking-[-0.03em]">{counts.approved} of {counts.total} approved</p>
@@ -545,7 +625,12 @@ export function ProofingWorkspace({
               </Button>
             </div>
           </div>
-          {batchError && <p role="alert" className="mt-3 text-sm text-destructive">{batchError}</p>}
+          {batchError && (
+            <div role="alert" className="mt-3 text-sm text-destructive">
+              <p>{batchError}</p>
+              {/sign-in expired/i.test(batchError) && <Link href={signInHref} className="mt-2 inline-flex min-h-10 items-center font-semibold underline underline-offset-4">Sign in again</Link>}
+            </div>
+          )}
           {batchNotice && <p role="status" className="mt-3 text-sm font-medium">{batchNotice}</p>}
         </section>
       )}
@@ -633,12 +718,24 @@ export function ProofingWorkspace({
       {selectedItem && (
         <div className="mt-5 grid min-w-0 items-start gap-5 lg:grid-cols-[minmax(0,1fr)_21rem]">
           <div className="min-w-0">
-            {selectedVersion?.url ? (
-              <BeforeAfter beforeUrl={selectedItem.originalUrl} afterUrl={selectedVersion.url} />
+            {imageFailed ? (
+              <div className="flex min-h-[52vh] items-center justify-center overflow-hidden rounded-2xl bg-[#1b1917] p-5 text-center text-white shadow-[var(--shadow-surface)]">
+                <div className="max-w-sm rounded-xl border border-white/20 bg-black/65 px-5 py-4 backdrop-blur-xl">
+                  <p className="font-semibold">This secure image link expired</p>
+                  <p className="mt-1 text-xs text-white/70">The photo, selected version, review note, and approved final are still saved. Refresh the image link and continue.</p>
+                  <Button type="button" size="sm" variant="secondary" className="mt-3" onClick={() => {
+                    setImageFailed(false)
+                    setImageRetryKey((value) => value + 1)
+                    router.refresh()
+                  }}>Retry image</Button>
+                </div>
+              </div>
+            ) : selectedVersion?.url ? (
+              <BeforeAfter key={`${selectedItem.id}:${selectedVersion.id}:${imageRetryKey}`} beforeUrl={selectedItem.originalUrl} afterUrl={selectedVersion.url} onBeforeError={() => setImageFailed(true)} onAfterError={() => setImageFailed(true)} />
             ) : selectedItem.originalUrl ? (
               <div className="flex min-h-[52vh] items-center justify-center overflow-hidden rounded-2xl bg-[#1b1917] p-3 shadow-[var(--shadow-surface)]">
                 {/* eslint-disable-next-line @next/next/no-img-element -- signed Storage URLs expire */}
-                <img src={selectedItem.originalUrl} alt="Untouched original listing photo" className="max-h-[70vh] max-w-full object-contain" />
+                <img key={`${selectedItem.id}:${imageRetryKey}`} src={selectedItem.originalUrl} alt="Untouched original listing photo" onError={() => setImageFailed(true)} className="max-h-[70vh] max-w-full object-contain" />
               </div>
             ) : (
               <div className="flex min-h-[52vh] items-center justify-center rounded-2xl bg-muted text-sm text-muted-foreground">Image unavailable</div>
@@ -704,7 +801,12 @@ export function ProofingWorkspace({
             {!selectedVersion && selectedItem.groups[0] && (
               <a href={`/api/file-groups/${selectedItem.groups[0].id}/download?variant=original`} className="mt-5 block text-sm underline underline-offset-4">Download original</a>
             )}
-            {error && <p role="alert" className="mt-4 text-sm text-destructive">{error}</p>}
+            {error && (
+              <div role="alert" className="mt-4 text-sm text-destructive">
+                <p>{error}</p>
+                {/sign-in expired/i.test(error) && <Link href={signInHref} className="mt-2 inline-flex min-h-10 items-center font-semibold underline underline-offset-4">Sign in again</Link>}
+              </div>
+            )}
           </aside>
         </div>
       )}
