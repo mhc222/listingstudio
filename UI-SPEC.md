@@ -1,6 +1,6 @@
 # Listing Studio — End-to-End UX Contract
 
-Phase 53 · 2026-09-01 · implementation contract
+Phase 54 · 2026-09-01 · implementation contract
 
 ## Product promise
 
@@ -319,6 +319,13 @@ Internal “chain” may appear only inside the Advanced disclosure as **Edit or
 | Batch rework retry | Retry only the failed child state machine; exact duplicate request submission returns the original ordered children |
 | QA warning | Keep output viewable; explain what needs visual review |
 | Signed URL/image fails | Neutral frame, Retry image, never collapse controls |
+| Auth expires mid-workflow | Return through sign-in to the exact safe internal path/query; keep browser draft and durable server state |
+| Device goes offline | Pause active transfer without deleting uploaded chunks; name preserved work and wait for reconnect |
+| Device/browser evicts upload tab | Never promise native background transfer; ask for the exact files again to reconnect saved chunks |
+| Duplicate upload reselection | Match each selected file to at most one saved queue item; never merge two identical selections into one item |
+| Reconnect | Announce reconnection and refresh durable server truth without replaying a mutation |
+| Selected result URL missing | Do not substitute the original; retain selected version, note, controls, and final, then offer Retry image |
+| Download interrupted | Keep profile and approved finals; revalidate the exact package and let the user start it again |
 
 ## Accessibility and input behavior
 
@@ -335,6 +342,18 @@ Internal “chain” may appear only inside the Advanced disclosure as **Edit or
 - Status uses text plus colour. Motion respects `prefers-reduced-motion`.
 - Upload progressbars have per-file accessible names and numeric values; status is never colour-only.
 - On mobile, the sticky footer never covers the last control and safe-area padding is included.
+
+## Phase 54 mobile and interruption contract
+
+- Phone scope is intake, queue/recovery, organization decisions, aggregate status, contact-sheet proofing, before/after, approve/needs-changes, and delivery readiness. Dense edit configuration remains a desktop-strength surface; it must stay usable, but it is not compressed into a native-app imitation.
+- Web upload truth is explicit: active transfer requires the tab to remain available. After browser/OS eviction, returning and reselecting the exact files may reconnect saved TUS chunks. No copy promises transfer after termination.
+- The server remains durable truth. Browser-local drafts preserve only safe workflow intent: selected photo/version, review/refinement text, exact batch targets, variation inputs, and idempotency identities. Successful mutations clear only the submitted draft portion.
+- Safe destination-preserving auth accepts internal paths only and rejects external, protocol-relative, and login-loop destinations.
+- Offline/reconnect and request failures always state what happened, what was preserved, and the smallest next action. Reconnect refreshes; it does not auto-submit.
+- A selected generated result without a usable signed URL is an explicit image-recovery state. The original may not appear as if it were that result. Retry refreshes the URL while review controls, draft text, and any approved final remain present.
+- Delivery starts only after a fresh server preflight confirms the current profile, exact approved finals, package fingerprint, and warning acknowledgement. A changed package invalidates acknowledgement and requires a new preview.
+- Actionable controls on the mobile golden path provide a 40×40px minimum pointer area, all named workflows avoid document-level horizontal overflow, and comparison remains keyboard-operable. `prefers-reduced-motion` continues to remove nonessential motion.
+- Phase 54 is state and usability hardening, not a font, radius, animation, colour, or broad visual-polish pass.
 
 ## Visual contract
 

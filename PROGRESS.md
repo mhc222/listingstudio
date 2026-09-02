@@ -54,7 +54,21 @@
 - [x] Phase 51 — Approved finals and MLS delivery
 - [x] Phase 52 — Version naming and variation comparison
 - [x] Phase 53 — Scoped conversational batch rework
-- [ ] Phase 54 — Mobile intake/proofing and workflow-state hardening
+- [x] Phase 54 — Mobile intake/proofing and workflow-state hardening
+
+## ACTIVE HANDOFF — Phase 43–54 implementation arc complete in local code (2026-09-01)
+
+**Read this first.** Phase 54 and the complete post-audit Phase 43–54 implementation arc are complete and committed in local code. Mobile intake now tells the truth about browser/OS eviction and exact-file reselection, pauses active transfers without discarding uploaded chunks when connectivity drops, and prevents one saved queue item from matching multiple duplicate files. Proofing and result drafts, exact retry identities, selected versions, notes, batch targets, and refinements survive reload/auth interruption. Delivery revalidates the current profile, approved finals, and fingerprint immediately before download. This is the stop point: do not begin release work or a new milestone automatically.
+
+**Recovery and accessibility contract:** private-route sign-in returns to the exact safe internal path and query. Offline/reconnect notices name preserved work and refresh durable server truth without mutating it. Auth, conflict, server, and network failures consistently name what remains saved and the smallest recovery action. A selected generated version with a missing or expired secure URL never silently falls back to the original: the canvas shows **The selected image could not load**, keeps all controls and draft state, and offers **Retry image**. Empty listings and empty filters name accepted input/preserved organization. Primary phone navigation, photo selectors, room controls, proofing/result links, retry actions, and shoot-selection labels provide at least a 40px target; the keyboard before/after control and reduced-motion behavior remain intact. Desktop stays the richer editing surface, with no native-background-upload or offline-editing claim and no cosmetic redesign.
+
+**Browser proof:** an authenticated isolated five-photo fixture exercised exact-query auth return, a proofing note surviving reload, a deliberately missing selected output object, successful signed-image retry after object restoration, keyboard Home/End/Arrow comparison, the explicit empty-listing intake state, populated listing intake/organization, and a saved MLS delivery profile producing an exact `5 included · 0 omitted · 0 warnings` package preview. At the in-app browser's 433 CSS px phone minimum, Proofing, empty/populated Listings, and Delivery had no horizontal document overflow (`416px client = 416px scroll`) and no undersized actionable targets in the audited surfaces. A fresh desktop browser tab loaded Proofing with both comparison images, no overflow, and no warning/error logs. No provider generation, paid call, or production write occurred.
+
+**Automated verification:** the complete Phase 43–54 suite passes with **443 assertions** (16 intake + 24 queue + 21 shoot organization + 47 room analysis + 34 batch scope + 38 presets + 26 listing status + 42 proofing + 49 delivery + 47 versioning + 48 scoped rework + 51 mobile workflow). TypeScript, full lint, diff check, migrations `0001`–`0018` from scratch in the isolated stack, `supabase db lint --level warning`, focused browser QA, and the 29-page production build all pass. Port 3000 was stopped before the build.
+
+**SQL/release/port state:** Phase 54 adds no migration. Live migrations remain through `0012`; Matt's deferred SQL order is `0013_batch_scope.sql`, `0014_edit_presets.sql`, `0015_proofing_and_finals.sql`, `0016_delivery_profiles.sql`, `0017_version_labels.sql`, then `0018_scoped_rework.sql`. Nothing was pushed, deployed, paid, or written to production; production remains the Phase 38–41 release. The isolated stack was stopped and its recoverable fixture moved to `/Users/mattcronin/.Trash/listing-studio-p54-MzOlRt-20260901`. Port 3000 is restored against normal `.env.local` (PID `63041`); `/` returns 200.
+
+**Next action:** run `/clear`. Then either explicitly authorize the ordered SQL/release work, or append and approve a new milestone in `PLAN.md`. Do not push, deploy, apply live SQL, run paid generation, or start another implementation phase from this handoff without that explicit direction.
 
 ## ACTIVE HANDOFF — Phase 53 scoped conversational batch rework complete in local code (2026-09-01)
 

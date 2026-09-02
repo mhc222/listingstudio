@@ -799,6 +799,8 @@ The implementation arc below is approved for planning, not pre-authorized as one
 
 ## Phase 54 — Mobile intake/proofing and workflow-state hardening
 
+**Status:** Complete in local code on 2026-09-01. No migration was required; release remains separately gated.
+
 **Goal:** Complete the operational arc on small screens and under interruption. Make intake, status, light proofing, approval, and recovery dependable on mobile without squeezing the full desktop Task Studio into a phone or starting another cosmetic redesign.
 
 **Mobile contract:** optimize camera-roll/file intake, the resumable queue, organization decisions, listing status, contact-sheet proofing, before/after, approve/needs-changes, and delivery readiness for touch and constrained widths. Preserve resumability within web-platform limits, support reselect-to-reconnect after browser/OS eviction where necessary, and explicitly avoid promising native background upload after termination. Desktop remains the richer editing/configuration surface.
