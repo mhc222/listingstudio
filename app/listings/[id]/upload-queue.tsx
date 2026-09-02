@@ -743,6 +743,7 @@ export function UploadQueue({ listingId }: { listingId: string }) {
       <div className="flex flex-wrap items-center gap-2">
         <input
           ref={photoInput}
+          id={`listing-photo-upload-${listingId}`}
           type="file"
           multiple
           accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif"
@@ -774,8 +775,8 @@ export function UploadQueue({ listingId }: { listingId: string }) {
             event.target.value = ""
           }}
         />
-        <Button onClick={() => photoInput.current?.click()} disabled={!online}>Upload photos</Button>
-        <Button variant="outline" onClick={() => planInput.current?.click()} disabled={!online}>
+        <Button type="button" onClick={() => photoInput.current?.click()} disabled={!online}>Upload photos</Button>
+        <Button type="button" variant="outline" onClick={() => planInput.current?.click()} disabled={!online}>
           Attach floor plan
         </Button>
         {interrupted.length > 1 && (

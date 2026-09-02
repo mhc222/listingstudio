@@ -248,7 +248,13 @@ export function ListingWorkspace({
         <section className="ls-surface p-6 text-center sm:p-8" aria-label="Empty listing">
           <h2 className="text-xl font-semibold tracking-[-0.025em]">No listing photos yet</h2>
           <p className="mx-auto mt-2 max-w-lg text-sm text-muted-foreground">Add JPG, PNG, WebP, HEIC, or HEIF photos up to 50 MB each. Originals stay untouched, and each file reports its own resumable progress.</p>
-          <Button asChild className="mt-4"><a href="#upload-queue">Upload photos</a></Button>
+          <Button
+            type="button"
+            className="mt-4"
+            onClick={() => document.getElementById(`listing-photo-upload-${listingId}`)?.click()}
+          >
+            Upload photos
+          </Button>
         </section>
       )}
       <ShootOrganization

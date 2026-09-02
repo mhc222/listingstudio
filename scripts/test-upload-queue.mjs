@@ -7,6 +7,7 @@ const read = (file) => readFileSync(path.join(root, file), "utf8")
 
 const panel = read("app/listings/[id]/upload-panel.tsx")
 const queue = read("app/listings/[id]/upload-queue.tsx")
+const listing = read("app/listings/[id]/listing-workspace.tsx")
 const contract = read("lib/upload-queue.ts")
 const recoveryRoute = read("app/api/uploads/route.ts")
 const authorizeRoute = read("app/api/uploads/[itemId]/authorize/route.ts")
@@ -31,6 +32,8 @@ const checks = [
   ["stale nonterminal browser rows are discarded", queue.includes("serverIds.has(item.id)")],
   ["retry-failed action exists", queue.includes("Retry failed")],
   ["photo and floor-plan launchers remain distinct", queue.includes("Upload photos") && queue.includes("Attach floor plan")],
+  ["empty-listing upload opens the real photo picker", queue.includes('id={`listing-photo-upload-${listingId}`}') && listing.includes('document.getElementById(`listing-photo-upload-${listingId}`)?.click()')],
+  ["empty-listing upload is not a hash-only link", !listing.includes('<a href="#upload-queue">Upload photos</a>')],
   ["all required human statuses are defined", ["Waiting", "Uploading", "Finalizing", "Uploaded", "Needs attention", "Canceled"].every((label) => contract.includes(`\"${label}\"`))],
   ["recovery route authenticates and verifies listing ownership", recoveryRoute.includes("auth.getUser") && recoveryRoute.includes('.from("listings")')],
   ["recovery route returns only open batches", recoveryRoute.includes('.eq("status", "open")')],
