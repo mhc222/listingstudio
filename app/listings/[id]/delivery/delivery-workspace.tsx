@@ -2,10 +2,12 @@
 
 import Link from "next/link"
 import { useCallback, useEffect, useState } from "react"
+import { WorkflowConnectivity, useOnlineState } from "@/components/workflow-connectivity"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select } from "@/components/ui/select"
 import type { DeliveryPreview, DeliveryProfileRow } from "@/lib/delivery"
+import { workflowCatchMessage, workflowFailureMessage } from "@/lib/workflow-recovery"
 
 type ProfileForm = {
   name: string
@@ -31,6 +33,8 @@ const NEW_PROFILE: ProfileForm = {
   ordering: "shoot",
 }
 
+const PRESERVED_PACKAGE = "Approved finals and saved delivery profiles are unchanged."
+
 function formFromProfile(profile: DeliveryProfileRow): ProfileForm {
   return {
     name: profile.name,
@@ -54,6 +58,7 @@ function profileSummary(profile: DeliveryProfileRow) {
 }
 
 export function DeliveryWorkspace({ listingId, address }: { listingId: string; address: string }) {
+  const { online } = useOnlineState()
   const [profiles, setProfiles] = useState<DeliveryProfileRow[]>([])
   const [selectedId, setSelectedId] = useState("")
   const [preview, setPreview] = useState<DeliveryPreview | null>(null)
@@ -64,6 +69,8 @@ export function DeliveryWorkspace({ listingId, address }: { listingId: string; a
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [downloading, setDownloading] = useState(false)
+  const [downloadNotice, setDownloadNotice] = useState<string | null>(null)
 
   const loadProfiles = useCallback(async (preferId?: string) => {
     setLoading(true)
@@ -71,7 +78,7 @@ export function DeliveryWorkspace({ listingId, address }: { listingId: string; a
     try {
       const response = await fetch("/api/delivery-profiles", { cache: "no-store" })
       const data = await response.json().catch(() => null)
-      if (!response.ok) throw new Error(data?.error ?? "Could not load delivery profiles.")
+      if (!response.ok) throw new Error(workflowFailureMessage({ status: response.status, serverMessage: data?.error, fallback: "Could not load delivery profiles.", preserved: PRESERVED_PACKAGE }))
       const next = (data?.profiles ?? []) as DeliveryProfileRow[]
       setProfiles(next)
       setSelectedId((current) => {
@@ -80,7 +87,7 @@ export function DeliveryWorkspace({ listingId, address }: { listingId: string; a
       })
       if (next.length === 0) setShowForm(true)
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Could not load delivery profiles.")
+      setError(workflowCatchMessage(cause, "Could not load delivery profiles.", PRESERVED_PACKAGE))
     } finally {
       setLoading(false)
     }
@@ -94,11 +101,11 @@ export function DeliveryWorkspace({ listingId, address }: { listingId: string; a
     try {
       const response = await fetch(`/api/listings/${listingId}/delivery?profileId=${encodeURIComponent(profileId)}`, { cache: "no-store" })
       const data = await response.json().catch(() => null)
-      if (!response.ok) throw new Error(data?.error ?? "Could not prepare the package preview.")
+      if (!response.ok) throw new Error(workflowFailureMessage({ status: response.status, serverMessage: data?.error, fallback: "Could not prepare the package preview.", preserved: PRESERVED_PACKAGE }))
       setPreview(data.preview as DeliveryPreview)
     } catch (cause) {
       setPreview(null)
-      setError(cause instanceof Error ? cause.message : "Could not prepare the package preview.")
+      setError(workflowCatchMessage(cause, "Could not prepare the package preview.", PRESERVED_PACKAGE))
     } finally {
       setLoading(false)
     }
@@ -122,14 +129,14 @@ export function DeliveryWorkspace({ listingId, address }: { listingId: string; a
         body: JSON.stringify(profileForm),
       })
       const data = await response.json().catch(() => null)
-      if (!response.ok) throw new Error(data?.error ?? "Could not save the delivery profile.")
+      if (!response.ok) throw new Error(workflowFailureMessage({ status: response.status, serverMessage: data?.error, fallback: "Could not save the delivery profile.", preserved: "The profile form and approved finals are preserved." }))
       const saved = data.profile as DeliveryProfileRow
       setShowForm(false)
       setEditingId(null)
       setProfileForm(NEW_PROFILE)
       await loadProfiles(saved.id)
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Could not save the delivery profile.")
+      setError(workflowCatchMessage(cause, "Could not save the delivery profile.", "The profile form and approved finals are preserved."))
     } finally {
       setBusy(false)
     }
@@ -142,12 +149,12 @@ export function DeliveryWorkspace({ listingId, address }: { listingId: string; a
     try {
       const response = await fetch(`/api/delivery-profiles/${selectedId}`, { method: "DELETE" })
       const data = await response.json().catch(() => null)
-      if (!response.ok) throw new Error(data?.error ?? "Could not delete the delivery profile.")
+      if (!response.ok) throw new Error(workflowFailureMessage({ status: response.status, serverMessage: data?.error, fallback: "Could not delete the delivery profile.", preserved: PRESERVED_PACKAGE }))
       setSelectedId("")
       setPreview(null)
       await loadProfiles()
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Could not delete the delivery profile.")
+      setError(workflowCatchMessage(cause, "Could not delete the delivery profile.", PRESERVED_PACKAGE))
     } finally {
       setBusy(false)
     }
@@ -159,8 +166,41 @@ export function DeliveryWorkspace({ listingId, address }: { listingId: string; a
     ? `/api/listings/${listingId}/download-all?profileId=${encodeURIComponent(preview.profile.id)}&fingerprint=${preview.fingerprint}${preview.warnings.length ? `&acknowledge=${preview.fingerprint}` : ""}`
     : "#"
 
+  async function startDownload() {
+    if (!preview || !mayDownload || downloading || !online) return
+    setDownloading(true)
+    setError(null)
+    setDownloadNotice(null)
+    try {
+      const response = await fetch(`/api/listings/${listingId}/delivery?profileId=${encodeURIComponent(preview.profile.id)}`, { cache: "no-store" })
+      const data = await response.json().catch(() => null)
+      if (!response.ok) throw new Error(workflowFailureMessage({ status: response.status, serverMessage: data?.error, fallback: "The package could not be checked before download.", preserved: PRESERVED_PACKAGE }))
+      const current = data.preview as DeliveryPreview
+      if (!current.canDownload || current.fingerprint !== preview.fingerprint) {
+        setPreview(current)
+        setAcknowledged(false)
+        setError(`The approved package changed after this preview. Review the refreshed package before downloading. ${PRESERVED_PACKAGE}`)
+        return
+      }
+      const link = document.createElement("a")
+      link.href = downloadHref
+      link.setAttribute("download", "")
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      setDownloadNotice("Download started. If the browser or connection interrupts it, choose Download approved package again; your profile and finals stay unchanged.")
+    } catch (cause) {
+      setError(workflowCatchMessage(cause, "The download could not start.", PRESERVED_PACKAGE))
+    } finally {
+      setDownloading(false)
+    }
+  }
+
   return (
     <section aria-label="Approved-finals delivery workspace" className="grid gap-5 lg:grid-cols-[20rem_minmax(0,1fr)]">
+      <div className="lg:col-span-2">
+        <WorkflowConnectivity preserved="Approved finals, warnings, and saved delivery profiles are unchanged." />
+      </div>
       <aside className="ls-surface p-4 sm:p-5 lg:sticky lg:top-5">
         <div className="flex items-center justify-between gap-3">
           <div>
@@ -236,7 +276,7 @@ export function DeliveryWorkspace({ listingId, address }: { listingId: string; a
                 <div className="mt-5 rounded-xl bg-muted/55 p-3">
                   <p className="text-sm font-semibold">Missing finals</p>
                   <div className="mt-2 grid gap-1.5">
-                    {preview.omitted.map((item) => <Link key={item.sourcePhotoId} href={`/listings/${listingId}/proofing?photo=${item.sourcePhotoId}`} className="text-sm underline underline-offset-4">{item.originalFilename} · Approve in Proofing →</Link>)}
+                    {preview.omitted.map((item) => <Link key={item.sourcePhotoId} href={`/listings/${listingId}/proofing?photo=${item.sourcePhotoId}`} className="flex min-h-10 items-center text-sm underline underline-offset-4">{item.originalFilename} · Approve in Proofing →</Link>)}
                   </div>
                 </div>
               )}
@@ -249,7 +289,13 @@ export function DeliveryWorkspace({ listingId, address }: { listingId: string; a
               )}
             </>
           )}
-          {error && <p role="alert" className="mt-4 text-sm text-destructive">{error}</p>}
+          {error && (
+            <div role="alert" className="mt-4 text-sm text-destructive">
+              <p>{error}</p>
+              {/sign-in expired/i.test(error) && <Link href={`/login?next=${encodeURIComponent(`/listings/${listingId}/delivery`)}`} className="mt-2 inline-flex min-h-10 items-center font-semibold underline underline-offset-4">Sign in again</Link>}
+            </div>
+          )}
+          {downloadNotice && <p role="status" className="mt-4 text-sm text-state-complete">{downloadNotice}</p>}
         </div>
 
         {preview && preview.included.length > 0 && (
@@ -270,7 +316,9 @@ export function DeliveryWorkspace({ listingId, address }: { listingId: string; a
 
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
           <p className="max-w-xl text-xs text-muted-foreground">The server rechecks the profile and every approved final when download begins. A changed final forces a fresh preview.</p>
-          {mayDownload ? <Button asChild><a href={downloadHref}>Download approved package</a></Button> : <Button disabled>Download approved package</Button>}
+          <Button type="button" onClick={startDownload} disabled={!mayDownload || downloading || !online}>
+            {downloading ? "Checking package…" : "Download approved package"}
+          </Button>
         </div>
       </div>
     </section>

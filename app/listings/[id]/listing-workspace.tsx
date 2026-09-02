@@ -106,6 +106,11 @@ export function ListingWorkspace({
     name: roomLabels.get(room.id) ?? room.name,
     room_type: room.room_type,
   }))
+  const activeFilterLabel = organizationFilter !== "all"
+    ? organizationFilter.replace("_", " ")
+    : activeRoom === UNTAGGED_ROOM
+      ? "Untagged"
+      : roomLabels.get(activeRoom) ?? "this room"
 
   useEffect(() => {
     if (
@@ -239,6 +244,13 @@ export function ListingWorkspace({
 
   return (
     <div className="grid min-w-0 gap-7">
+      {inventoryPhotos.length === 0 && (
+        <section className="ls-surface p-6 text-center sm:p-8" aria-label="Empty listing">
+          <h2 className="text-xl font-semibold tracking-[-0.025em]">No listing photos yet</h2>
+          <p className="mx-auto mt-2 max-w-lg text-sm text-muted-foreground">Add JPG, PNG, WebP, HEIC, or HEIF photos up to 50 MB each. Originals stay untouched, and each file reports its own resumable progress.</p>
+          <Button asChild className="mt-4"><a href="#upload-queue">Upload photos</a></Button>
+        </section>
+      )}
       <ShootOrganization
         listingId={listingId}
         photos={inventoryPhotos}
@@ -330,20 +342,32 @@ export function ListingWorkspace({
             </p>
           </div>
         )}
-        <PhotoGrid
-          photos={filteredPhotos}
-          rooms={roomOptions}
-          listingId={listingId}
-          proposals={roomProposals}
-          sameRoomGroups={sameRoomGroups}
-          selectedIds={selectedIds}
-          onSelect={selectPhoto}
-          onOpen={(i) => {
-            returnFocusRef.current = document.activeElement as HTMLElement | null
-            setOpenId(filteredPhotos[i].id)
-            setAdditionalIds([])
-          }}
-        />
+        {filteredPhotos.length > 0 ? (
+          <PhotoGrid
+            photos={filteredPhotos}
+            rooms={roomOptions}
+            listingId={listingId}
+            proposals={roomProposals}
+            sameRoomGroups={sameRoomGroups}
+            selectedIds={selectedIds}
+            onSelect={selectPhoto}
+            onOpen={(i) => {
+              returnFocusRef.current = document.activeElement as HTMLElement | null
+              setOpenId(filteredPhotos[i].id)
+              setAdditionalIds([])
+            }}
+          />
+        ) : photos.length > 0 ? (
+          <div className="rounded-2xl border border-dashed border-input/70 bg-card/45 p-8 text-center text-muted-foreground">
+            <p className="font-medium text-foreground">No photos match {activeFilterLabel}</p>
+            <p className="mt-1 text-sm">Your photos and organization decisions are unchanged.</p>
+            <Button type="button" variant="outline" className="mt-4" onClick={() => {
+              setActiveRoom(ALL_ROOMS)
+              setOrganizationFilter("all")
+              clear()
+            }}>Show all photos</Button>
+          </div>
+        ) : null}
         {filteredPhotos.length > 0 && (
           <p className="mt-2 text-xs text-muted-foreground">
             Click a photo to edit it full-screen · use the corner ＋ to select views for editing or same-room linking.

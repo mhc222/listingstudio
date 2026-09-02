@@ -69,7 +69,8 @@ export function ShootOrganization({
       await responseJson(await request())
       router.refresh()
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "The organization change could not be saved.")
+      const message = cause instanceof Error ? cause.message : "The organization change could not be saved."
+      setError(`${message} Source photos, confirmed stacks, and completed merges are preserved. Try again.`)
     } finally {
       setBusy(null)
     }

@@ -85,7 +85,8 @@ export function RoomOrganization({
     try {
       await request(`/api/listings/${listingId}/room-analysis`, { requestKey: crypto.randomUUID() })
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Room analysis could not finish.")
+      const message = cause instanceof Error ? cause.message : "Room analysis could not finish."
+      setError(`${message} Existing room tags and earlier proposals were not changed. Try again.`)
     } finally {
       setBusy(null)
     }
@@ -106,7 +107,8 @@ export function RoomOrganization({
         })),
       })
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Suggestions could not be accepted.")
+      const message = cause instanceof Error ? cause.message : "Suggestions could not be accepted."
+      setError(`${message} Pending suggestions and confirmed room tags are preserved. Try again.`)
     } finally {
       setBusy(null)
     }
@@ -118,7 +120,8 @@ export function RoomOrganization({
     try {
       await request(`/api/listings/${listingId}/same-room-groups`, { photoIds: selectedPhotoIds })
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Those views could not be linked.")
+      const message = cause instanceof Error ? cause.message : "Those views could not be linked."
+      setError(`${message} The selected photos and existing same-room groups are preserved. Try again.`)
     } finally {
       setBusy(null)
     }
@@ -170,7 +173,7 @@ export function RoomOrganization({
       </div>
 
       {latestRun?.status === "partial" && <p className="mt-3 text-sm text-amber-800">The last review was partial. {latestRun.error ?? "Some photos still need manual review."}</p>}
-      {latestRun?.status === "failed" && <p className="mt-3 text-sm text-destructive">The last review failed. Your existing room tags were not changed.</p>}
+      {latestRun?.status === "failed" && <p className="mt-3 text-sm text-destructive">The last review failed. Your existing room tags and earlier proposals were not changed. Choose Run room review again when ready.</p>}
       {error && <p className="mt-3 text-sm text-destructive">{error}</p>}
       <p className="mt-3 text-xs text-muted-foreground">Suggestions never apply edits or add room dimensions. Select two or more confirmed photos with the corner ＋ to link them as views of one room.</p>
     </section>

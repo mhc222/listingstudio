@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
@@ -11,12 +11,14 @@ import { Select } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { StatePill } from "@/components/brand"
 import { BeforeAfter } from "@/components/before-after"
+import { WorkflowConnectivity } from "@/components/workflow-connectivity"
 import { TourViewer } from "@/components/tour-viewer"
 import {
   automaticVersionLabel,
   branchContext,
   formatGenerationCost,
 } from "@/lib/versioning"
+import { connectionFailureMessage, workflowCatchMessage, workflowFailureMessage } from "@/lib/workflow-recovery"
 import { EDIT_TYPES } from "../../edit-types"
 import type { ComplianceNote } from "../../job-feed"
 
@@ -91,6 +93,10 @@ function editOrder(chain: WorkspaceFileGroup["edit_chain"]) {
     .join(" → ")
 }
 
+function workspaceDraftKey(fileGroupId: string) {
+  return `listing-studio:result-draft:v1:${fileGroupId}`
+}
+
 export function FileGroupWorkspace({ listingId, fg, before, siblings, initialVersionId }: {
   listingId: string
   fg: WorkspaceFileGroup
@@ -122,6 +128,8 @@ export function FileGroupWorkspace({ listingId, fg, before, siblings, initialVer
   const [variationLabels, setVariationLabels] = useState(["Direction A", "Direction B", "Direction C", "Direction D"])
   const [creatingVariations, setCreatingVariations] = useState(false)
   const [variationRequest, setVariationRequest] = useState<{ key: string; id: string } | null>(null)
+  const [draftHydrated, setDraftHydrated] = useState(false)
+  const draftLoadedRef = useRef(false)
 
   const versionsDesc = [...fg.output_versions].sort((a, b) => b.created_at.localeCompare(a.created_at))
   const latest = versionsDesc.find((version) => version.id === selectedVersionId) ?? versionsDesc[0]
@@ -170,6 +178,52 @@ export function FileGroupWorkspace({ listingId, fg, before, siblings, initialVer
   }, [fallbackCompareId, latest?.id, latest?.version_label])
 
   useEffect(() => {
+    if (draftLoadedRef.current) return
+    draftLoadedRef.current = true
+    try {
+      const raw = localStorage.getItem(workspaceDraftKey(fg.id))
+      if (raw) {
+        const draft = JSON.parse(raw) as {
+          selectedVersionId?: string
+          reworkText?: string
+          reviewNote?: string
+          versionName?: string
+          variationCount?: number
+          variationText?: string
+          variationLabels?: string[]
+          variationRequest?: { key: string; id: string } | null
+        }
+        if (!initialVersionId && draft.selectedVersionId && fg.output_versions.some((version) => version.id === draft.selectedVersionId)) setSelectedVersionId(draft.selectedVersionId)
+        if (typeof draft.reworkText === "string") setReworkText(draft.reworkText)
+        if (typeof draft.reviewNote === "string") setReviewNote(draft.reviewNote)
+        if (typeof draft.versionName === "string") setVersionName(draft.versionName)
+        if ([2, 3, 4].includes(draft.variationCount ?? 0)) setVariationCount(draft.variationCount!)
+        if (typeof draft.variationText === "string") setVariationText(draft.variationText)
+        if (Array.isArray(draft.variationLabels) && draft.variationLabels.length === 4) setVariationLabels(draft.variationLabels.map((label) => String(label).slice(0, 80)))
+        setVariationRequest(draft.variationRequest ?? null)
+      }
+    } catch {
+      localStorage.removeItem(workspaceDraftKey(fg.id))
+    } finally {
+      setDraftHydrated(true)
+    }
+  }, [fg.id, fg.output_versions, initialVersionId])
+
+  useEffect(() => {
+    if (!draftHydrated) return
+    localStorage.setItem(workspaceDraftKey(fg.id), JSON.stringify({
+      selectedVersionId,
+      reworkText,
+      reviewNote,
+      versionName,
+      variationCount,
+      variationText,
+      variationLabels,
+      variationRequest,
+    }))
+  }, [draftHydrated, fg.id, reviewNote, reworkText, selectedVersionId, variationCount, variationLabels, variationRequest, variationText, versionName])
+
+  useEffect(() => {
     const supabase = createClient()
     const channel = supabase
       .channel(`fg-${fg.id}`)
@@ -200,13 +254,13 @@ export function FileGroupWorkspace({ listingId, fg, before, siblings, initialVer
       })
       const data = await response.json().catch(() => null)
       if (!response.ok) {
-        setActionError(data?.error ?? "The review decision could not be saved. Try again.")
+        setActionError(workflowFailureMessage({ status: response.status, serverMessage: data?.error, fallback: "The review decision could not be saved.", preserved: "Your note, selected version, and current approved final are preserved." }))
         return
       }
       setReviewNote("")
       router.refresh()
     } catch {
-      setActionError("The connection was interrupted. Your review choice is still here—try again.")
+      setActionError(connectionFailureMessage("Your note, selected version, and current approved final are preserved."))
     } finally {
       setReviewing(false)
     }
@@ -244,14 +298,14 @@ export function FileGroupWorkspace({ listingId, fg, before, siblings, initialVer
       })
       const data = await response.json().catch(() => null)
       if (!response.ok) {
-        setActionError(data?.error ?? "The refinement could not be started. Try again.")
+        setActionError(workflowFailureMessage({ status: response.status, serverMessage: data?.error, fallback: "The refinement could not be started.", preserved: "Your instruction, source version, history, and approved final are preserved." }))
         return
       }
       setReworkText("")
       setSelectedVersionId("")
       router.refresh()
     } catch {
-      setActionError("The connection was interrupted. Your refinement is still here—try again.")
+      setActionError(connectionFailureMessage("Your instruction, source version, history, and approved final are preserved."))
     } finally {
       setReworking(false)
     }
@@ -261,10 +315,11 @@ export function FileGroupWorkspace({ listingId, fg, before, siblings, initialVer
     setActionError(null)
     try {
       const response = await fetch(`/api/file-groups/${fg.id}/rerun`, { method: "POST" })
-      if (!response.ok) setActionError("This edit could not be restarted. Try again from Activity.")
+      const data = await response.json().catch(() => null)
+      if (!response.ok) setActionError(workflowFailureMessage({ status: response.status, serverMessage: data?.error, fallback: "This edit could not be restarted.", preserved: "The source photo, existing versions, and approved final are preserved." }))
       router.refresh()
     } catch {
-      setActionError("The connection was interrupted. Try again.")
+      setActionError(connectionFailureMessage("The source photo, existing versions, and approved final are preserved."))
     }
   }
 
@@ -272,15 +327,21 @@ export function FileGroupWorkspace({ listingId, fg, before, siblings, initialVer
     const source = versionsDesc.find((version) => version.id === versionId)
     if (attaching || !source) return
     setAttaching(true)
-    const response = await fetch(`/api/file-groups/${source.file_group_id}/attach-plan`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ versionId }),
-    }).catch(() => null)
-    setAttaching(false)
-    if (response?.ok) setAttached(true)
-    else setActionError("The plan could not be attached. Try again.")
-    router.refresh()
+    try {
+      const response = await fetch(`/api/file-groups/${source.file_group_id}/attach-plan`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ versionId }),
+      })
+      const data = await response.json().catch(() => null)
+      if (!response.ok) throw new Error(workflowFailureMessage({ status: response.status, serverMessage: data?.error, fallback: "The plan could not be attached.", preserved: "The version and existing listing attachments are unchanged." }))
+      setAttached(true)
+      router.refresh()
+    } catch (cause) {
+      setActionError(workflowCatchMessage(cause, "The plan could not be attached.", "The version and existing listing attachments are unchanged."))
+    } finally {
+      setAttaching(false)
+    }
   }
 
   const watermark = dlWatermark ?? staged
@@ -306,12 +367,12 @@ export function FileGroupWorkspace({ listingId, fg, before, siblings, initialVer
       })
       const data = await response.json().catch(() => null)
       if (!response.ok) {
-        setActionError(data?.error ?? "The version name could not be saved. Try again.")
+        setActionError(workflowFailureMessage({ status: response.status, serverMessage: data?.error, fallback: "The version name could not be saved.", preserved: "The version, history, and approved final are unchanged." }))
         return
       }
       router.refresh()
     } catch {
-      setActionError("The connection was interrupted. Your version is unchanged—try again.")
+      setActionError(connectionFailureMessage("The version, history, and approved final are unchanged."))
     } finally {
       setNaming(false)
     }
@@ -333,7 +394,7 @@ export function FileGroupWorkspace({ listingId, fg, before, siblings, initialVer
       })
       const data = await response.json().catch(() => null)
       if (!response.ok) {
-        setActionError(data?.error ?? "The variations could not be started. Try again.")
+        setActionError(workflowFailureMessage({ status: response.status, serverMessage: data?.error, fallback: "The variations could not be started.", preserved: "Your direction, option names, source version, and approved final are preserved." }))
         return
       }
       setVariationRequest(null)
@@ -341,7 +402,7 @@ export function FileGroupWorkspace({ listingId, fg, before, siblings, initialVer
       if (first) router.push(`/listings/${listingId}/f/${first}`)
       else router.refresh()
     } catch {
-      setActionError("The connection was interrupted. Your variation request is still here—try again.")
+      setActionError(connectionFailureMessage("Your direction, option names, source version, and approved final are preserved."))
     } finally {
       setCreatingVariations(false)
     }
@@ -349,6 +410,7 @@ export function FileGroupWorkspace({ listingId, fg, before, siblings, initialVer
 
   return (
     <div>
+      <WorkflowConnectivity preserved="The source, versions, refinement text, review note, and approved final are preserved." />
       {siblings.length > 1 && (
         <nav aria-label="Photos in this edit" className="mb-4 flex items-center gap-3 overflow-x-auto rounded-2xl bg-muted/60 p-2">
           <p className="shrink-0 px-2 text-xs font-semibold text-muted-foreground">Photo {selectedSiblingIndex + 1} of {siblings.length}</p>
@@ -613,7 +675,12 @@ export function FileGroupWorkspace({ listingId, fg, before, siblings, initialVer
               <div className="grid gap-2">{DUSK_CHECKS.map((check) => <label key={check} className="flex items-start gap-2 text-xs"><input type="checkbox" className="mt-0.5" />{check}</label>)}</div>
             </Disclosure>
           )}
-          {actionError && <p role="alert" className="mt-4 text-sm text-destructive">{actionError}</p>}
+          {actionError && (
+            <div role="alert" className="mt-4 text-sm text-destructive">
+              <p>{actionError}</p>
+              {/sign-in expired/i.test(actionError) && <Link href={`/login?next=${encodeURIComponent(`/listings/${listingId}/f/${fg.id}`)}`} className="mt-2 inline-flex min-h-10 items-center font-semibold underline underline-offset-4">Sign in again</Link>}
+            </div>
+          )}
         </aside>
       </div>
     </div>

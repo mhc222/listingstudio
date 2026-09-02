@@ -23,6 +23,13 @@ export function connectionFailureMessage(preserved: string) {
   return `The connection was interrupted. ${preserved} Reconnect, then try again.`
 }
 
+export function workflowCatchMessage(cause: unknown, fallback: string, preserved: string) {
+  if (cause instanceof Error && cause.message && !/failed to fetch|networkerror|load failed/i.test(cause.message)) {
+    return cause.message
+  }
+  return connectionFailureMessage(preserved || fallback)
+}
+
 export function safeNextPath(value: string | null | undefined, fallback = "/dashboard") {
   if (!value || !value.startsWith("/") || value.startsWith("//")) return fallback
   try {
