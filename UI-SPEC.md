@@ -1,6 +1,6 @@
 # Listing Studio — End-to-End UX Contract
 
-Phase 52 · 2026-09-01 · implementation contract
+Phase 53 · 2026-09-01 · implementation contract
 
 ## Product promise
 
@@ -165,6 +165,19 @@ The Photos route owns upload, room filtering/tagging, photo selection, and entry
 - Creating variations never writes `photo_finals`. Replacing an approved branch remains the separate **Replace approved final** action; delivery continues to use the old exact final until that action succeeds.
 - On phones, the named two-version comparison stays above a stacked control surface, every name/cost/control remains readable, and no horizontal page overflow is introduced.
 
+#### Scoped conversational batch rework
+
+- **Refine several photos** lives in Proofing because that surface already owns the exact logical photo, selected version, approved pointer, room, same-room group, and QA state. Opening the panel starts with zero targets; zero never expands to the listing.
+- Targets may be added one photo at a time or populated from the current room/same-room group. Room shortcuts still resolve to an explicit displayed list. Changing one target or its exact source version converts the request to an explicit selection rather than retaining a misleading group claim.
+- Every selected row names the file, room, exact ready/approved source version, whether it is the approved source, the protected geometry contract, and an optional target-specific exception. Untouched originals and photos without a generated result are not batch-rework sources.
+- The confirmation owns one shared correction and shows one initial generation per selected target plus the exact configured initial cost. Provider names remain hidden. Reliability retries and any QA correction are separately counted only if needed.
+- Submission persists a server-revalidated immutable snapshot before provider work: retry identity, selection method/scope, ordered photo/version lineage, source FileGroup, room/same-room membership, protected geometry, exception, target count, generation count, and initial cost.
+- Every target becomes an independent FileGroup beginning only at an appended `REWORK` step from its exact source version. A target exception is appended only to that child's correction. The existing prompt compiler retains the verbatim interior or exterior geometry constraint selected from the source chain.
+- The client immediately shows one queued receipt per target and clears the submitted draft so a successful click cannot be repeated accidentally. Reload restores recent requests and every child status from the database.
+- Ready, Editing, and Needs attention are per-target states. A failed child owns its error and **Try again**; retrying it does not remove or restart successful siblings.
+- Batch refinement never writes `photo_finals`. Every new child remains unapproved until the separate **Replace approved final** action, and delivery continues to use the old exact finals.
+- On phones, scope shortcuts wrap, target cards stack, exact source/cost/exception/recovery text stays readable, controls remain at least 40px, and the page introduces no horizontal overflow.
+
 ### 5. Task Studio
 
 Desktop is a full-screen split surface:
@@ -300,6 +313,10 @@ Internal “chain” may appear only inside the Advanced disclosure as **Edit or
 | Variation sibling active | Keep existing versions usable and say the new option is preparing/editing |
 | Variation sibling failed | Show Needs attention and Try again for that sibling while retaining every successful sibling |
 | Variation retry | Reuse the same request identity only for identical source, direction, labels, count, and cost; reject changed payloads |
+| Batch rework has no targets | Keep submission disabled and say that no selection never means all |
+| Batch rework submitted | Show the immutable per-target queued receipt immediately; clear the submitted draft to prevent a duplicate click |
+| Batch rework partial failure | Preserve every ready child, keep each failed child visible with its exact error and Try again, and never move finals |
+| Batch rework retry | Retry only the failed child state machine; exact duplicate request submission returns the original ordered children |
 | QA warning | Keep output viewable; explain what needs visual review |
 | Signed URL/image fails | Neutral frame, Retry image, never collapse controls |
 
@@ -314,6 +331,7 @@ Internal “chain” may appear only inside the Advanced disclosure as **Edit or
 - Proofing order/status is announced in text; contact-sheet buttons expose selection state, and Left/Right Arrow navigation never steals input/select editing keys.
 - Delivery profile controls have persistent labels; included order, source/version, filename, dimensions, size, and disclosure are text, not colour. The desktop grid becomes stacked records at phone widths without page overflow.
 - Version names and branch context are visible text, not hover-only. Named comparison labels both sides and its slider for keyboard and assistive technology; variation count, labels, and cost all have persistent controls/text.
+- Batch target checkboxes have file/room names, each exact-version and exception control has a persistent label, protected geometry and per-target state are text, and room/same-room shortcuts never replace the displayed target list.
 - Status uses text plus colour. Motion respects `prefers-reduced-motion`.
 - Upload progressbars have per-file accessible names and numeric values; status is never colour-only.
 - On mobile, the sticky footer never covers the last control and safe-area padding is included.

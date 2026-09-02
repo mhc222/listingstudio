@@ -777,6 +777,8 @@ The implementation arc below is approved for planning, not pre-authorized as one
 
 ## Phase 53 — Scoped conversational batch rework
 
+**Status (2026-09-01):** Complete in local code. Migration `0018_scoped_rework.sql` is verified and queued after pending `0013_batch_scope.sql` through `0017_version_labels.sql` for Matt's end-of-run SQL batch; live migrations remain through `0012`. No paid generation, push, or deployment occurred.
+
 **Goal:** Apply one correction safely across an explicit subset of results while preserving immutable per-target lineage, cost truth, and individual recovery.
 
 **Scope contract:** select exact ready/approved outputs by photo, explicit selection, room group, or same-room group; enter a shared correction; then preview every target, source version, protected geometry, generation count/cost, and optional per-target exception. Persist the immutable request/scope snapshot plus an idempotency key before submission. No selection never means all. The server revalidates ownership, lineage, compatibility, and overrides, then creates one child version per target.
