@@ -55,6 +55,13 @@
 - [x] Phase 52 — Version naming and variation comparison
 - [x] Phase 53 — Scoped conversational batch rework
 - [x] Phase 54 — Mobile intake/proofing and workflow-state hardening
+- [ ] Phase 55 — Refresh discipline: stop the re-render and re-download storm (approved 2026-09-03; no migration)
+
+## ACTIVE HANDOFF — Reviews complete, Phase 55 approved (2026-09-03)
+
+**Read this first.** Production is unchanged since the upload-launcher hotfix. Three read-only reviews (code, UX, feature) were written to `docs/reviews/2026-09-03-*.md` and committed; their shared conclusion and the deferred items are logged in `DECISIONS.md` under 2026-09-03. Matt approved **Phase 55** (refresh discipline: batch-level refresh, throttled queue persist, change-gated poll refresh with filtered realtime subscriptions) as the next implementation phase; the full spec is in `PLAN.md`. No migration. A separate `brand-research` worker is producing `docs/reviews/2026-09-03-brand-research.md`; brand and visual changes are research only and not part of Phase 55.
+
+**Next action:** run `/clear`, then say: `Execute Phase 55 from PLAN.md. Read the ACTIVE HANDOFF first.` Do not push, deploy, or run paid generation inside Phase 55 without a new explicit instruction. Stop port 3000 before the production build and restart it afterward.
 
 ## ACTIVE HANDOFF — Phase 43–54 production release + upload-launcher hotfix (2026-09-02)
 

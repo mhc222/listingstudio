@@ -819,6 +819,29 @@ The implementation arc below is approved for planning, not pre-authorized as one
 
 ---
 
+## Phase 55 — Refresh discipline: stop the re-render and re-download storm
+
+**Status:** Approved by Matt on 2026-09-03 from the three 2026-09-03 reviews in `docs/reviews/`. No migration. Items 1–3 of the code review's prioritised list, plus the UX review's matching realtime-filter finding.
+
+**Goal:** Make upload and editing feel smooth without touching the visual system, the upload call shape (batched prepare → direct TUS → finalize is already near optimal), or orchestration. The clunkiness is refresh discipline: every finished upload item and every 5-second poll forces `router.refresh()`, which re-runs the listing page's ~23 queries, re-mints every signed URL, and re-downloads every full-resolution original. A synchronous whole-queue `localStorage` write on every TUS progress tick stalls the main thread.
+
+**Work items:**
+1. **Refresh once per batch, not per photo.** `app/listings/[id]/upload-queue.tsx` (the 350 ms `router.refresh()` timer near line 183) fires per finalized item. Patch the local queue state on finalize and call `router.refresh()` once when the batch drains, or at most once per ~2 s while it is still running. Phantom/duplicate entries, resume, and reload behaviour from Phases 44 and 54 must not regress.
+2. **Throttle the queue persist.** `upload-queue.tsx` persists the whole queue to `localStorage` on every progress tick (persist near lines 349–360, progress handler near 275–283). Round progress to whole percents, persist on a trailing ~500 ms throttle plus on every status transition, and always flush on `pagehide`/`beforeunload` so recovery after eviction still sees the latest saved state.
+3. **Refresh only when something changed.** `app/listings/[id]/job-feed.tsx`, `app/listings/[id]/listing-progress.tsx`, and `app/listings/[id]/f/[fileGroupId]/file-group-workspace.tsx` each poll `/api/cron/reconcile` (or equivalent) every 5 s and call `router.refresh()` unconditionally. Gate the refresh on the poll reporting a change (`changed > 0` or a status delta). Add a listing filter to the three unfiltered realtime subscriptions on `upload_items`, `file_groups`, and `output_versions` in `listing-progress.tsx` and `file-group-workspace.tsx`, and debounce their refresh to ~1 s. Delete the subscriptions the code review marked dead rather than keeping them for symmetry.
+
+**Likely files:** the four components above, `lib/upload-queue.ts` only if a shared throttle helper is genuinely needed. No new deps; use `setTimeout`-based throttling.
+
+**Not in scope:** thumbnails or signed-URL caching (next phase; the single largest remaining win), output resolution/upscale, batch `/api/jobs` inserts, reservation GC, splitting the transfer/finalize gate, listing-page recomposition, proofing bulk approve, any visual or brand change.
+
+**DoD:** with browser devtools open, uploading 10 photos produces at most a handful of listing-page refreshes instead of 10, no full-grid image re-download per item, and no long-task warnings from the persist path; an idle result page with no in-flight work stops re-rendering every 5 s; an in-flight job still reaches its result within one poll interval of the webhook landing; Phase 44/54 upload, resume, reload, and eviction tests pass unchanged; TypeScript, lint, the Phase 43–54 suite, and a production build pass after port 3000 is stopped. Restart port 3000 afterward. Deployment remains a separate explicit approval.
+
+**Manual test (Matt):** on the production-shaped dev server, upload 10 real photos to a listing and watch the network tab: images should load once, the grid should not flicker per item, and progress bars should move smoothly. Open a finished result and leave it idle for a minute: no network activity beyond the poll itself and no visible re-render. Run one small edit (paid, only if you choose) and confirm the result still appears without a manual reload.
+
+**Clear/resume gate:** update the top `ACTIVE HANDOFF` with measured before/after refresh counts, verified commands, and port-3000 state; checkpoint commit; clean worktree; `/clear` before the next phase.
+
+---
+
 ## Phase 42 finding coverage
 
 | Audit gap | Implementation phase |
