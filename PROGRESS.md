@@ -56,6 +56,11 @@
 - [x] Phase 53 — Scoped conversational batch rework
 - [x] Phase 54 — Mobile intake/proofing and workflow-state hardening
 - [x] Phase 55 — Refresh discipline: stop the re-render and re-download storm (merged to main 2026-09-03 as 1a8f61a; no migration)
+- [ ] Phase 56 — Image weight: thumbnails + stable signed URLs (approved 2026-09-03; no migration)
+
+## ACTIVE HANDOFF — Phase 56 approved and in progress (2026-09-03)
+
+**Phase 56 (image weight) is defined in PLAN.md and was spawned to a Fable worker in worktree branch `phase-56-image-weight`.** Gates unchanged: no push, deploy, paid generation, or production backfill without Matt saying so; stop port 3000 before a main-checkout build and restart after. When the worker reports, review the branch, merge, build in main, run the devtools Img manual test from the Phase 56 DoD.
 
 ## ACTIVE HANDOFF — Phase 55 verified; next phase is thumbnails + signed-URL caching (2026-09-03)
 

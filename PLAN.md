@@ -819,6 +819,20 @@ The implementation arc below is approved for planning, not pre-authorized as one
 
 ---
 
+## Phase 56 — Image weight: thumbnails + stable signed URLs
+
+**Why (measured 2026-09-03, see PROGRESS handoff):** a 10-photo upload produced 103 image requests / 188 MB in the browser. Every grid tile loads the full 5–6.7 MB `source.jpg`, and every render mints a new signed token so the browser cache never hits. Phase 55 cut the refresh count; this phase cuts the bytes per refresh.
+
+**Work items**
+1. **Thumbnail derivation at materialize time.** In `lib/intake.ts` `materializeIntakeItem` the canonical buffer is already in memory and rotated with sharp; add a ~480 px-wide JPEG (quality ~75, `mozjpeg`, `withMetadata()` off except orientation already applied) uploaded via `lib/storage.ts` to a sibling path `…/<photoId>/thumb.jpg` in the same bucket. Originals stay untouched (thumb is additive). Do the same for output versions at the point the webhook path persists an output into `outputs` (find it in `lib/orchestrator.ts` / the fal webhook route); the thumb is a derived object, not a new version, and does not touch SpendLedger. Path mapping lives in one pure helper (e.g. `lib/thumbs.ts`: `thumbPathFor(storagePath)`), unit-tested.
+2. **Grids and rails use thumbs, workspaces use full size.** Add `getThumbUrls(bucket, paths)` in `lib/storage.ts` (or `lib/thumbs.ts`) that signs the thumb paths in one `createSignedUrls` call and falls back per item to the source URL when the thumb object is missing (the batch call returns a per-path error; no extra round trip). Switch `app/listings/[id]/page.tsx`, `dashboard/page.tsx` cover images, `activity`, `reel`, `plan`, `aerial`, `copy`, `tour` grids and the sibling rail in `f/[fileGroupId]/page.tsx` to thumbs. Keep full-size for the before/after workspace image, proofing compare, delivery downloads, Marzipano scenes, and anything sent to fal or Claude (`lib/qa.ts`, `room-analysis`, `copy` routes, `lib/orchestrator.ts` stay on originals/outputs). Add `loading="lazy" decoding="async"` and explicit `width`/`height` on grid `<img>`s.
+3. **Stable signed URLs.** In `lib/storage.ts` `getUrl`/`getUrls`, quantize the expiry: sign for `expiresIn = nextBoundary - now` where `nextBoundary` is the next whole-hour mark at least 30 min away (so the token is identical for every render inside the window and never expires mid-page). Verify with a test that two calls in the same window return byte-identical URLs and that calls straddling a boundary differ. Callers that pass an explicit `expiresInSeconds` (orchestrator 6 h, tour) keep their value but go through the same quantizer.
+4. **Backfill.** `scripts/backfill-thumbs.ts` (run manually with the service role from `.env.local`, idempotent, skips existing thumbs, logs counts) for `originals` and `outputs`. Add `npm run backfill:thumbs`. Do not run it against production from the worker; Matt runs it.
+
+**Not in scope:** `next/image`, a CDN, moving the 4.3 s finalize materialize step off the request path (Phase 57 candidate), output resolution/upscale, changing bucket layout or RLS, any UI redesign.
+
+**Definition of done:** `npm run test:thumbnails` (path mapping, fallback, expiry quantization; ≥ 20 assertions) plus the Phase 44–55 suites, `npx tsc --noEmit`, `npm run lint`, and a production build all pass; no migration; `.env.example` unchanged unless a new key is truly required; PROGRESS.md ticked with the manual test: repeat the 10-photo upload with devtools Network → Img and confirm ≈ 1 request per photo, tiles ≤ ~60 KB, and a second refresh showing `(disk cache)`/`(memory cache)`.
+
 ## Phase 55 — Refresh discipline: stop the re-render and re-download storm
 
 **Status:** Approved by Matt on 2026-09-03 from the three 2026-09-03 reviews in `docs/reviews/`. No migration. Items 1–3 of the code review's prioritised list, plus the UX review's matching realtime-filter finding.
