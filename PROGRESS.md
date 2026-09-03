@@ -56,9 +56,31 @@
 - [x] Phase 53 — Scoped conversational batch rework
 - [x] Phase 54 — Mobile intake/proofing and workflow-state hardening
 - [x] Phase 55 — Refresh discipline: stop the re-render and re-download storm (merged to main 2026-09-03 as 1a8f61a; no migration)
-- [ ] Phase 56 — Image weight: thumbnails + stable signed URLs (approved 2026-09-03; no migration)
+- [x] Phase 56 — Image weight: thumbnails + stable signed URLs (local complete on branch `phase-56-image-weight` 2026-09-03; no migration; backfill not yet run)
 
-## ACTIVE HANDOFF — Phase 56 approved and in progress (2026-09-03)
+## ACTIVE HANDOFF — Phase 56 implemented on the worktree branch; merge, build in main, backfill, manual Img test (2026-09-03)
+
+**Read this first.** Phase 56 (image weight) is complete in local code on branch `phase-56-image-weight` (worktree, workspace wF): three application commits plus this documentation commit. Nothing was pushed, deployed, run against paid generation, or backfilled; no SQL changed; port 3000 (Matt's dev server, main checkout) was never touched and nothing was started on any port. What landed: (1) `lib/thumbs.ts` maps a source path to its thumb (`…/<photoId>/thumb.jpg` for `source.*`/`canonical.*`; `<fgId>/step-N-rR.thumb.jpg` for outputs because a FileGroup folder holds many versions) and renders a 480 px-wide q75 mozjpeg JPEG with EXIF orientation baked in and metadata stripped; `materializeIntakeItem` and the orchestrator's `completeStep` derive the thumb beside the object they just stored, non-fatally, with no ledger row. (2) `lib/storage.ts` `getUrls`/`getUrl` now sign only the paths not already memoized for the current hourly window, `getThumbUrls(bucket, paths)` signs thumb paths in one batch and falls back per item to the source URL (a second batch only for the paths that lack a thumb; misses are not negatively cached so a thumb that lands mid-window shows up next render), and `storeThumb` is the single idempotent writer. (3) `lib/signed-urls.ts` quantizes expiry to the next whole-hour mark at least 30 min away (1 h callers get 30–90 min, 6 h callers 5.5–6.5 h) and memoizes minted URLs per (bucket, path, boundary) in-process. **Key finding:** Supabase signed-URL tokens carry `iat`, so quantizing `expiresIn` alone never yields identical URLs (verified against the live project, two signs 1.5 s apart differed); the in-process memo is what makes renders byte-identical. The memo is per server process, so on Vercel each warm instance mints its own token per window. (4) Grids and rails render thumbs: listing photo grid, dashboard covers, activity, reel/plan/aerial/copy pickers, job-feed tiles, file-group sibling and version rails, batch-studio tiles, composer view chips, and shoot-organization rows, all with `loading="lazy" decoding="async"` and explicit `width`/`height`. Full size stays on the listing hero cover, the opened photo in the studio, before/after and compare, the aerial annotator (it flattens to PNG), Marzipano scenes, delivery, proofing, and everything sent to fal or Claude. The tour page has no image grid, so only its signing changed. `library` (references bucket) and the proofing contact sheet were left on full size (no thumbs are derived for references; proofing was outside the phase list). (5) `scripts/backfill-thumbs.ts` (`npm run backfill:thumbs`, `-- --dry` to count only) walks `photos` and `output_versions` rows with the service role from `.env.local`, skips existing thumbs and PDFs, logs scanned/created/skipped/failed per bucket. **Not run against the live project; Matt runs it.** Small enablers: `tsconfig.json` gained `allowImportingTsExtensions` and `lib/storage.ts` imports its siblings with `.ts` extensions and loads the cookie-session client lazily, so plain `node --experimental-strip-types` can import the storage wrapper for the unit test and the backfill.
+
+**Verified commands (all in the worktree, 2026-09-03):**
+
+```
+$ npm run test:thumbnails
+test-thumbnails: 58 assertions passed
+$ (Phase 44–55 suites) upload-queue 26 · shoot-organization 21 · room-analysis 47 · batch-scope 34 · edit-presets 38 · listing-status 26 · proofing 42 · delivery 49 · versioning 47 · scoped-rework 48 · mobile-workflow 51 · refresh-discipline 43 — all "assertions passed"
+$ npx tsc --noEmit          (no output, exit 0)
+$ npm run lint              (no output, exit 0)
+$ npm run build
+ ✓ Compiled successfully in 4.4s
+ ✓ Generating static pages (29/29)
+ 68 routes, build rc=0
+```
+
+**Build caveat (same as Phase 55):** `npm run build` (Turbopack) fails in this worktree with `Symlink node_modules is invalid` because `node_modules` is a symlink into the main checkout; the passing build above used a temporary `turbopack: { root: "/Users/mattcronin" }` in `next.config.ts`, reverted before commit (tree is clean). The main checkout needs no override. **Not run:** `test:intake` (signs into the live project with the service role and POSTs to port 3000, which serves the main checkout) and the backfill (Matt's call, production data). The thumb derivation in `materializeIntakeItem` is exercised only by `renderThumb`/`storeThumb` unit coverage, not by a live upload from this branch.
+
+**Next action (Matt):** review and merge `phase-56-image-weight` into `main`; stop port 3000, `npm run build` in the main checkout, restart port 3000; run `npm run backfill:thumbs -- --dry` then `npm run backfill:thumbs` (expect one thumb per existing photo and output version; re-running should report everything skipped). **Manual test:** repeat the 10-photo upload with devtools Network → Img: expect ≈ 1 image request per photo, tiles ≤ ~60 KB `thumb.jpg` instead of 5–6.7 MB `source.jpg`, and a second refresh showing `(disk cache)`/`(memory cache)` for the tiles because the signed URLs are unchanged inside the hour window. Open a result: the before/after still loads the full objects. Push/deploy remains a separate explicit gate. **Follow-ups deliberately left out:** proofing contact-sheet thumbs, references-bucket thumbs for the sample library, `next/image`/CDN, moving the ~4.3 s finalize materialize step off the request path (Phase 57 candidate), output resolution/upscale, and the metering/pricing items from the Phase 55 handoff. Then `/clear`.
+
+## Phase 56 approved and in progress (2026-09-03)
 
 **Phase 56 (image weight) is defined in PLAN.md and was spawned to a Fable worker in worktree branch `phase-56-image-weight`.** Gates unchanged: no push, deploy, paid generation, or production backfill without Matt saying so; stop port 3000 before a main-checkout build and restart after. When the worker reports, review the branch, merge, build in main, run the devtools Img manual test from the Phase 56 DoD.
 

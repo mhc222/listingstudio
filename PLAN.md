@@ -821,6 +821,8 @@ The implementation arc below is approved for planning, not pre-authorized as one
 
 ## Phase 56 — Image weight: thumbnails + stable signed URLs
 
+**Status:** Approved by Matt 2026-09-03; implemented on branch `phase-56-image-weight` the same day (see PROGRESS.md handoff). No migration.
+
 **Why (measured 2026-09-03, see PROGRESS handoff):** a 10-photo upload produced 103 image requests / 188 MB in the browser. Every grid tile loads the full 5–6.7 MB `source.jpg`, and every render mints a new signed token so the browser cache never hits. Phase 55 cut the refresh count; this phase cuts the bytes per refresh.
 
 **Work items**
