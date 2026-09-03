@@ -2,7 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js"
 import heicConvert from "heic-convert"
 import sharp from "sharp"
 import { MAX_UPLOAD_FILE_BYTES } from "@/config/uploads"
-import { copy, download, info, upload } from "@/lib/storage"
+import { copy, download, info, storeThumb, upload } from "@/lib/storage"
 import { extractSourcePhotoMetadata, type SourcePhotoMetadata } from "@/lib/photo-metadata"
 
 export type IntakeItem = {
@@ -231,6 +231,15 @@ export async function materializeIntakeItem(
       canonicalContentType,
       admin
     )
+  }
+
+  // Phase 56: grid thumbnail beside the canonical object. Additive and
+  // non-fatal: a failed thumb must never fail the upload; grids fall back to
+  // the full-size source until the backfill fills the gap.
+  try {
+    await storeThumb("originals", finalCanonicalPath, canonicalBuffer, admin)
+  } catch (thumbError) {
+    console.warn(`thumb derivation failed for ${finalCanonicalPath}:`, thumbError)
   }
 
   return {

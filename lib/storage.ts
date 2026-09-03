@@ -2,13 +2,25 @@
 // Pass an explicit client (e.g. admin) from webhook/cron contexts; defaults to
 // the cookie-session server client.
 import type { SupabaseClient } from "@supabase/supabase-js"
-import { createClient } from "@/lib/supabase/server"
+import { SignedUrlCache, signedUrlWindow } from "./signed-urls.ts"
+import { mergeThumbUrls, renderThumb, thumbPathFor } from "./thumbs.ts"
 
 export type Bucket = "originals" | "outputs" | "references" | "intake"
 
+// The cookie-session client is imported lazily so this module (and the thumb
+// backfill / unit tests that always pass an explicit client) loads outside a
+// Next request scope, where `next/headers` is unavailable.
 async function resolveClient(client?: SupabaseClient) {
-  return client ?? (await createClient())
+  if (client) return client
+  const { createClient } = await import("./supabase/server.ts")
+  return createClient()
 }
+
+// Process-local memo of minted signed URLs, keyed by object and hourly window
+// (see lib/signed-urls.ts). Storage RLS already grants every authenticated
+// user read on originals/outputs/references, so a URL minted for one session
+// exposes nothing a different session could not have signed itself.
+const signedUrlCache = new SignedUrlCache()
 
 export async function upload(
   bucket: Bucket,
@@ -34,27 +46,83 @@ export async function getUrl(
   expiresInSeconds = 3600,
   client?: SupabaseClient
 ) {
-  const supabase = await resolveClient(client)
-  const { data, error } = await supabase.storage
-    .from(bucket)
-    .createSignedUrl(path, expiresInSeconds)
-  if (error) throw error
-  return data.signedUrl
+  const urls = await getUrls(bucket, [path], expiresInSeconds, client)
+  const url = urls[path]
+  if (!url) throw new Error(`could not sign ${bucket}/${path}`)
+  return url
 }
 
+// Signs the paths that are not already memoized for the current hourly window
+// in one createSignedUrls call. Paths whose object is missing are omitted from
+// the result (the batch call reports them per item; nothing is thrown), so
+// callers read `urls[path] ?? null` as before.
 export async function getUrls(
   bucket: Bucket,
   paths: string[],
   expiresInSeconds = 3600,
   client?: SupabaseClient
-) {
-  if (paths.length === 0) return {}
+): Promise<Record<string, string>> {
+  const unique = [...new Set(paths.filter(Boolean))]
+  if (unique.length === 0) return {}
+  const now = Date.now()
+  const { boundaryMs, expiresInSeconds: quantized } = signedUrlWindow(expiresInSeconds, now)
+  const out: Record<string, string> = {}
+  const misses: string[] = []
+  for (const path of unique) {
+    const cached = signedUrlCache.get(bucket, path, boundaryMs, now)
+    if (cached) out[path] = cached
+    else misses.push(path)
+  }
+  if (misses.length === 0) return out
   const supabase = await resolveClient(client)
-  const { data, error } = await supabase.storage
-    .from(bucket)
-    .createSignedUrls(paths, expiresInSeconds)
+  const { data, error } = await supabase.storage.from(bucket).createSignedUrls(misses, quantized)
   if (error) throw error
-  return Object.fromEntries(data.map((d) => [d.path, d.signedUrl]))
+  for (const item of data) {
+    if (!item.path || !item.signedUrl || item.error) continue
+    out[item.path] = item.signedUrl
+    signedUrlCache.set(bucket, item.path, boundaryMs, item.signedUrl, now)
+  }
+  return out
+}
+
+// Grid/rail URLs: the thumb when it exists, else the full-size source. The
+// batch sign reports a per-path error for a missing thumb, so the only extra
+// call is a second batch sign for the sources that actually lack one (none
+// after the backfill). Result is keyed by the SOURCE path.
+export async function getThumbUrls(
+  bucket: Bucket,
+  paths: string[],
+  client?: SupabaseClient
+): Promise<Record<string, string>> {
+  const unique = [...new Set(paths.filter(Boolean))]
+  if (unique.length === 0) return {}
+  const thumbs = await getUrls(bucket, unique.map(thumbPathFor), 3600, client)
+  const missing = unique.filter((path) => !thumbs[thumbPathFor(path)])
+  const sources = missing.length ? await getUrls(bucket, missing, 3600, client) : {}
+  return mergeThumbUrls(unique, thumbs, sources)
+}
+
+// Derive and store the thumb beside `sourcePath`. Idempotent: `originals`
+// forbids overwrite, so an "already exists" upload error is a success when the
+// object is present. Never touches the source object or SpendLedger.
+export async function storeThumb(
+  bucket: Bucket,
+  sourcePath: string,
+  sourceBuffer: Buffer,
+  client?: SupabaseClient
+) {
+  const path = thumbPathFor(sourcePath)
+  const body = await renderThumb(sourceBuffer)
+  try {
+    await upload(bucket, path, body, "image/jpeg", client)
+  } catch (uploadError) {
+    try {
+      await info(bucket, path, client)
+    } catch {
+      throw uploadError
+    }
+  }
+  return path
 }
 
 export async function list(bucket: Bucket, prefix: string, client?: SupabaseClient) {

@@ -14,7 +14,7 @@ import {
   type ReworkOptions,
 } from "@/lib/prompts"
 import { submitGeneration, getResultImageUrl, extractImageUrl } from "@/lib/imaging"
-import { getUrl, list, upload } from "@/lib/storage"
+import { getUrl, list, storeThumb, upload } from "@/lib/storage"
 import { runQA } from "@/lib/qa"
 import { isStaged } from "@/lib/deliver"
 
@@ -285,6 +285,13 @@ export async function completeStep(
     }
   }
   await upload("outputs", outPath, outBuf, "image/jpeg", db)
+  // Phase 56: derived grid thumb beside the output. Not a version, no ledger
+  // row, non-fatal (grids fall back to the full output).
+  try {
+    await storeThumb("outputs", outPath, outBuf, db)
+  } catch (thumbError) {
+    console.warn(`thumb derivation failed for ${outPath}:`, thumbError)
+  }
 
   // the idempotency gate
   const { data: transitioned } = await db

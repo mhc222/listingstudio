@@ -19,7 +19,9 @@
     "test:versioning": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/test-versioning.mjs",
     "test:scoped-rework": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/test-scoped-rework.mjs",
     "test:mobile-workflow": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/test-mobile-workflow.mjs",
-    "test:refresh-discipline": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/test-refresh-discipline.mjs"
+    "test:refresh-discipline": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/test-refresh-discipline.mjs",
+    "test:thumbnails": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/test-thumbnails.mjs",
+    "backfill:thumbs": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types --env-file=.env.local scripts/backfill-thumbs.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.122.0",
