@@ -47,7 +47,7 @@ export function AerialPanel({ listingId, photos }: { listingId: string; photos: 
           >
             {/* signed URLs expire — plain img, per photo-grid precedent */}
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            {p.url && <img src={p.url} alt="" className="h-full w-full object-cover" />}
+            {p.url && <img src={p.thumb_url ?? p.url} alt="" loading="lazy" decoding="async" width={480} height={360} className="h-full w-full object-cover" />}
           </button>
         ))}
       </div>

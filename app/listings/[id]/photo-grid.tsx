@@ -32,6 +32,8 @@ export type PhotoRow = {
   hdr_group_id?: string | null
   hdr_decision?: "unreviewed" | "single"
   url: string | null
+  // Phase 56: ~480 px grid thumb (falls back to the source URL when no thumb exists)
+  thumb_url?: string | null
 }
 
 type Room = { id: string; name: string; room_type: string }
@@ -182,7 +184,7 @@ export function PhotoGrid({ photos, rooms, listingId, proposals = [], sameRoomGr
             {photo.url && !photo.storage_path.endsWith(".pdf") ? (
               <button type="button" onClick={() => onOpen?.(index)} className="relative block w-full" title="Open full-screen editor">
                 {/* eslint-disable-next-line @next/next/no-img-element -- signed URLs expire; next/image caching fights that */}
-                <img src={photo.url} alt={roomName ? `${roomName} listing photo` : "Untagged listing photo"} className="aspect-[4/3] w-full object-cover" />
+                <img src={photo.thumb_url ?? photo.url} alt={roomName ? `${roomName} listing photo` : "Untagged listing photo"} loading="lazy" decoding="async" width={480} height={360} className="aspect-[4/3] w-full object-cover" />
                 {onSelect && (
                   <span role="checkbox" aria-label={selected ? `Remove photo ${order + 1} from selection` : "Add photo to selection"} aria-checked={selected} tabIndex={0} onClick={(event) => { event.stopPropagation(); onSelect(index, event.shiftKey) }} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); event.stopPropagation(); onSelect(index, event.shiftKey) } }} className={`absolute left-1.5 top-1.5 flex h-10 w-10 items-center justify-center rounded-full border text-[11px] font-medium ${selected ? "border-primary bg-primary text-primary-foreground" : "border-white/80 bg-black/35 text-white/90"}`}>
                     {selected ? order + 1 : "＋"}

@@ -150,7 +150,7 @@ export function CopyPanel({
               >
                 {p.url ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={p.url} alt="" className="h-full w-full object-cover" />
+                  <img src={p.url} alt="" loading="lazy" decoding="async" width={480} height={360} className="h-full w-full object-cover" />
                 ) : (
                   <div className="h-full w-full bg-muted" />
                 )}

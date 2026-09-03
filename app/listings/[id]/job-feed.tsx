@@ -48,6 +48,7 @@ export type JobRow = {
       qa_note: string | null
       compliance: ComplianceNote
       url: string | null
+      thumb_url?: string | null
     }[]
     approved?: boolean
     chat_messages: { role: string; content: string; created_at: string }[]
@@ -249,7 +250,7 @@ export function JobFeed({
                       >
                         {v?.url ? (
                           // eslint-disable-next-line @next/next/no-img-element -- signed URLs expire; next/image caching fights that
-                          <img src={v.url} alt={fg.comment ?? "Edit direction"} className="aspect-video w-full object-cover" />
+                          <img src={v.thumb_url ?? v.url} alt={fg.comment ?? "Edit direction"} loading="lazy" decoding="async" width={480} height={270} className="aspect-video w-full object-cover" />
                         ) : (
                           <div
                             className={`flex aspect-video w-full items-center justify-center bg-muted text-xs text-muted-foreground ${
@@ -273,7 +274,7 @@ export function JobFeed({
                     (a, b) => b.version_number - a.version_number
                   )[0]
                   const before = photoById.get(fg.primary_photo_id)
-                  const thumb = latest?.url ?? before?.url ?? null
+                  const thumb = latest?.thumb_url ?? latest?.url ?? before?.thumb_url ?? before?.url ?? null
                   const summary = editSummary(fg.edit_chain)
                   const doneSteps = fg.current_step + (fg.step_status === "complete" ? 1 : 0)
                   return (
@@ -285,7 +286,7 @@ export function JobFeed({
                       <div className="aspect-[4/3] overflow-hidden bg-muted">
                         {thumb ? (
                           // eslint-disable-next-line @next/next/no-img-element -- signed URLs expire; next/image caching fights that
-                          <img src={thumb} alt={`${summary} result`} className="h-full w-full object-cover" />
+                          <img src={thumb} alt={`${summary} result`} loading="lazy" decoding="async" width={480} height={360} className="h-full w-full object-cover" />
                         ) : (
                           <div
                             className={`flex h-full w-full items-center justify-center text-[10px] text-muted-foreground ${

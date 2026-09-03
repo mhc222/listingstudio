@@ -1,6 +1,6 @@
 import Link from "next/link"
 import { createClient } from "@/lib/supabase/server"
-import { getUrls } from "@/lib/storage"
+import { getThumbUrls } from "@/lib/storage"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent } from "@/components/ui/card"
@@ -67,7 +67,7 @@ export default async function Dashboard() {
     photoCount.set(p.listing_id, (photoCount.get(p.listing_id) ?? 0) + 1)
     if (!coverPath.has(p.listing_id)) coverPath.set(p.listing_id, p.storage_path)
   }
-  const coverUrls = await getUrls("originals", [...coverPath.values()])
+  const coverUrls = await getThumbUrls("originals", [...coverPath.values()])
 
   return (
     <main className="mx-auto max-w-7xl p-4 sm:p-6 lg:p-8">
@@ -139,6 +139,10 @@ export default async function Dashboard() {
                       <img
                         src={cover}
                         alt={l.address}
+                        loading="lazy"
+                        decoding="async"
+                        width={480}
+                        height={360}
                         className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.02]"
                       />
                     ) : (

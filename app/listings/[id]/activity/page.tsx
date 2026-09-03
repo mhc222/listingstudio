@@ -2,7 +2,7 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
-import { getUrls } from "@/lib/storage"
+import { getThumbUrls, getUrls } from "@/lib/storage"
 import { JobFeed, type ComplianceNote, type JobRow } from "../job-feed"
 import { type PhotoRow } from "../photo-grid"
 import { ToolsNav } from "../tools-nav"
@@ -40,9 +40,11 @@ export default async function ActivityPage({ params }: { params: Promise<{ id: s
   const listingStatus = listingStatuses.get(id)!
 
   const originalUrls = await getUrls("originals", (photos ?? []).map((photo) => photo.storage_path), 3600, storageClient)
+  const originalThumbUrls = await getThumbUrls("originals", (photos ?? []).map((photo) => photo.storage_path), storageClient)
   const withUrls: PhotoRow[] = (photos ?? []).map((photo) => ({
     ...photo,
     url: originalUrls[photo.storage_path] ?? null,
+    thumb_url: originalThumbUrls[photo.storage_path] ?? null,
   }))
   const regular = withUrls.filter((photo) => !photo.is_floor_plan)
   const floorPlans = withUrls.filter((photo) => photo.is_floor_plan)
@@ -51,6 +53,7 @@ export default async function ActivityPage({ params }: { params: Promise<{ id: s
     job.file_groups.flatMap((group) => group.output_versions.map((version) => version.storage_path))
   )
   const outputUrls = await getUrls("outputs", outputPaths, 3600, storageClient)
+  const outputThumbUrls = await getThumbUrls("outputs", outputPaths, storageClient)
   const versionIds = (jobs ?? []).flatMap((job) =>
     job.file_groups.flatMap((group) => group.output_versions.map((version) => version.id))
   )
@@ -80,6 +83,7 @@ export default async function ActivityPage({ params }: { params: Promise<{ id: s
         qa_note: version.qa_note,
         compliance: complianceById.get(version.id) ?? null,
         url: outputUrls[version.storage_path] ?? null,
+        thumb_url: outputThumbUrls[version.storage_path] ?? null,
       })),
     })),
   }))

@@ -1,7 +1,7 @@
 import Link from "next/link"
 import { notFound } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
-import { getUrls } from "@/lib/storage"
+import { getThumbUrls } from "@/lib/storage"
 import { ToolsNav } from "../tools-nav"
 import { CopyPanel, type CopyRow } from "./copy-panel"
 
@@ -21,7 +21,7 @@ export default async function CopyPage({ params }: { params: Promise<{ id: strin
   if (!listing) notFound()
 
   const regular = (photos ?? []).filter((p) => !p.is_floor_plan)
-  const urls = await getUrls("originals", regular.map((p) => p.storage_path))
+  const urls = await getThumbUrls("originals", regular.map((p) => p.storage_path))
   const photoRows = regular.map((p) => ({ id: p.id, url: urls[p.storage_path] ?? null }))
 
   return (

@@ -845,7 +845,7 @@ export function Composer({
                     >
                       {view.url && (
                         // eslint-disable-next-line @next/next/no-img-element -- signed listing-photo URL
-                        <img src={view.url} alt="" className="aspect-[4/3] w-full object-cover" />
+                        <img src={view.url} alt="" loading="lazy" decoding="async" width={480} height={360} className="aspect-[4/3] w-full object-cover" />
                       )}
                       <span className="absolute inset-x-0 bottom-0 truncate bg-black/65 px-1.5 py-1 text-[10px] text-white">
                         {selected ? "✓ " : ""}{view.sameRoom ? "Same room" : view.label}

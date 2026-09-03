@@ -1,7 +1,7 @@
 import Link from "next/link"
 import { notFound } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
-import { getUrls } from "@/lib/storage"
+import { getThumbUrls, getUrls } from "@/lib/storage"
 import { UploadPanel } from "./upload-panel"
 import { type PhotoRow } from "./photo-grid"
 import { type JobRow, type SampleRow, type ComplianceNote } from "./job-feed"
@@ -69,6 +69,7 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
   const listingStatus = listingStatuses.get(id)!
 
   const urls = await getUrls("originals", (photos ?? []).map((p) => p.storage_path))
+  const thumbUrls = await getThumbUrls("originals", (photos ?? []).map((p) => p.storage_path))
   const withUrls: PhotoRow[] = (photos ?? []).map((p) => ({
     ...p,
     exposure_time_seconds: p.exposure_time_seconds === null ? null : Number(p.exposure_time_seconds),
@@ -76,6 +77,7 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
     aperture_f_number: p.aperture_f_number === null ? null : Number(p.aperture_f_number),
     focal_length_mm: p.focal_length_mm === null ? null : Number(p.focal_length_mm),
     url: urls[p.storage_path] ?? null,
+    thumb_url: thumbUrls[p.storage_path] ?? null,
   })) as PhotoRow[]
   const inventoryPhotos = withUrls.filter((p) => !p.is_floor_plan)
   const memberIdsByGroup = new Map<string, string[]>()
@@ -112,6 +114,7 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
     j.file_groups.flatMap((fg) => fg.output_versions.map((v) => v.storage_path))
   )
   const outputUrls = await getUrls("outputs", outputPaths)
+  const outputThumbUrls = await getThumbUrls("outputs", outputPaths)
 
   // MLS compliance checklists (phase 21) fetched separately: the column lands
   // in migration 0008, and putting it in the nested select above would error
@@ -146,6 +149,7 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
         qa_note: v.qa_note,
         compliance: complianceById.get(v.id) ?? null,
         url: outputUrls[v.storage_path] ?? null,
+        thumb_url: outputThumbUrls[v.storage_path] ?? null,
       })),
     })),
   }))

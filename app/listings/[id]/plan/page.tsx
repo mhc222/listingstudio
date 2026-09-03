@@ -1,7 +1,7 @@
 import Link from "next/link"
 import { notFound } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
-import { getUrls } from "@/lib/storage"
+import { getThumbUrls, getUrls } from "@/lib/storage"
 import { PhotoGrid, type PhotoRow } from "../photo-grid"
 import { ToolsNav } from "../tools-nav"
 import { PlanPanel } from "./plan-panel"
@@ -23,7 +23,8 @@ export default async function PlanPage({ params }: { params: Promise<{ id: strin
 
   const floorPlans = (photos ?? []).filter((p) => p.is_floor_plan)
   const urls = await getUrls("originals", floorPlans.map((p) => p.storage_path))
-  const withUrls: PhotoRow[] = floorPlans.map((p) => ({ ...p, url: urls[p.storage_path] ?? null }))
+  const thumbUrls = await getThumbUrls("originals", floorPlans.map((p) => p.storage_path))
+  const withUrls: PhotoRow[] = floorPlans.map((p) => ({ ...p, url: urls[p.storage_path] ?? null, thumb_url: thumbUrls[p.storage_path] ?? null }))
 
   return (
     <main className="mx-auto max-w-6xl p-6">

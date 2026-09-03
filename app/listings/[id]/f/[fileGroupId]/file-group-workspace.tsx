@@ -69,6 +69,7 @@ export type WorkspaceFileGroup = {
     review_note: string | null
     reviewed_at: string | null
     url: string | null
+    thumb_url?: string | null
   }[]
   final: {
     id: string
@@ -415,7 +416,7 @@ export function FileGroupWorkspace({ listingId, fg, before, siblings, initialVer
                 title={`Open photo ${index + 1}`}>
                 {sibling.url && (
                   // eslint-disable-next-line @next/next/no-img-element -- signed listing-photo URL
-                  <img src={sibling.url} alt="" className="h-full w-full object-cover" />
+                  <img src={sibling.url} alt="" loading="lazy" decoding="async" width={480} height={360} className="h-full w-full object-cover" />
                 )}
                 <span className="absolute bottom-0 right-0 bg-black/65 px-1 text-[9px] text-white">{index + 1}</span>
               </Link>
@@ -568,7 +569,7 @@ export function FileGroupWorkspace({ listingId, fg, before, siblings, initialVer
                   >
                     <span className="block aspect-[4/3] overflow-hidden rounded bg-muted">
                       {/* eslint-disable-next-line @next/next/no-img-element -- signed output URLs expire */}
-                      {version.url && <img src={version.url} alt="" className="h-full w-full object-cover" />}
+                      {version.url && <img src={version.thumb_url ?? version.url} alt="" loading="lazy" decoding="async" width={480} height={360} className="h-full w-full object-cover" />}
                     </span>
                     <span className="min-w-0">
                       <span className="flex items-center justify-between gap-2"><span className="truncate text-sm">{version.displayLabel}</span>{fg.final?.output_version_id === version.id && <span className="shrink-0 text-[10px] text-state-complete">Approved</span>}</span>

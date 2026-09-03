@@ -87,7 +87,7 @@ export function PlanPanel({ listingId, plans }: { listingId: string; plans: Phot
           >
             {p.url && (
               // eslint-disable-next-line @next/next/no-img-element -- signed URLs expire; next/image caching fights that
-              <img src={p.url} alt="" className="h-16 w-24 object-cover" />
+              <img src={p.thumb_url ?? p.url} alt="" loading="lazy" decoding="async" width={480} height={360} className="h-16 w-24 object-cover" />
             )}
           </button>
         ))}

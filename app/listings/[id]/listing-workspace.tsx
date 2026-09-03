@@ -429,7 +429,7 @@ export function ListingWorkspace({
                   .sort((a, b) => Number(b.room_id === openPhoto.room_id) - Number(a.room_id === openPhoto.room_id))
                   .map((photo) => ({
                     id: photo.id,
-                    url: photo.url,
+                    url: photo.thumb_url ?? photo.url,
                     label: roomLabels.get(photo.room_id ?? "") ?? "Other room",
                     sameRoom: Boolean(openPhoto.room_id && photo.room_id === openPhoto.room_id),
                   }))}
@@ -468,8 +468,12 @@ export function ListingWorkspace({
                   // eslint-disable-next-line @next/next/no-img-element -- signed URLs expire; next/image caching fights that
                   <img
                     key={photo.id}
-                    src={photo.url}
+                    src={photo.thumb_url ?? photo.url}
                     alt="Selected listing photo"
+                    loading="lazy"
+                    decoding="async"
+                    width={480}
+                    height={360}
                     className="aspect-[4/3] w-full rounded-lg object-cover shadow-lg"
                   />
                 ) : null

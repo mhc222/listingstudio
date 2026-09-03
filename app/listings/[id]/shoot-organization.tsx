@@ -187,7 +187,7 @@ export function ShootOrganization({
                       <div key={photoId} className="flex min-w-0 items-center gap-2 rounded-lg bg-background/75 p-2">
                         {photo.url && (
                           // eslint-disable-next-line @next/next/no-img-element -- short-lived signed Storage URL
-                          <img src={photo.url} alt="" className="h-14 w-16 shrink-0 rounded-md object-cover" />
+                          <img src={photo.thumb_url ?? photo.url} alt="" loading="lazy" decoding="async" width={480} height={360} className="h-14 w-16 shrink-0 rounded-md object-cover" />
                         )}
                         <div className="min-w-0 flex-1">
                           <div className="truncate text-xs font-medium">{photo.original_filename || `Exposure ${index + 1}`}</div>
@@ -245,7 +245,7 @@ export function ShootOrganization({
                   <input type="checkbox" checked={manual.includes(photo.id)} onChange={() => setManual((current) => current.includes(photo.id) ? current.filter((id) => id !== photo.id) : current.length < 9 ? [...current, photo.id] : current)} />
                   {photo.url && (
                     // eslint-disable-next-line @next/next/no-img-element -- short-lived signed Storage URL
-                    <img src={photo.url} alt="" className="h-10 w-12 rounded object-cover" />
+                    <img src={photo.thumb_url ?? photo.url} alt="" loading="lazy" decoding="async" width={480} height={360} className="h-10 w-12 rounded object-cover" />
                   )}
                   <span className="truncate">{photo.original_filename || photo.id.slice(0, 8)}</span>
                 </label>

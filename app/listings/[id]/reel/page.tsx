@@ -2,7 +2,7 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 import { promises as fs } from "node:fs"
 import { createClient } from "@/lib/supabase/server"
-import { getUrls } from "@/lib/storage"
+import { getThumbUrls } from "@/lib/storage"
 import { MUSIC_DIR } from "@/lib/reel"
 import { ToolsNav } from "../tools-nav"
 import { ReelPanel, type ReelRecord, type ReelSource } from "./reel-panel"
@@ -32,11 +32,11 @@ export default async function ReelPage({ params }: { params: Promise<{ id: strin
   if (!listing) notFound()
 
   const regular = (photos ?? []).filter((p) => !p.is_floor_plan)
-  const photoUrls = await getUrls("originals", regular.map((p) => p.storage_path))
+  const photoUrls = await getThumbUrls("originals", regular.map((p) => p.storage_path))
   const outputPaths = (jobs ?? []).flatMap((j) =>
     j.file_groups.flatMap((fg) => fg.output_versions.map((v) => v.storage_path))
   )
-  const outputUrls = await getUrls("outputs", outputPaths)
+  const outputUrls = await getThumbUrls("outputs", outputPaths)
 
   // reel sources: latest output version per file group first, then originals
   const latestOutputs: ReelSource[] = (jobs ?? []).flatMap((j) =>

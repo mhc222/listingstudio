@@ -1,7 +1,7 @@
 import Link from "next/link"
 import { notFound } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
-import { getUrls } from "@/lib/storage"
+import { getThumbUrls, getUrls } from "@/lib/storage"
 import type { PhotoRow } from "../photo-grid"
 import { ToolsNav } from "../tools-nav"
 import { AerialPanel } from "./aerial-panel"
@@ -22,7 +22,8 @@ export default async function AerialPage({ params }: { params: Promise<{ id: str
 
   const regular = (photos ?? []).filter((p) => !p.is_floor_plan)
   const urls = await getUrls("originals", regular.map((p) => p.storage_path))
-  const withUrls: PhotoRow[] = regular.map((p) => ({ ...p, url: urls[p.storage_path] ?? null }))
+  const thumbUrls = await getThumbUrls("originals", regular.map((p) => p.storage_path))
+  const withUrls: PhotoRow[] = regular.map((p) => ({ ...p, url: urls[p.storage_path] ?? null, thumb_url: thumbUrls[p.storage_path] ?? null }))
 
   return (
     <main className="mx-auto max-w-6xl p-6">

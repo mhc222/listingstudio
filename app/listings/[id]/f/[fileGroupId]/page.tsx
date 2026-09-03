@@ -3,7 +3,7 @@ import { notFound } from "next/navigation"
 import { MODELS, type ProviderKey } from "@/config/models"
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
-import { getUrls } from "@/lib/storage"
+import { getThumbUrls, getUrls } from "@/lib/storage"
 import type { ComplianceNote } from "../../job-feed"
 import { EDIT_TYPES } from "../../edit-types"
 import { FileGroupWorkspace, type WorkspaceFileGroup } from "./file-group-workspace"
@@ -84,13 +84,14 @@ export default async function FileGroupPage({ params, searchParams }: {
     : { data: [] }
   const siblingPhotoById = new Map((siblingPhotos ?? []).map((photo) => [photo.id, photo]))
   const storageClient = createAdminClient()
-  const siblingOriginalUrls = await getUrls("originals", (siblingPhotos ?? []).map((photo) => photo.storage_path), 3600, storageClient)
+  const siblingOriginalUrls = await getThumbUrls("originals", (siblingPhotos ?? []).map((photo) => photo.storage_path), storageClient)
   const primary = siblingPhotoById.get(currentRaw.primary_photo_id)
   const beforeUrls = primary ? await getUrls("originals", [primary.storage_path], 3600, storageClient) : {}
   const before = { url: primary ? beforeUrls[primary.storage_path] ?? null : null, width: primary?.width ?? null }
 
   const lineageVersions = lineageGroups.flatMap((group) => group.output_versions.map((version) => ({ group, version })))
   const outputUrls = await getUrls("outputs", lineageVersions.map(({ version }) => version.storage_path), 3600, storageClient)
+  const outputThumbUrls = await getThumbUrls("outputs", lineageVersions.map(({ version }) => version.storage_path), storageClient)
   const complianceById = new Map<string, ComplianceNote>()
   const reviewById = new Map<string, {
     review_state: "unreviewed" | "needs_changes" | "approved"
@@ -148,6 +149,7 @@ export default async function FileGroupPage({ params, searchParams }: {
       review_note: reviewById.get(version.id)?.review_note ?? null,
       reviewed_at: reviewById.get(version.id)?.reviewed_at ?? null,
       url: outputUrls[version.storage_path] ?? null,
+      thumb_url: outputThumbUrls[version.storage_path] ?? null,
     })),
     final: selectedFinal ? {
       id: selectedFinal.id,

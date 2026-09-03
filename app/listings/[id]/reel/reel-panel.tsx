@@ -110,7 +110,7 @@ export function ReelPanel({
               >
                 {s.url ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={s.url} alt={s.label} className="size-full object-cover" />
+                  <img src={s.url} alt={s.label} loading="lazy" decoding="async" width={480} height={360} className="size-full object-cover" />
                 ) : (
                   <span className="text-xs">?</span>
                 )}
