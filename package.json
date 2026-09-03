@@ -22,7 +22,8 @@
     "test:refresh-discipline": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/test-refresh-discipline.mjs",
     "test:thumbnails": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/test-thumbnails.mjs",
     "test:background-uploads": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/test-background-uploads.mjs",
-    "backfill:thumbs": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types --env-file=.env.local scripts/backfill-thumbs.ts"
+    "backfill:thumbs": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types --env-file=.env.local scripts/backfill-thumbs.ts",
+    "e2e:background-uploads": "node scripts/e2e-background-uploads.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.122.0",
