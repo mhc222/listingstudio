@@ -57,9 +57,13 @@
 - [x] Phase 54 — Mobile intake/proofing and workflow-state hardening
 - [x] Phase 55 — Refresh discipline: stop the re-render and re-download storm (merged to main 2026-09-03 as 1a8f61a; no migration)
 - [x] Phase 56 — Image weight: thumbnails + stable signed URLs (merged to main 2026-09-03 as 0cdaedb; no migration; backfill run and Img test verified 2026-09-03)
-- [x] Phase 57 — Background uploads: finalize returns 202 + after(), cron recovery, placeholder tiles, 2 calls/photo (implemented on branch `phase-57-background-uploads` 2026-09-03; no migration; merge + manual test pending)
+- [x] Phase 57 — Background uploads: finalize returns 202 + after(), cron recovery, placeholder tiles, 2 calls/photo (fast-forward merged to main 2026-09-03 as 8305476; no migration; suites, tsc, lint and build re-verified in main; Matt's manual test pending)
 
-## ACTIVE HANDOFF — Phase 57 (background uploads) implemented on the worker branch; review, merge, manual test pending (2026-09-03)
+## ACTIVE HANDOFF — Phase 57 (background uploads) merged to main; Matt's manual test pending (2026-09-03)
+
+**Merge record (main agent, 2026-09-03):** reviewed the three gates (auth → ownership → atomic claim before the 202; deferred failure sets `failed` only while the row is still `finalizing`; sweep touches `finalizing` > 3 min capped at 20 and `reserved` > 24 h) and fast-forwarded main to `8305476`. In the main checkout: all 15 suites pass (background-uploads 64, intake 17, upload-queue 26, shoot-org 21, room-analysis 47, batch-scope 34, edit-presets 38, listing-status 26, proofing 42, delivery 49, versioning 47, scoped-rework 48, mobile 51, refresh-discipline 43, thumbnails 58), `npx tsc --noEmit` exit 0, `npm run lint` exit 0, `npm run build` exit 0. Dev server on :3000 was stopped for the build and restarted. Not pushed, not deployed, nothing run against the live DB. **Next:** Matt runs the manual test in PLAN.md (Phase 57); release stays `vercel --prod --yes` after Matt gives an explicit go.
+
+**Original worker handoff follows.**
 
 **Read this first.** Phase 57 is complete in code on branch `phase-57-background-uploads` (Herdr worktree): `cea8f10` server, `a0da6ae` client, `5622121` tests, plus this docs commit. Nothing was pushed, deployed, run against paid generation, or run against the live database (no live read either); no SQL changed; port 3000 and the main checkout were never touched. **Next for the main agent:** review the diff against the three gates in the previous handoff (finalize still auths + claims before returning: yes, `auth.getUser` → `getOwnedUploadItem` → `claimUploadItemForFinalize` → `after()`; the deferred body sets failed+error on throw, conditional on the row still being `finalizing`; the cron sweep caps at 20 and touches only `finalizing` rows older than 3 min and `reserved` rows older than 24 h), run the suites, stop port 3000 → `npm run build` in main → restart, fast-forward merge, then Matt runs the manual test in PLAN.md. Release stays `vercel --prod --yes` after Matt's explicit go.
 
