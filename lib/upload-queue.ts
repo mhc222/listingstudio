@@ -1,4 +1,6 @@
-import { validateUploadDeclaration } from "@/config/uploads"
+// relative .ts import (not "@/") so plain node can load this module for
+// scripts/test-background-uploads.mjs, as lib/storage.ts does since Phase 56
+import { validateUploadDeclaration } from "../config/uploads.ts"
 
 export const TUS_CHUNK_SIZE = 6 * 1024 * 1024
 export const MAX_CONCURRENT_UPLOADS = 3
@@ -11,6 +13,16 @@ export const UPLOAD_REFRESH_DRAIN_MS = 350
 // Whole-queue localStorage writes are synchronous; progress ticks persist on a
 // trailing throttle while every status transition and pagehide flushes at once.
 export const UPLOAD_PERSIST_THROTTLE_MS = 500
+// Phase 57 background finalize. The server answers finalize with 202 and
+// finishes after the response; while any item is finalizing the queue polls
+// its rows at the existing 5 s cadence and moves them to uploaded/failed.
+export const UPLOAD_FINALIZE_POLL_MS = UPLOAD_REFRESH_INTERVAL_MS
+export const UPLOAD_POLL_MAX_IDS = 50
+// Signed upload tokens from prepare/authorize last 7200 s; a token this close
+// to expiry is renewed before the transfer starts instead of failing mid-PUT.
+export const UPLOAD_TOKEN_RENEW_MARGIN_MS = 60_000
+export const BACKGROUND_UPLOAD_NOTICE =
+  "Uploads continue in the background. Once a file finishes transferring you can keep working or close this tab; the photo appears in the grid when it is ready."
 
 export type UploadKind = "photo" | "floor-plan"
 export type UploadServerStatus =
@@ -48,6 +60,19 @@ export type PersistedUploadItem = PreparedUploadItem & {
   transferComplete: boolean
   paused: boolean
   createdAt: string
+  // ISO time the signed upload token stops working (prepare/authorize
+  // expiresInSeconds); absent on rows persisted before Phase 57.
+  tokenExpiresAt?: string | null
+}
+
+export function uploadTokenExpired(
+  item: Pick<PersistedUploadItem, "token" | "tokenExpiresAt">,
+  now: number,
+  marginMs = UPLOAD_TOKEN_RENEW_MARGIN_MS
+) {
+  if (!item.token) return true
+  if (!item.tokenExpiresAt) return false
+  return Date.parse(item.tokenExpiresAt) - marginMs <= now
 }
 
 export function validateBrowserUpload(file: File, kind: UploadKind) {

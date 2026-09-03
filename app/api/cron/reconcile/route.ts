@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin"
 import { getStatus } from "@/lib/imaging"
 import { completeStep, handleGenerationError, kickQueued, type FileGroupRow } from "@/lib/orchestrator"
 import { renderReel } from "@/lib/reel"
+import { recoverStaleUploadItems } from "@/lib/intake-finalize"
 
 export const maxDuration = 300
 
@@ -65,5 +66,15 @@ export async function GET(req: Request) {
     results[`reel:${r.id}`] = "rendered"
   }
 
-  return NextResponse.json({ checked: stuck?.length ?? 0, results })
+  // upload sweep (Phase 57): re-run `finalizing` rows whose deferred body died
+  // (>3 min stale, cap 20) and fail `reserved` rows abandoned for 24 h
+  let uploads: Awaited<ReturnType<typeof recoverStaleUploadItems>> | { error: string }
+  try {
+    uploads = await recoverStaleUploadItems(db)
+    for (const [id, outcome] of Object.entries(uploads.finalizing)) results[`upload:${id}`] = outcome
+  } catch (e) {
+    uploads = { error: e instanceof Error ? e.message : "unknown" }
+  }
+
+  return NextResponse.json({ checked: stuck?.length ?? 0, results, uploads })
 }

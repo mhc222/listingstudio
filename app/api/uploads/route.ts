@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
+import { UPLOAD_POLL_MAX_IDS } from "@/lib/upload-queue"
+
+const UPLOAD_ITEM_COLUMNS =
+  "id, batch_id, photo_id, original_filename, declared_byte_size, declared_content_type, is_floor_plan, intake_path, status, error, finalized_at, created_at, updated_at"
 
 export async function GET(req: Request) {
   const supabase = await createClient()
@@ -20,6 +24,25 @@ export async function GET(req: Request) {
     .maybeSingle()
   if (!listing) return NextResponse.json({ error: "listing not found" }, { status: 404 })
 
+  // Phase 57: the queue polls specific items while they finalize in the
+  // background; their batch may already have closed, so look them up by id
+  // (RLS still scopes the read to the owner's rows).
+  const ids = (new URL(req.url).searchParams.get("ids") ?? "")
+    .split(",")
+    .filter(Boolean)
+    .slice(0, UPLOAD_POLL_MAX_IDS)
+  if (ids.length > 0) {
+    const { data: items, error } = await supabase
+      .from("upload_items")
+      .select(UPLOAD_ITEM_COLUMNS)
+      .in("id", ids)
+      .order("created_at", { ascending: true })
+    if (error) {
+      return NextResponse.json({ error: "could not load upload status" }, { status: 500 })
+    }
+    return NextResponse.json({ batches: [], items })
+  }
+
   const { data: batches, error: batchError } = await supabase
     .from("upload_batches")
     .select("id, status, created_at, updated_at")
@@ -36,9 +59,7 @@ export async function GET(req: Request) {
 
   const { data: items, error: itemError } = await supabase
     .from("upload_items")
-    .select(
-      "id, batch_id, photo_id, original_filename, declared_byte_size, declared_content_type, is_floor_plan, intake_path, status, error, finalized_at, created_at, updated_at"
-    )
+    .select(UPLOAD_ITEM_COLUMNS)
     .in("batch_id", batchIds)
     .order("created_at", { ascending: true })
   if (itemError) {

@@ -1,15 +1,15 @@
-import { NextResponse } from "next/server"
-import { materializeIntakeItem } from "@/lib/intake"
-import {
-  cleanupIntakeObject,
-  getOwnedUploadItem,
-  refreshUploadBatchStatus,
-} from "@/lib/intake-lifecycle"
+import { NextResponse, after } from "next/server"
+import { claimUploadItemForFinalize, finalizeUploadItem } from "@/lib/intake-finalize"
+import { cleanupIntakeObject, getOwnedUploadItem } from "@/lib/intake-lifecycle"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { createClient } from "@/lib/supabase/server"
 
 export const maxDuration = 120
 
+// Phase 57: auth, ownership, and the atomic claim stay on the request path;
+// the ~4 s materialize → RPC → cleanup body runs after the response inside
+// `after()`, so the client never waits on it. The reconcile cron re-runs any
+// row whose deferred body died (see lib/intake-finalize.ts).
 export async function POST(
   _req: Request,
   { params }: { params: Promise<{ itemId: string }> }
@@ -23,150 +23,56 @@ export async function POST(
 
   const item = await getOwnedUploadItem(supabase, itemId)
   if (!item) return NextResponse.json({ error: "upload item not found" }, { status: 404 })
-  if (item.status === "canceled") {
-    return NextResponse.json({ error: "upload item was canceled" }, { status: 409 })
-  }
 
   const admin = createAdminClient()
-  if (item.status === "complete") {
-    const cleaned = await cleanupIntakeObject(item, admin)
+  const complete = async () => {
+    const { data: latest } = await admin
+      .from("upload_items")
+      .select("photo_id, intake_path, intake_deleted_at")
+      .eq("id", item.id)
+      .maybeSingle()
+    const cleaned = await cleanupIntakeObject(
+      { id: item.id, intake_path: latest?.intake_path ?? item.intake_path, intake_deleted_at: latest?.intake_deleted_at ?? item.intake_deleted_at },
+      admin
+    )
     return NextResponse.json({
       itemId: item.id,
-      photoId: item.photo_id,
+      photoId: latest?.photo_id ?? item.photo_id,
       status: "complete",
       cleanupPending: !cleaned,
       idempotent: true,
     })
   }
 
-  const now = new Date().toISOString()
-  const { data: claimed, error: claimError } = await admin
-    .from("upload_items")
-    .update({ status: "finalizing", error: null, updated_at: now })
-    .eq("id", item.id)
-    .in("status", ["reserved", "failed"])
-    .select("status")
-    .maybeSingle()
-  if (claimError) {
+  let claim
+  try {
+    claim = await claimUploadItemForFinalize(admin, item)
+  } catch {
     return NextResponse.json({ error: "could not begin finalization" }, { status: 500 })
   }
-  if (!claimed && item.status !== "finalizing") {
-    const { data: latest } = await admin
-      .from("upload_items")
-      .select("status")
-      .eq("id", item.id)
-      .maybeSingle()
-    if (latest?.status === "canceled") {
+
+  switch (claim) {
+    case "canceled":
       return NextResponse.json({ error: "upload item was canceled" }, { status: 409 })
-    }
-    if (latest?.status === "complete") {
-      const cleaned = await cleanupIntakeObject(item, admin)
-      return NextResponse.json({
-        itemId: item.id,
-        photoId: item.photo_id,
-        status: "complete",
-        cleanupPending: !cleaned,
-        idempotent: true,
-      })
-    }
-    if (latest?.status !== "finalizing") {
+    case "conflict":
       return NextResponse.json({ error: "upload item state changed; retry" }, { status: 409 })
-    }
-  }
-
-  try {
-    // The atomic RPC normally makes photo creation + item completion
-    // indivisible. Retain a recovery path for a row-created/status-not-finished
-    // checkpoint (for example, data written by an older finalizer) without
-    // requiring the already-cleaned intake object to still exist.
-    const materialized =
-      item.status === "finalizing" &&
-      item.canonical_storage_path &&
-      item.source_content_type &&
-      item.canonical_content_type &&
-      item.source_byte_size
-        ? {
-            sourceStoragePath: item.source_storage_path,
-            canonicalStoragePath: item.canonical_storage_path,
-            sourceContentType: item.source_content_type,
-            canonicalContentType: item.canonical_content_type,
-            sourceByteSize: item.source_byte_size,
-            width: item.width,
-            height: item.height,
-            photoMetadata: {
-              capturedAt: null,
-              exposureTimeSeconds: null,
-              exposureBiasEv: null,
-              apertureFNumber: null,
-              iso: null,
-              focalLengthMm: null,
-              cameraMake: null,
-              cameraModel: null,
-              lensModel: null,
-              sourceMetadata: {},
-            },
-          }
-        : await materializeIntakeItem(item, admin)
-    const { data: photoId, error } = await admin.rpc("finalize_upload_item", {
-      p_item_id: item.id,
-      p_user_id: user.id,
-      p_source_storage_path: materialized.sourceStoragePath,
-      p_canonical_storage_path: materialized.canonicalStoragePath,
-      p_source_content_type: materialized.sourceContentType,
-      p_canonical_content_type: materialized.canonicalContentType,
-      p_source_byte_size: materialized.sourceByteSize,
-      p_width: materialized.width,
-      p_height: materialized.height,
-      p_captured_at: materialized.photoMetadata.capturedAt,
-      p_exposure_time_seconds: materialized.photoMetadata.exposureTimeSeconds,
-      p_exposure_bias_ev: materialized.photoMetadata.exposureBiasEv,
-      p_aperture_f_number: materialized.photoMetadata.apertureFNumber,
-      p_iso: materialized.photoMetadata.iso,
-      p_focal_length_mm: materialized.photoMetadata.focalLengthMm,
-      p_camera_make: materialized.photoMetadata.cameraMake,
-      p_camera_model: materialized.photoMetadata.cameraModel,
-      p_lens_model: materialized.photoMetadata.lensModel,
-      p_source_metadata: materialized.photoMetadata.sourceMetadata,
-    })
-    if (error) throw error
-
-    const latest = (await getOwnedUploadItem(supabase, item.id)) ?? item
-    const cleaned = await cleanupIntakeObject(latest, admin)
-    await refreshUploadBatchStatus(item.batch_id, admin)
-    return NextResponse.json({
-      itemId: item.id,
-      photoId,
-      status: "complete",
-      cleanupPending: !cleaned,
-      idempotent: false,
-    })
-  } catch (error) {
-    const { data: latest } = await admin
-      .from("upload_items")
-      .select("status, photo_id, intake_deleted_at, intake_path")
-      .eq("id", item.id)
-      .maybeSingle()
-
-    if (latest?.status === "complete") {
-      const cleaned = await cleanupIntakeObject(
-        { id: item.id, intake_path: latest.intake_path, intake_deleted_at: latest.intake_deleted_at },
-        admin
+    case "complete":
+      return complete()
+    case "in-progress":
+      return NextResponse.json(
+        { itemId: item.id, photoId: item.photo_id, status: "finalizing", idempotent: true },
+        { status: 202 }
       )
-      return NextResponse.json({
-        itemId: item.id,
-        photoId: latest.photo_id,
-        status: "complete",
-        cleanupPending: !cleaned,
-        idempotent: true,
-      })
-    }
-
-    const message = error instanceof Error ? error.message : "finalization failed"
-    await admin
-      .from("upload_items")
-      .update({ status: "failed", error: message.slice(0, 1000), updated_at: new Date().toISOString() })
-      .eq("id", item.id)
-      .eq("status", "finalizing")
-    return NextResponse.json({ error: message }, { status: 422 })
+    case "claimed":
+    case "reclaimed":
+      after(() =>
+        finalizeUploadItem(item.id, user.id, admin).catch((error) =>
+          console.error(`deferred finalize ${item.id} crashed`, error)
+        )
+      )
+      return NextResponse.json(
+        { itemId: item.id, photoId: item.photo_id, status: "finalizing", reclaimed: claim === "reclaimed" },
+        { status: 202 }
+      )
   }
 }
