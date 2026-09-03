@@ -821,6 +821,8 @@ The implementation arc below is approved for planning, not pre-authorized as one
 
 ## Phase 57 — Background uploads: never make Matt wait on finalize
 
+**Status:** Approved by Matt 2026-09-03; implemented on branch `phase-57-background-uploads` the same day (three code commits + docs, see PROGRESS.md handoff). No migration. Awaiting review, merge, and Matt's manual test below.
+
 **Why (Matt, 2026-09-03):** "it doesn't matter, let's just do background uploads and not make it load." Today each photo does ~4.3 s of server work in `POST /api/uploads/[itemId]/finalize` (download 5–7 MB from intake, sniff, copy to originals, EXIF, rotate if needed, thumb, `finalize_upload_item` RPC, cleanup, batch refresh) while the client holds one of `MAX_CONCURRENT_UPLOADS = 3` slots and shows a spinner. Ten photos ≈ 15 s of watching; forty ≈ 1 min. BoxBrownie never made him watch. The goal is: drop files, see them in the grid immediately, keep working or close the tab, and the real photos appear on their own.
 
 **Work items**
