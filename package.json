@@ -21,6 +21,7 @@
     "test:mobile-workflow": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/test-mobile-workflow.mjs",
     "test:refresh-discipline": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/test-refresh-discipline.mjs",
     "test:thumbnails": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/test-thumbnails.mjs",
+    "test:background-uploads": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/test-background-uploads.mjs",
     "backfill:thumbs": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types --env-file=.env.local scripts/backfill-thumbs.ts"
   },
   "dependencies": {

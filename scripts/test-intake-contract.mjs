@@ -13,6 +13,7 @@ function checkStaticContract() {
   const migration = read("supabase/migrations/0009_reliable_intake.sql")
   const prepare = read("app/api/uploads/prepare/route.ts")
   const finalize = read("app/api/uploads/[itemId]/finalize/route.ts")
+  const finalizeLib = read("lib/intake-finalize.ts")
   const cancel = read("app/api/uploads/[itemId]/cancel/route.ts")
   const intake = read("lib/intake.ts")
 
@@ -27,7 +28,9 @@ function checkStaticContract() {
     [migration, "photos_default_source_path", "legacy upload compatibility"],
     [prepare, "createSignedUploadUrl", "direct upload authorization"],
     [prepare, "MAX_UPLOAD_FILES", "central selection limit"],
-    [finalize, "materializeIntakeItem", "server-side verification/finalization"],
+    // Phase 57: the verification/finalization body runs after the 202 response
+    [finalizeLib, "materialize(item, admin)", "server-side verification/finalization"],
+    [finalize, "finalizeUploadItem(item.id, user.id, admin)", "deferred finalization body"],
     [finalize, "idempotent: true", "lost-response retry"],
     [cancel, 'in("status", ["reserved", "failed"])', "conditional cancellation"],
     [intake, "sniffContentType", "magic-byte type validation"],
@@ -188,11 +191,35 @@ async function liveContract({ baseUrl, heic }) {
     while (offset < bytes.byteLength) await patchChunk()
   }
 
-  const finalize = async (item, expectedStatus = 200) => {
+  // Phase 57: finalize answers 202 and finishes in the background; poll the
+  // row until it settles and assert the outcome instead of an HTTP status.
+  const settle = async (item) => {
+    const deadline = Date.now() + 90_000
+    while (Date.now() < deadline) {
+      const { items } = await responseJson(
+        await api(`/api/uploads?listingId=${listing.id}&ids=${item.id}`)
+      )
+      const row = items?.[0]
+      if (row && row.status !== "finalizing") return row
+      await new Promise((resolve) => setTimeout(resolve, 1000))
+    }
+    throw new Error(`finalize ${item.id}: still finalizing after 90 s`)
+  }
+  const finalize = async (item, expectedOutcome = "complete") => {
     const response = await api(`/api/uploads/${item.id}/finalize`, { method: "POST", body: "{}" })
     const body = await response.json().catch(() => ({}))
-    assert(response.status === expectedStatus, `finalize ${item.id}: ${response.status} ${body.error ?? ""}`)
-    return body
+    assert([200, 202].includes(response.status), `finalize ${item.id}: ${response.status} ${body.error ?? ""}`)
+    if (response.status === 200) {
+      assert(body.status === "complete" && expectedOutcome === "complete", `finalize ${item.id}: synchronous ${body.status}`)
+      return body
+    }
+    assert(body.status === "finalizing", `finalize ${item.id}: 202 without finalizing status`)
+    const row = await settle(item)
+    assert(
+      row.status === expectedOutcome,
+      `finalize ${item.id}: settled as ${row.status} (${row.error ?? ""}), expected ${expectedOutcome}`
+    )
+    return { ...body, status: row.status, photoId: row.photo_id, error: row.error, cleanupPending: false }
   }
 
   const cancel = async (item) =>
@@ -255,8 +282,13 @@ async function liveContract({ baseUrl, heic }) {
     })
     assert(directFinalize.error, "authenticated clients can invoke the privileged finalizer")
 
-    await admin.from("upload_items").update({ status: "finalizing" }).eq("id", large.id)
+    // a stale finalizing row (older than FINALIZE_STALE_MS) is re-claimed and re-run
+    await admin
+      .from("upload_items")
+      .update({ status: "finalizing", updated_at: new Date(Date.now() - 10 * 60_000).toISOString() })
+      .eq("id", large.id)
     const recovered = await finalize(large)
+    assert(recovered.reclaimed === true, "stale finalizing row was not re-claimed")
     assert(recovered.status === "complete", "row-created/status-not-finished retry did not converge")
 
     await admin.storage.from("intake").upload(large.intakePath, jpeg, { contentType: "image/jpeg" })
@@ -320,7 +352,7 @@ async function liveContract({ baseUrl, heic }) {
     const spoof = Buffer.alloc(64, 1)
     const spoofed = await prepare({ name: "spoofed.jpg", size: spoof.byteLength, type: "image/jpeg" })
     await transfer(spoofed, spoof, "image/jpeg")
-    await finalize(spoofed, 422)
+    await finalize(spoofed, "failed")
     await cancel(spoofed)
 
     const tiny = await sharp({ create: { width: 8, height: 8, channels: 3, background: "red" } })
@@ -328,7 +360,7 @@ async function liveContract({ baseUrl, heic }) {
       .toBuffer()
     const wrongSize = await prepare({ name: "wrong-size.jpg", size: tiny.byteLength + 1, type: "image/jpeg" })
     await transfer(wrongSize, tiny, "image/jpeg")
-    await finalize(wrongSize, 422)
+    await finalize(wrongSize, "failed")
     await cancel(wrongSize)
 
     const canceled = await prepare({ name: "cancel-me.jpg", size: tiny.byteLength, type: "image/jpeg" })
