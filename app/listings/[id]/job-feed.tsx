@@ -2,8 +2,9 @@
 
 import { useEffect, useMemo } from "react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
+import { realtimeInFilters } from "@/lib/refresh-discipline"
+import { useDebouncedRefresh, useReconcilePoll } from "@/lib/use-live-refresh"
 import { StatePill } from "@/components/brand"
 import { Disclosure } from "@/components/ui/disclosure"
 import { EDIT_TYPES } from "./edit-types"
@@ -100,32 +101,30 @@ export function JobFeed({
   floorPlans?: PhotoRow[]
   jobs: JobRow[]
 }) {
-  const router = useRouter()
+  const refresh = useDebouncedRefresh()
+  const jobKey = jobs.map((job) => job.id).join(",")
+  const fileGroupKey = jobs.flatMap((job) => job.file_groups.map((group) => group.id)).join(",")
 
   const photoById = useMemo(
     () => new Map([...photos, ...floorPlans].map((p) => [p.id, p])),
     [photos, floorPlans]
   )
 
-  // live status: refetch server data whenever job state changes
+  // live status: refetch server data whenever this listing's job state changes
   useEffect(() => {
     const supabase = createClient()
     const channel = supabase
       .channel(`jobs-${listingId}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "file_groups" }, () =>
-        router.refresh()
-      )
-      .on("postgres_changes", { event: "*", schema: "public", table: "jobs" }, () =>
-        router.refresh()
-      )
-      .on("postgres_changes", { event: "*", schema: "public", table: "output_versions" }, () =>
-        router.refresh()
-      )
-      .subscribe()
+      .on("postgres_changes", { event: "*", schema: "public", table: "jobs", filter: `listing_id=eq.${listingId}` }, refresh)
+    for (const filter of realtimeInFilters("job_id", jobKey.split(",")))
+      channel.on("postgres_changes", { event: "*", schema: "public", table: "file_groups", filter }, refresh)
+    for (const filter of realtimeInFilters("file_group_id", fileGroupKey.split(",")))
+      channel.on("postgres_changes", { event: "*", schema: "public", table: "output_versions", filter }, refresh)
+    channel.subscribe()
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [listingId, router])
+  }, [fileGroupKey, jobKey, listingId, refresh])
 
   const hasActive = jobs.some(
     (job) =>
@@ -134,26 +133,7 @@ export function JobFeed({
       job.file_groups.some((group) => group.step_status === "running" || group.step_status === "queued")
   )
 
-  // Production finishes via fal webhooks. Localhost cannot receive those, so
-  // Activity polls the authenticated listing-scoped reconciliation endpoint.
-  useEffect(() => {
-    if (!hasActive) return
-    let cancelled = false
-    const reconcile = async () => {
-      try {
-        const response = await fetch(`/api/listings/${listingId}/reconcile`, { method: "POST" })
-        if (response.ok && !cancelled) router.refresh()
-      } catch {
-        // A transient offline tab should not turn status refresh into a UI error.
-      }
-    }
-    void reconcile()
-    const timer = window.setInterval(reconcile, 5000)
-    return () => {
-      cancelled = true
-      window.clearInterval(timer)
-    }
-  }, [hasActive, listingId, router])
+  useReconcilePoll({ listingId, active: hasActive, refresh })
 
   const hasReviewable = jobs.some((j) =>
     j.file_groups.some((fg) => fg.step_status === "complete" && fg.output_versions.length > 0)

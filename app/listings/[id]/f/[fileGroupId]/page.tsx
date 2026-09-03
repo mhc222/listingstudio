@@ -121,6 +121,7 @@ export default async function FileGroupPage({ params, searchParams }: {
 
   const workspaceFg: WorkspaceFileGroup = {
     id: currentRaw.id,
+    job_id: currentJob.id,
     primary_photo_id: currentRaw.primary_photo_id,
     current_step: currentRaw.current_step,
     step_status: currentRaw.step_status,

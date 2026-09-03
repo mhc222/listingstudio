@@ -189,7 +189,14 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
       </div>
 
       <div className="mt-6">
-        <ListingProgress listingId={id} summary={listingStatus} />
+        <ListingProgress
+          listingId={id}
+          summary={listingStatus}
+          scope={{
+            jobIds: (jobs ?? []).map((j) => j.id),
+            fileGroupIds: (jobs ?? []).flatMap((j) => j.file_groups.map((fg) => fg.id)),
+          }}
+        />
       </div>
 
       <div className="mt-6">

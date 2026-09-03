@@ -2,6 +2,15 @@ import { validateUploadDeclaration } from "@/config/uploads"
 
 export const TUS_CHUNK_SIZE = 6 * 1024 * 1024
 export const MAX_CONCURRENT_UPLOADS = 3
+// Phase 55 refresh discipline. A listing refresh re-runs every listing query
+// and re-downloads the full-resolution grid, so a running batch refreshes at
+// most once per interval (matching the 5 s status-poll rhythm) and once more,
+// almost immediately, when the batch drains.
+export const UPLOAD_REFRESH_INTERVAL_MS = 5000
+export const UPLOAD_REFRESH_DRAIN_MS = 350
+// Whole-queue localStorage writes are synchronous; progress ticks persist on a
+// trailing throttle while every status transition and pagehide flushes at once.
+export const UPLOAD_PERSIST_THROTTLE_MS = 500
 
 export type UploadKind = "photo" | "floor-plan"
 export type UploadServerStatus =

@@ -14,11 +14,15 @@ import {
   QUEUE_STATUS_LABEL,
   queueFingerprint,
   TUS_CHUNK_SIZE,
+  UPLOAD_PERSIST_THROTTLE_MS,
+  UPLOAD_REFRESH_DRAIN_MS,
+  UPLOAD_REFRESH_INTERVAL_MS,
   type UploadKind,
   type UploadQueueStatus,
   type UploadServerStatus,
   validateBrowserUpload,
 } from "@/lib/upload-queue"
+import { coalesce } from "@/lib/refresh-discipline"
 import { createClient } from "@/lib/supabase/client"
 import { workflowFailureMessage } from "@/lib/workflow-recovery"
 
@@ -72,6 +76,25 @@ function storageKey(listingId: string) {
 
 function errorMessage(error: unknown, fallback: string) {
   return error instanceof Error && error.message ? error.message : fallback
+}
+
+function isInFlight(item: QueueItem) {
+  return (
+    item.status === "uploading" ||
+    item.status === "finalizing" ||
+    (item.status === "waiting" && !item.paused && Boolean(item.file))
+  )
+}
+
+// Everything except the per-tick progress number: a change here is a status
+// transition worth persisting immediately, anything else is throttled.
+function persistSignature(items: QueueItem[]) {
+  return items
+    .map(
+      (item) =>
+        `${item.id}:${item.status}:${item.serverStatus}:${item.paused ? 1 : 0}:${item.transferComplete ? 1 : 0}:${item.uploadUrl ?? ""}:${item.error ?? ""}`
+    )
+    .join("|")
 }
 
 function transferErrorMessage(error: unknown) {
@@ -144,7 +167,8 @@ export function UploadQueue({ listingId }: { listingId: string }) {
   const activeUploads = useRef(new Map<string, tus.Upload>())
   const activeIds = useRef(new Set<string>())
   const itemsRef = useRef<QueueItem[]>([])
-  const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const hydratedRef = useRef(false)
+  const persistedSignature = useRef<string | null>(null)
   const [items, setItems] = useState<QueueItem[]>([])
   const [hydrated, setHydrated] = useState(false)
   const [recoveryTarget, setRecoveryTarget] = useState<string | "all" | null>(null)
@@ -178,10 +202,34 @@ export function UploadQueue({ listingId }: { listingId: string }) {
     setItems(next)
   }, [])
 
+  // One listing refresh per batch, not per photo: while other items are still
+  // in flight the refresh is throttled to the interval; the item that drains
+  // the batch refreshes almost immediately.
+  const refreshRunner = useMemo(
+    () => coalesce(() => router.refresh(), { minIntervalMs: UPLOAD_REFRESH_INTERVAL_MS }),
+    [router]
+  )
   const refreshPhotos = useCallback(() => {
-    if (refreshTimer.current) clearTimeout(refreshTimer.current)
-    refreshTimer.current = setTimeout(() => router.refresh(), 350)
-  }, [router])
+    const busy = itemsRef.current.some(isInFlight)
+    refreshRunner.request(busy ? undefined : { minIntervalMs: UPLOAD_REFRESH_DRAIN_MS })
+  }, [refreshRunner])
+
+  const persistQueue = useCallback(() => {
+    if (!hydratedRef.current) return
+    const persistent = itemsRef.current
+      .filter((item) => !item.localOnly)
+      .map((item) => {
+        const { file, localOnly, ...persisted } = item
+        void file
+        void localOnly
+        return persisted
+      })
+    localStorage.setItem(storageKey(listingId), JSON.stringify(persistent))
+  }, [listingId])
+  const persistRunner = useMemo(
+    () => coalesce(persistQueue, { minIntervalMs: UPLOAD_PERSIST_THROTTLE_MS }),
+    [persistQueue]
+  )
 
   const finalizeItem = useCallback(
     async (itemId: string) => {
@@ -273,10 +321,21 @@ export function UploadQueue({ listingId }: { listingId: string }) {
           updateItem(item.id, { uploadUrl: upload.url })
         },
         onProgress: (bytesSent, bytesTotal) => {
+          const progress = bytesTotal ? Math.min(100, Math.round((bytesSent / bytesTotal) * 100)) : 0
+          const current = itemsRef.current.find((candidate) => candidate.id === item.id)
+          if (
+            current &&
+            current.status === "uploading" &&
+            current.progress === progress &&
+            current.uploadUrl === upload.url &&
+            current.error === null
+          ) {
+            return
+          }
           updateItem(item.id, {
             status: "uploading",
             serverStatus: "reserved",
-            progress: bytesTotal ? Math.min(100, (bytesSent / bytesTotal) * 100) : 0,
+            progress,
             uploadUrl: upload.url,
             error: null,
           })
@@ -348,16 +407,27 @@ export function UploadQueue({ listingId }: { listingId: string }) {
 
   useEffect(() => {
     if (!hydrated) return
-    const persistent = items
-      .filter((item) => !item.localOnly)
-      .map((item) => {
-        const { file, localOnly, ...persisted } = item
-        void file
-        void localOnly
-        return persisted
-      })
-    localStorage.setItem(storageKey(listingId), JSON.stringify(persistent))
-  }, [hydrated, items, listingId])
+    hydratedRef.current = true
+    const signature = persistSignature(items)
+    if (signature !== persistedSignature.current) {
+      persistedSignature.current = signature
+      persistRunner.flush()
+    } else {
+      persistRunner.request()
+    }
+  }, [hydrated, items, persistRunner])
+
+  useEffect(() => {
+    if (!hydrated) return
+    const flush = () => persistRunner.flush()
+    window.addEventListener("pagehide", flush)
+    window.addEventListener("beforeunload", flush)
+    return () => {
+      window.removeEventListener("pagehide", flush)
+      window.removeEventListener("beforeunload", flush)
+      flush()
+    }
+  }, [hydrated, persistRunner])
 
   useEffect(() => {
     let disposed = false
@@ -483,10 +553,10 @@ export function UploadQueue({ listingId }: { listingId: string }) {
 
   useEffect(
     () => () => {
-      if (refreshTimer.current) clearTimeout(refreshTimer.current)
+      refreshRunner.cancel()
       for (const upload of activeUploads.current.values()) void upload.abort(false)
     },
-    []
+    [refreshRunner]
   )
 
   useEffect(() => {

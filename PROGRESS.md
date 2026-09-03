@@ -55,7 +55,25 @@
 - [x] Phase 52 — Version naming and variation comparison
 - [x] Phase 53 — Scoped conversational batch rework
 - [x] Phase 54 — Mobile intake/proofing and workflow-state hardening
-- [ ] Phase 55 — Refresh discipline: stop the re-render and re-download storm (approved 2026-09-03; no migration)
+- [x] Phase 55 — Refresh discipline: stop the re-render and re-download storm (local code complete 2026-09-03 on branch `phase-55-refresh-discipline`; no migration)
+
+## ACTIVE HANDOFF — Phase 55 complete on branch `phase-55-refresh-discipline` (2026-09-03)
+
+**Read this first.** Phase 55 (refresh discipline) is implemented and committed on the worktree branch `phase-55-refresh-discipline`, not on `main`. Nothing was pushed, merged, deployed, or run against paid generation, and no SQL changed. Production is unchanged since the upload-launcher hotfix. The three work items landed as: (1) `upload-queue.tsx` refreshes the listing at most once per 5 s while a batch is in flight and once within 350 ms when it drains, with progress rounded to whole percents and unchanged ticks skipped; (2) the queue persist is a 500 ms trailing throttle for progress plus an immediate flush on every status transition, `pagehide`, `beforeunload`, and unmount; (3) `job-feed.tsx`, `listing-progress.tsx`, and `file-group-workspace.tsx` share `lib/use-live-refresh.ts`, whose poll refreshes only when `/api/listings/[id]/reconcile` reports `changed > 0` or a different running-set `fingerprint`, and whose realtime refresh is debounced to 1 s. Realtime subscriptions are scoped by `job_id` / `file_group_id` `in` filters chunked to 40 ids (`lib/refresh-discipline.ts`), the dead `upload_batches`/`upload_items` subscriptions are deleted, and the pages pass `scope={{ jobIds, fileGroupIds }}` to `ListingProgress`. Decisions and the 5 s-vs-2 s cadence rationale are in `DECISIONS.md` under 2026-09-03 (phase 55).
+
+**Measured (scripts/test-refresh-discipline.mjs, counted mock of `router.refresh()` and `localStorage.setItem`, 1 s = 20 ms):**
+
+| Path | Before | After |
+|---|---|---|
+| 10-photo upload, one finalize every 2.7 s | 10 refreshes | 6 refreshes |
+| 10-photo upload, one finalize every 0.5 s | 10 refreshes | 2 refreshes |
+| 8 s of three concurrent uploads | 429 persist writes | 22 persist writes |
+
+**Verified commands (all in the worktree):** `npm run test:refresh-discipline` (43 assertions) and the Phase 44–54 scripts `test:upload-queue` 26, `test:shoot-organization` 21, `test:room-analysis` 47, `test:batch-scope` 34, `test:edit-presets` 38, `test:listing-status` 26, `test:proofing` 42, `test:delivery` 49, `test:versioning` 47, `test:scoped-rework` 48, `test:mobile-workflow` 51, all passing; `npx tsc --noEmit` clean; `npm run lint` clean; production build compiled successfully with 68 routes. **Not run:** `test:intake` (Phase 43) because it signs into the live Supabase project with the service role, writes fixture rows, and POSTs to the port-3000 server, which runs the main checkout, not this branch; the intake routes were not touched by Phase 55. **Build caveat:** `npm run build` (Turbopack) fails in this worktree with `Symlink node_modules is invalid, it points out of the filesystem root` because `node_modules` is a symlink into the main checkout, and `npx next build` (webpack) fails on konva's optional `canvas` import; the passing build used a temporary `turbopack: { root: "/Users/mattcronin" }` in `next.config.ts` that was reverted before commit. In the main checkout `npm run build` needs no override. Port 3000 (Matt's dev server, main checkout) was never stopped or touched; no server was started on 3100.
+
+**Manual test (Matt), on the main checkout after merging the branch:** upload 10 real photos to a listing with devtools open: the grid should refresh a handful of times, images should not reload per photo, and progress bars should move by whole percents with no long-task warnings from the persist path. Open a finished result and leave it idle for a minute: no `router.refresh()` re-render and no polling requests at all (the poll only runs while a step is in flight). Run one small edit (paid, only if you choose): the result should appear within one 5 s poll of completion without a manual reload. Reload mid-upload and confirm the queue still restores with the latest saved statuses.
+
+**Next action:** review and merge `phase-55-refresh-discipline` into `main` (or cherry-pick the single commit), run `npm run build` there, then `/clear`. Follow-ups deliberately left out of Phase 55: thumbnails and signed-URL caching (next phase, the largest remaining win), output resolution/upscale, batch `/api/jobs` inserts, reservation GC, bulk approve, and the still-unfiltered realtime subscriptions in `dashboard-live.tsx`, `proofing-workspace.tsx`, and `reel-panel.tsx`.
 
 ## ACTIVE HANDOFF — Reviews complete, Phase 55 approved (2026-09-03)
 

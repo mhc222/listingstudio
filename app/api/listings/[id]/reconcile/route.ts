@@ -32,7 +32,7 @@ export async function POST(
   const db = createAdminClient()
   const { data: listingJobs } = await db.from("jobs").select("id").eq("listing_id", id)
   const jobIds = (listingJobs ?? []).map((job) => job.id)
-  if (jobIds.length === 0) return NextResponse.json({ checked: 0, changed: 0 })
+  if (jobIds.length === 0) return NextResponse.json({ checked: 0, changed: 0, fingerprint: "" })
 
   const { data: running } = await db
     .from("file_groups")
@@ -41,9 +41,16 @@ export async function POST(
     .eq("step_status", "running")
     .returns<FileGroupRow[]>()
 
+  // Phase 55: the client refreshes only when this call settled a step or the
+  // set of still-running groups differs from its previous poll, which is how a
+  // webhook-driven completion between polls still surfaces within one interval.
   let changed = 0
+  const stillRunning: string[] = []
   for (const fg of running ?? []) {
-    if (!fg.fal_request_id) continue
+    if (!fg.fal_request_id) {
+      stillRunning.push(`${fg.id}:${fg.current_step}`)
+      continue
+    }
     const status = await getStatus(fg.provider, fg.fal_request_id)
     if (status === "COMPLETED") {
       await completeStep(db, fg)
@@ -51,8 +58,14 @@ export async function POST(
     } else if (status !== "IN_QUEUE" && status !== "IN_PROGRESS") {
       await handleGenerationError(db, fg, `fal status: ${status}`)
       changed += 1
+    } else {
+      stillRunning.push(`${fg.id}:${fg.current_step}`)
     }
   }
 
-  return NextResponse.json({ checked: running?.length ?? 0, changed })
+  return NextResponse.json({
+    checked: running?.length ?? 0,
+    changed,
+    fingerprint: stillRunning.sort().join("|"),
+  })
 }

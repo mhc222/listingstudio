@@ -2,13 +2,18 @@
 
 import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import {
   LISTING_STATUS_ORDER,
   type ListingStatusKey,
   type ListingStatusSummary,
 } from "@/lib/listing-status"
+import { realtimeInFilters } from "@/lib/refresh-discipline"
+import { useDebouncedRefresh, useReconcilePoll } from "@/lib/use-live-refresh"
+
+// file_groups and output_versions carry no listing_id, so the listing scope
+// is the listing's job ids and FileGroup ids, supplied by the server page.
+export type ListingLiveScope = { jobIds: string[]; fileGroupIds: string[] }
 
 const LABELS: Record<ListingStatusKey, string> = {
   uploading: "Uploading",
@@ -22,13 +27,17 @@ const LABELS: Record<ListingStatusKey, string> = {
 export function ListingProgress({
   listingId,
   summary,
+  scope,
   compact = false,
 }: {
   listingId: string
   summary: ListingStatusSummary
+  scope: ListingLiveScope
   compact?: boolean
 }) {
-  const router = useRouter()
+  const refresh = useDebouncedRefresh()
+  const jobKey = scope.jobIds.join(",")
+  const fileGroupKey = scope.fileGroupIds.join(",")
   const [filter, setFilter] = useState<ListingStatusKey | "all">(
     summary.counts.needs_attention ? "needs_attention" : "all"
   )
@@ -38,41 +47,25 @@ export function ListingProgress({
   )
   const hasActiveGeneration = summary.counts.queued + summary.counts.editing > 0
 
+  // upload_batches / upload_items are not in the realtime publication, so
+  // their former subscriptions never fired; the upload queue owns that refresh.
   useEffect(() => {
     const supabase = createClient()
-    const refresh = () => router.refresh()
     const channel = supabase
       .channel(`listing-progress-${listingId}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "upload_batches", filter: `listing_id=eq.${listingId}` }, refresh)
-      .on("postgres_changes", { event: "*", schema: "public", table: "upload_items" }, refresh)
       .on("postgres_changes", { event: "*", schema: "public", table: "photo_groups", filter: `listing_id=eq.${listingId}` }, refresh)
       .on("postgres_changes", { event: "*", schema: "public", table: "room_analysis_runs", filter: `listing_id=eq.${listingId}` }, refresh)
       .on("postgres_changes", { event: "*", schema: "public", table: "room_proposals", filter: `listing_id=eq.${listingId}` }, refresh)
       .on("postgres_changes", { event: "*", schema: "public", table: "jobs", filter: `listing_id=eq.${listingId}` }, refresh)
-      .on("postgres_changes", { event: "*", schema: "public", table: "file_groups" }, refresh)
-      .on("postgres_changes", { event: "*", schema: "public", table: "output_versions" }, refresh)
-      .subscribe()
+    for (const filter of realtimeInFilters("job_id", jobKey.split(",")))
+      channel.on("postgres_changes", { event: "*", schema: "public", table: "file_groups", filter }, refresh)
+    for (const filter of realtimeInFilters("file_group_id", fileGroupKey.split(",")))
+      channel.on("postgres_changes", { event: "*", schema: "public", table: "output_versions", filter }, refresh)
+    channel.subscribe()
     return () => { void supabase.removeChannel(channel) }
-  }, [listingId, router])
+  }, [fileGroupKey, jobKey, listingId, refresh])
 
-  useEffect(() => {
-    if (!hasActiveGeneration) return
-    let cancelled = false
-    const reconcile = async () => {
-      try {
-        const response = await fetch(`/api/listings/${listingId}/reconcile`, { method: "POST" })
-        if (response.ok && !cancelled) router.refresh()
-      } catch {
-        // Durable status remains visible; realtime or the next poll can recover.
-      }
-    }
-    void reconcile()
-    const timer = window.setInterval(reconcile, 5000)
-    return () => {
-      cancelled = true
-      window.clearInterval(timer)
-    }
-  }, [hasActiveGeneration, listingId, router])
+  useReconcilePoll({ listingId, active: hasActiveGeneration, refresh })
 
   return (
     <section id="listing-progress" aria-labelledby="listing-progress-title" className={compact ? "" : "ls-surface p-4 sm:p-5"}>

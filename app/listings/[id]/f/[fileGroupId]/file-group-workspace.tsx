@@ -18,6 +18,8 @@ import {
   branchContext,
   formatGenerationCost,
 } from "@/lib/versioning"
+import { realtimeInFilters } from "@/lib/refresh-discipline"
+import { useDebouncedRefresh, useReconcilePoll } from "@/lib/use-live-refresh"
 import { connectionFailureMessage, workflowCatchMessage, workflowFailureMessage } from "@/lib/workflow-recovery"
 import { EDIT_TYPES } from "../../edit-types"
 import type { ComplianceNote } from "../../job-feed"
@@ -41,6 +43,7 @@ const DUSK_CHECKS = [
 
 export type WorkspaceFileGroup = {
   id: string
+  job_id: string
   primary_photo_id: string
   current_step: number
   step_status: string
@@ -105,6 +108,7 @@ export function FileGroupWorkspace({ listingId, fg, before, siblings, initialVer
   initialVersionId?: string
 }) {
   const router = useRouter()
+  const liveRefresh = useDebouncedRefresh()
   const [selectedVersionId, setSelectedVersionId] = useState(initialVersionId ?? "")
   const [reworkText, setReworkText] = useState("")
   const [reworking, setReworking] = useState(false)
@@ -223,18 +227,22 @@ export function FileGroupWorkspace({ listingId, fg, before, siblings, initialVer
     }))
   }, [draftHydrated, fg.id, reviewNote, reworkText, selectedVersionId, variationCount, variationLabels, variationRequest, variationText, versionName])
 
+  // Scope: this FileGroup's job (itself plus variation siblings) and every
+  // FileGroup whose versions this workspace shows (same-photo lineage).
+  const versionGroupKey = [fg.id, ...siblings.map((item) => item.id), ...fg.output_versions.map((version) => version.file_group_id)].join(",")
   useEffect(() => {
     const supabase = createClient()
     const channel = supabase
       .channel(`fg-${fg.id}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "file_groups" }, () => router.refresh())
-      .on("postgres_changes", { event: "*", schema: "public", table: "output_versions" }, () => router.refresh())
-      .on("postgres_changes", { event: "*", schema: "public", table: "chat_messages", filter: `file_group_id=eq.${fg.id}` }, () => router.refresh())
-      .on("postgres_changes", { event: "*", schema: "public", table: "photo_finals", filter: `listing_id=eq.${listingId}` }, () => router.refresh())
-      .on("postgres_changes", { event: "*", schema: "public", table: "variation_requests", filter: `listing_id=eq.${listingId}` }, () => router.refresh())
-      .subscribe()
+      .on("postgres_changes", { event: "*", schema: "public", table: "file_groups", filter: `job_id=eq.${fg.job_id}` }, liveRefresh)
+      .on("postgres_changes", { event: "*", schema: "public", table: "chat_messages", filter: `file_group_id=eq.${fg.id}` }, liveRefresh)
+      .on("postgres_changes", { event: "*", schema: "public", table: "photo_finals", filter: `listing_id=eq.${listingId}` }, liveRefresh)
+      .on("postgres_changes", { event: "*", schema: "public", table: "variation_requests", filter: `listing_id=eq.${listingId}` }, liveRefresh)
+    for (const filter of realtimeInFilters("file_group_id", versionGroupKey.split(",")))
+      channel.on("postgres_changes", { event: "*", schema: "public", table: "output_versions", filter }, liveRefresh)
+    channel.subscribe()
     return () => { supabase.removeChannel(channel) }
-  }, [fg.id, listingId, router])
+  }, [fg.id, fg.job_id, listingId, liveRefresh, versionGroupKey])
 
   async function saveReview(action: "approve" | "needs_changes") {
     if (!latest || reviewing) return
@@ -268,21 +276,7 @@ export function FileGroupWorkspace({ listingId, fg, before, siblings, initialVer
 
   // localhost cannot receive fal webhooks. This listing-scoped endpoint uses
   // the same orchestrator transitions and production realtime remains primary.
-  useEffect(() => {
-    if (currentSettled) return
-    let cancelled = false
-    const reconcile = async () => {
-      try {
-        const response = await fetch(`/api/listings/${listingId}/reconcile`, { method: "POST" })
-        if (!cancelled && response.ok) router.refresh()
-      } catch {
-        // The next poll or realtime event can recover.
-      }
-    }
-    void reconcile()
-    const timer = window.setInterval(reconcile, 5000)
-    return () => { cancelled = true; window.clearInterval(timer) }
-  }, [currentSettled, listingId, router])
+  useReconcilePoll({ listingId, active: !currentSettled, refresh: liveRefresh })
 
   async function sendRework(versionId: string | undefined) {
     const message = reworkText.trim()

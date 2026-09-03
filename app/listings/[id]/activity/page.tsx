@@ -100,7 +100,14 @@ export default async function ActivityPage({ params }: { params: Promise<{ id: s
         <ToolsNav listingId={id} />
       </div>
       <div className="mt-8">
-        <ListingProgress listingId={id} summary={listingStatus} />
+        <ListingProgress
+          listingId={id}
+          summary={listingStatus}
+          scope={{
+            jobIds: (jobs ?? []).map((job) => job.id),
+            fileGroupIds: (jobs ?? []).flatMap((job) => job.file_groups.map((group) => group.id)),
+          }}
+        />
       </div>
       <div className="mt-8">
         <JobFeed listingId={id} photos={regular} floorPlans={floorPlans} jobs={jobRows} />
