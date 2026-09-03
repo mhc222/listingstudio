@@ -1,0 +1,169 @@
+segment,usage_level,shoots_per_month,photos_per_month,pricing_model,byo_key,egress_mode,revenue_usd,cogs_api_usd,cogs_infra_usd,cogs_support_usd,cogs_total_usd,gross_profit_usd,gross_margin_pct,breakeven_photos_per_month,cogs_per_photo_usd
+Typical realtor,low,0.20,5,Per-image $0.75,no,fixed (thumbnails+caching),3.75,0.23,0.02,2.00,2.26,1.49,39.9,,0.451
+Typical realtor,low,0.20,5,Per-image $0.75,no,as-built (no thumbnails, refresh churn),3.75,0.23,0.15,2.00,2.38,1.37,36.6,,0.476
+Typical realtor,low,0.20,5,Per-edit-type tiered,no,fixed (thumbnails+caching),4.15,0.23,0.02,2.00,2.26,1.89,45.7,,0.451
+Typical realtor,low,0.20,5,Per-edit-type tiered,no,as-built (no thumbnails, refresh churn),4.15,0.23,0.15,2.00,2.38,1.77,42.7,,0.476
+Typical realtor,low,0.20,5,Credit packs (~$0.80/credit blended),no,fixed (thumbnails+caching),4.48,0.23,0.02,2.00,2.26,2.22,49.7,,0.451
+Typical realtor,low,0.20,5,Credit packs (~$0.80/credit blended),no,as-built (no thumbnails, refresh churn),4.48,0.23,0.15,2.00,2.38,2.10,46.9,,0.476
+Typical realtor,low,0.20,5,Subscription + included volume,no,fixed (thumbnails+caching),29.00,0.23,0.02,2.00,2.26,26.74,92.2,20000,0.451
+Typical realtor,low,0.20,5,Subscription + included volume,no,as-built (no thumbnails, refresh churn),29.00,0.23,0.15,2.00,2.38,26.62,91.8,20000,0.476
+Typical realtor,low,0.20,5,Unlimited $149/mo,no,fixed (thumbnails+caching),149.00,0.23,0.02,2.00,2.26,146.74,98.5,2882,0.451
+Typical realtor,low,0.20,5,Unlimited $149/mo,no,as-built (no thumbnails, refresh churn),149.00,0.23,0.15,2.00,2.38,146.62,98.4,1941,0.476
+Typical realtor,low,0.20,5,BYO key + $39/mo software fee,yes,fixed (thumbnails+caching),39.00,0.00,0.02,6.00,6.02,32.98,84.6,7098,1.205
+Typical realtor,low,0.20,5,BYO key + $39/mo software fee,yes,as-built (no thumbnails, refresh churn),39.00,0.00,0.15,6.00,6.15,32.85,84.2,1123,1.229
+Typical realtor,low,0.20,5,Hybrid: $49 base + 300 incl + $0.12 over + staging $1.50,no,fixed (thumbnails+caching),49.30,0.23,0.02,2.00,2.26,47.04,95.4,20000,0.451
+Typical realtor,low,0.20,5,Hybrid: $49 base + 300 incl + $0.12 over + staging $1.50,no,as-built (no thumbnails, refresh churn),49.30,0.23,0.15,2.00,2.38,46.92,95.2,20000,0.476
+Typical realtor,typ,0.50,13,Per-image $0.75,no,fixed (thumbnails+caching),9.38,0.58,0.06,2.00,2.64,6.74,71.9,,0.211
+Typical realtor,typ,0.50,13,Per-image $0.75,no,as-built (no thumbnails, refresh churn),9.38,0.58,0.37,2.00,2.95,6.43,68.6,,0.236
+Typical realtor,typ,0.50,13,Per-edit-type tiered,no,fixed (thumbnails+caching),10.38,0.58,0.06,2.00,2.64,7.74,74.6,,0.211
+Typical realtor,typ,0.50,13,Per-edit-type tiered,no,as-built (no thumbnails, refresh churn),10.38,0.58,0.37,2.00,2.95,7.43,71.6,,0.236
+Typical realtor,typ,0.50,13,Credit packs (~$0.80/credit blended),no,fixed (thumbnails+caching),11.20,0.58,0.06,2.00,2.64,8.56,76.4,,0.211
+Typical realtor,typ,0.50,13,Credit packs (~$0.80/credit blended),no,as-built (no thumbnails, refresh churn),11.20,0.58,0.37,2.00,2.95,8.25,73.7,,0.236
+Typical realtor,typ,0.50,13,Subscription + included volume,no,fixed (thumbnails+caching),29.00,0.58,0.06,2.00,2.64,26.36,90.9,20000,0.211
+Typical realtor,typ,0.50,13,Subscription + included volume,no,as-built (no thumbnails, refresh churn),29.00,0.58,0.37,2.00,2.95,26.05,89.8,20000,0.236
+Typical realtor,typ,0.50,13,Unlimited $149/mo,no,fixed (thumbnails+caching),149.00,0.58,0.06,2.00,2.64,146.36,98.2,2882,0.211
+Typical realtor,typ,0.50,13,Unlimited $149/mo,no,as-built (no thumbnails, refresh churn),149.00,0.58,0.37,2.00,2.95,146.05,98.0,1941,0.236
+Typical realtor,typ,0.50,13,BYO key + $39/mo software fee,yes,fixed (thumbnails+caching),39.00,0.00,0.06,6.00,6.06,32.94,84.5,7098,0.485
+Typical realtor,typ,0.50,13,BYO key + $39/mo software fee,yes,as-built (no thumbnails, refresh churn),39.00,0.00,0.37,6.00,6.37,32.63,83.7,1123,0.509
+Typical realtor,typ,0.50,13,Hybrid: $49 base + 300 incl + $0.12 over + staging $1.50,no,fixed (thumbnails+caching),49.75,0.58,0.06,2.00,2.64,47.11,94.7,20000,0.211
+Typical realtor,typ,0.50,13,Hybrid: $49 base + 300 incl + $0.12 over + staging $1.50,no,as-built (no thumbnails, refresh churn),49.75,0.58,0.37,2.00,2.95,46.80,94.1,20000,0.236
+Typical realtor,heavy,1.00,25,Per-image $0.75,no,fixed (thumbnails+caching),18.75,1.16,0.12,2.00,3.28,15.47,82.5,,0.131
+Typical realtor,heavy,1.00,25,Per-image $0.75,no,as-built (no thumbnails, refresh churn),18.75,1.16,0.73,2.00,3.89,14.86,79.2,,0.156
+Typical realtor,heavy,1.00,25,Per-edit-type tiered,no,fixed (thumbnails+caching),20.75,1.16,0.12,2.00,3.28,17.47,84.2,,0.131
+Typical realtor,heavy,1.00,25,Per-edit-type tiered,no,as-built (no thumbnails, refresh churn),20.75,1.16,0.73,2.00,3.89,16.86,81.2,,0.156
+Typical realtor,heavy,1.00,25,Credit packs (~$0.80/credit blended),no,fixed (thumbnails+caching),22.40,1.16,0.12,2.00,3.28,19.12,85.4,,0.131
+Typical realtor,heavy,1.00,25,Credit packs (~$0.80/credit blended),no,as-built (no thumbnails, refresh churn),22.40,1.16,0.73,2.00,3.89,18.51,82.6,,0.156
+Typical realtor,heavy,1.00,25,Subscription + included volume,no,fixed (thumbnails+caching),29.00,1.16,0.12,2.00,3.28,25.72,88.7,20000,0.131
+Typical realtor,heavy,1.00,25,Subscription + included volume,no,as-built (no thumbnails, refresh churn),29.00,1.16,0.73,2.00,3.89,25.11,86.6,20000,0.156
+Typical realtor,heavy,1.00,25,Unlimited $149/mo,no,fixed (thumbnails+caching),149.00,1.16,0.12,2.00,3.28,145.72,97.8,2882,0.131
+Typical realtor,heavy,1.00,25,Unlimited $149/mo,no,as-built (no thumbnails, refresh churn),149.00,1.16,0.73,2.00,3.89,145.11,97.4,1941,0.156
+Typical realtor,heavy,1.00,25,BYO key + $39/mo software fee,yes,fixed (thumbnails+caching),39.00,0.00,0.12,6.00,6.12,32.88,84.3,7098,0.245
+Typical realtor,heavy,1.00,25,BYO key + $39/mo software fee,yes,as-built (no thumbnails, refresh churn),39.00,0.00,0.73,6.00,6.73,32.27,82.7,1123,0.269
+Typical realtor,heavy,1.00,25,Hybrid: $49 base + 300 incl + $0.12 over + staging $1.50,no,fixed (thumbnails+caching),50.50,1.16,0.12,2.00,3.28,47.22,93.5,20000,0.131
+Typical realtor,heavy,1.00,25,Hybrid: $49 base + 300 incl + $0.12 over + staging $1.50,no,as-built (no thumbnails, refresh churn),50.50,1.16,0.73,2.00,3.89,46.61,92.3,20000,0.156
+Top realtor / team,low,1.00,28,Per-image $0.75,no,fixed (thumbnails+caching),21.00,1.30,0.13,2.00,3.43,17.57,83.7,,0.122
+Top realtor / team,low,1.00,28,Per-image $0.75,no,as-built (no thumbnails, refresh churn),21.00,1.30,0.88,2.00,4.17,16.83,80.1,,0.149
+Top realtor / team,low,1.00,28,Per-edit-type tiered,no,fixed (thumbnails+caching),23.24,1.30,0.13,2.00,3.43,19.81,85.3,,0.122
+Top realtor / team,low,1.00,28,Per-edit-type tiered,no,as-built (no thumbnails, refresh churn),23.24,1.30,0.88,2.00,4.17,19.07,82.0,,0.149
+Top realtor / team,low,1.00,28,Credit packs (~$0.80/credit blended),no,fixed (thumbnails+caching),25.09,1.30,0.13,2.00,3.43,21.66,86.3,,0.122
+Top realtor / team,low,1.00,28,Credit packs (~$0.80/credit blended),no,as-built (no thumbnails, refresh churn),25.09,1.30,0.88,2.00,4.17,20.91,83.4,,0.149
+Top realtor / team,low,1.00,28,Subscription + included volume,no,fixed (thumbnails+caching),29.00,1.30,0.13,2.00,3.43,25.57,88.2,20000,0.122
+Top realtor / team,low,1.00,28,Subscription + included volume,no,as-built (no thumbnails, refresh churn),29.00,1.30,0.88,2.00,4.17,24.83,85.6,20000,0.149
+Top realtor / team,low,1.00,28,Unlimited $149/mo,no,fixed (thumbnails+caching),149.00,1.30,0.13,2.00,3.43,145.57,97.7,2888,0.122
+Top realtor / team,low,1.00,28,Unlimited $149/mo,no,as-built (no thumbnails, refresh churn),149.00,1.30,0.88,2.00,4.17,144.83,97.2,1893,0.149
+Top realtor / team,low,1.00,28,BYO key + $39/mo software fee,yes,fixed (thumbnails+caching),39.00,0.00,0.13,6.00,6.13,32.87,84.3,7098,0.219
+Top realtor / team,low,1.00,28,BYO key + $39/mo software fee,yes,as-built (no thumbnails, refresh churn),39.00,0.00,0.88,6.00,6.88,32.12,82.4,1051,0.246
+Top realtor / team,low,1.00,28,Hybrid: $49 base + 300 incl + $0.12 over + staging $1.50,no,fixed (thumbnails+caching),50.68,1.30,0.13,2.00,3.43,47.25,93.2,20000,0.122
+Top realtor / team,low,1.00,28,Hybrid: $49 base + 300 incl + $0.12 over + staging $1.50,no,as-built (no thumbnails, refresh churn),50.68,1.30,0.88,2.00,4.17,46.51,91.8,20000,0.149
+Top realtor / team,typ,2.00,56,Per-image $0.75,no,fixed (thumbnails+caching),42.00,2.59,0.26,2.00,4.85,37.15,88.5,,0.087
+Top realtor / team,typ,2.00,56,Per-image $0.75,no,as-built (no thumbnails, refresh churn),42.00,2.59,1.76,2.00,6.35,35.65,84.9,,0.113
+Top realtor / team,typ,2.00,56,Per-edit-type tiered,no,fixed (thumbnails+caching),46.48,2.59,0.26,2.00,4.85,41.63,89.6,,0.087
+Top realtor / team,typ,2.00,56,Per-edit-type tiered,no,as-built (no thumbnails, refresh churn),46.48,2.59,1.76,2.00,6.35,40.13,86.3,,0.113
+Top realtor / team,typ,2.00,56,Credit packs (~$0.80/credit blended),no,fixed (thumbnails+caching),50.18,2.59,0.26,2.00,4.85,45.33,90.3,,0.087
+Top realtor / team,typ,2.00,56,Credit packs (~$0.80/credit blended),no,as-built (no thumbnails, refresh churn),50.18,2.59,1.76,2.00,6.35,43.83,87.3,,0.113
+Top realtor / team,typ,2.00,56,Subscription + included volume,no,fixed (thumbnails+caching),29.00,2.59,0.26,2.00,4.85,24.15,83.3,20000,0.087
+Top realtor / team,typ,2.00,56,Subscription + included volume,no,as-built (no thumbnails, refresh churn),29.00,2.59,1.76,2.00,6.35,22.65,78.1,20000,0.113
+Top realtor / team,typ,2.00,56,Unlimited $149/mo,no,fixed (thumbnails+caching),149.00,2.59,0.26,2.00,4.85,144.15,96.7,2888,0.087
+Top realtor / team,typ,2.00,56,Unlimited $149/mo,no,as-built (no thumbnails, refresh churn),149.00,2.59,1.76,2.00,6.35,142.65,95.7,1893,0.113
+Top realtor / team,typ,2.00,56,BYO key + $39/mo software fee,yes,fixed (thumbnails+caching),39.00,0.00,0.26,6.00,6.26,32.74,83.9,7098,0.112
+Top realtor / team,typ,2.00,56,BYO key + $39/mo software fee,yes,as-built (no thumbnails, refresh churn),39.00,0.00,1.76,6.00,7.76,31.24,80.1,1051,0.139
+Top realtor / team,typ,2.00,56,Hybrid: $49 base + 300 incl + $0.12 over + staging $1.50,no,fixed (thumbnails+caching),52.36,2.59,0.26,2.00,4.85,47.51,90.7,20000,0.087
+Top realtor / team,typ,2.00,56,Hybrid: $49 base + 300 incl + $0.12 over + staging $1.50,no,as-built (no thumbnails, refresh churn),52.36,2.59,1.76,2.00,6.35,46.01,87.9,20000,0.113
+Top realtor / team,heavy,4.00,112,Per-image $0.75,no,fixed (thumbnails+caching),84.00,5.18,0.52,2.00,7.70,76.30,90.8,,0.069
+Top realtor / team,heavy,4.00,112,Per-image $0.75,no,as-built (no thumbnails, refresh churn),84.00,5.18,3.52,2.00,10.70,73.30,87.3,,0.096
+Top realtor / team,heavy,4.00,112,Per-edit-type tiered,no,fixed (thumbnails+caching),92.96,5.18,0.52,2.00,7.70,85.26,91.7,,0.069
+Top realtor / team,heavy,4.00,112,Per-edit-type tiered,no,as-built (no thumbnails, refresh churn),92.96,5.18,3.52,2.00,10.70,82.26,88.5,,0.096
+Top realtor / team,heavy,4.00,112,Credit packs (~$0.80/credit blended),no,fixed (thumbnails+caching),100.35,5.18,0.52,2.00,7.70,92.65,92.3,,0.069
+Top realtor / team,heavy,4.00,112,Credit packs (~$0.80/credit blended),no,as-built (no thumbnails, refresh churn),100.35,5.18,3.52,2.00,10.70,89.65,89.3,,0.096
+Top realtor / team,heavy,4.00,112,Subscription + included volume,no,fixed (thumbnails+caching),29.00,5.18,0.52,2.00,7.70,21.30,73.4,20000,0.069
+Top realtor / team,heavy,4.00,112,Subscription + included volume,no,as-built (no thumbnails, refresh churn),29.00,5.18,3.52,2.00,10.70,18.30,63.1,20000,0.096
+Top realtor / team,heavy,4.00,112,Unlimited $149/mo,no,fixed (thumbnails+caching),149.00,5.18,0.52,2.00,7.70,141.30,94.8,2888,0.069
+Top realtor / team,heavy,4.00,112,Unlimited $149/mo,no,as-built (no thumbnails, refresh churn),149.00,5.18,3.52,2.00,10.70,138.30,92.8,1893,0.096
+Top realtor / team,heavy,4.00,112,BYO key + $39/mo software fee,yes,fixed (thumbnails+caching),39.00,0.00,0.52,6.00,6.52,32.48,83.3,7098,0.058
+Top realtor / team,heavy,4.00,112,BYO key + $39/mo software fee,yes,as-built (no thumbnails, refresh churn),39.00,0.00,3.52,6.00,9.52,29.48,75.6,1051,0.085
+Top realtor / team,heavy,4.00,112,Hybrid: $49 base + 300 incl + $0.12 over + staging $1.50,no,fixed (thumbnails+caching),55.72,5.18,0.52,2.00,7.70,48.02,86.2,20000,0.069
+Top realtor / team,heavy,4.00,112,Hybrid: $49 base + 300 incl + $0.12 over + staging $1.50,no,as-built (no thumbnails, refresh churn),55.72,5.18,3.52,2.00,10.70,45.02,80.8,20000,0.096
+Solo RE photographer,low,10.00,300,Per-image $0.75,no,fixed (thumbnails+caching),225.00,13.86,1.39,2.00,17.25,207.75,92.3,,0.058
+Solo RE photographer,low,10.00,300,Per-image $0.75,no,as-built (no thumbnails, refresh churn),225.00,13.86,9.83,2.00,25.68,199.32,88.6,,0.086
+Solo RE photographer,low,10.00,300,Per-edit-type tiered,no,fixed (thumbnails+caching),249.00,13.86,1.39,2.00,17.25,231.75,93.1,,0.058
+Solo RE photographer,low,10.00,300,Per-edit-type tiered,no,as-built (no thumbnails, refresh churn),249.00,13.86,9.83,2.00,25.68,223.32,89.7,,0.086
+Solo RE photographer,low,10.00,300,Credit packs (~$0.80/credit blended),no,fixed (thumbnails+caching),268.80,13.86,1.39,2.00,17.25,251.55,93.6,,0.058
+Solo RE photographer,low,10.00,300,Credit packs (~$0.80/credit blended),no,as-built (no thumbnails, refresh churn),268.80,13.86,9.83,2.00,25.68,243.12,90.4,,0.086
+Solo RE photographer,low,10.00,300,Subscription + included volume,no,fixed (thumbnails+caching),51.50,13.86,1.39,2.00,17.25,34.25,66.5,20000,0.058
+Solo RE photographer,low,10.00,300,Subscription + included volume,no,as-built (no thumbnails, refresh churn),51.50,13.86,9.83,2.00,25.68,25.82,50.1,20000,0.086
+Solo RE photographer,low,10.00,300,Unlimited $149/mo,no,fixed (thumbnails+caching),149.00,13.86,1.39,2.00,17.25,131.75,88.4,2891,0.058
+Solo RE photographer,low,10.00,300,Unlimited $149/mo,no,as-built (no thumbnails, refresh churn),149.00,13.86,9.83,2.00,25.68,123.32,82.8,1862,0.086
+Solo RE photographer,low,10.00,300,BYO key + $39/mo software fee,yes,fixed (thumbnails+caching),39.00,0.00,1.39,6.00,7.39,31.61,81.0,7098,0.025
+Solo RE photographer,low,10.00,300,BYO key + $39/mo software fee,yes,as-built (no thumbnails, refresh churn),39.00,0.00,9.83,6.00,15.83,23.17,59.4,1007,0.053
+Solo RE photographer,low,10.00,300,Hybrid: $49 base + 300 incl + $0.12 over + staging $1.50,no,fixed (thumbnails+caching),67.00,13.86,1.39,2.00,17.25,49.75,74.3,20000,0.058
+Solo RE photographer,low,10.00,300,Hybrid: $49 base + 300 incl + $0.12 over + staging $1.50,no,as-built (no thumbnails, refresh churn),67.00,13.86,9.83,2.00,25.68,41.32,61.7,20000,0.086
+Solo RE photographer,typ,20.00,600,Per-image $0.75,no,fixed (thumbnails+caching),450.00,27.71,2.79,2.00,32.50,417.50,92.8,,0.054
+Solo RE photographer,typ,20.00,600,Per-image $0.75,no,as-built (no thumbnails, refresh churn),450.00,27.71,19.65,2.00,49.37,400.63,89.0,,0.082
+Solo RE photographer,typ,20.00,600,Per-edit-type tiered,no,fixed (thumbnails+caching),498.00,27.71,2.79,2.00,32.50,465.50,93.5,,0.054
+Solo RE photographer,typ,20.00,600,Per-edit-type tiered,no,as-built (no thumbnails, refresh churn),498.00,27.71,19.65,2.00,49.37,448.63,90.1,,0.082
+Solo RE photographer,typ,20.00,600,Credit packs (~$0.80/credit blended),no,fixed (thumbnails+caching),537.60,27.71,2.79,2.00,32.50,505.10,94.0,,0.054
+Solo RE photographer,typ,20.00,600,Credit packs (~$0.80/credit blended),no,as-built (no thumbnails, refresh churn),537.60,27.71,19.65,2.00,49.37,488.23,90.8,,0.082
+Solo RE photographer,typ,20.00,600,Subscription + included volume,no,fixed (thumbnails+caching),96.50,27.71,2.79,2.00,32.50,64.00,66.3,20000,0.054
+Solo RE photographer,typ,20.00,600,Subscription + included volume,no,as-built (no thumbnails, refresh churn),96.50,27.71,19.65,2.00,49.37,47.13,48.8,20000,0.082
+Solo RE photographer,typ,20.00,600,Unlimited $149/mo,no,fixed (thumbnails+caching),149.00,27.71,2.79,2.00,32.50,116.50,78.2,2891,0.054
+Solo RE photographer,typ,20.00,600,Unlimited $149/mo,no,as-built (no thumbnails, refresh churn),149.00,27.71,19.65,2.00,49.37,99.63,66.9,1862,0.082
+Solo RE photographer,typ,20.00,600,BYO key + $39/mo software fee,yes,fixed (thumbnails+caching),39.00,0.00,2.79,6.00,8.79,30.21,77.5,7098,0.015
+Solo RE photographer,typ,20.00,600,BYO key + $39/mo software fee,yes,as-built (no thumbnails, refresh churn),39.00,0.00,19.65,6.00,25.65,13.35,34.2,1007,0.043
+Solo RE photographer,typ,20.00,600,Hybrid: $49 base + 300 incl + $0.12 over + staging $1.50,no,fixed (thumbnails+caching),121.00,27.71,2.79,2.00,32.50,88.50,73.1,20000,0.054
+Solo RE photographer,typ,20.00,600,Hybrid: $49 base + 300 incl + $0.12 over + staging $1.50,no,as-built (no thumbnails, refresh churn),121.00,27.71,19.65,2.00,49.37,71.63,59.2,20000,0.082
+Solo RE photographer,heavy,35.00,1050,Per-image $0.75,no,fixed (thumbnails+caching),787.50,48.50,4.88,2.00,55.38,732.12,93.0,,0.053
+Solo RE photographer,heavy,35.00,1050,Per-image $0.75,no,as-built (no thumbnails, refresh churn),787.50,48.50,34.39,2.00,84.89,702.61,89.2,,0.081
+Solo RE photographer,heavy,35.00,1050,Per-edit-type tiered,no,fixed (thumbnails+caching),871.50,48.50,4.88,2.00,55.38,816.12,93.6,,0.053
+Solo RE photographer,heavy,35.00,1050,Per-edit-type tiered,no,as-built (no thumbnails, refresh churn),871.50,48.50,34.39,2.00,84.89,786.61,90.3,,0.081
+Solo RE photographer,heavy,35.00,1050,Credit packs (~$0.80/credit blended),no,fixed (thumbnails+caching),940.80,48.50,4.88,2.00,55.38,885.42,94.1,,0.053
+Solo RE photographer,heavy,35.00,1050,Credit packs (~$0.80/credit blended),no,as-built (no thumbnails, refresh churn),940.80,48.50,34.39,2.00,84.89,855.91,91.0,,0.081
+Solo RE photographer,heavy,35.00,1050,Subscription + included volume,no,fixed (thumbnails+caching),144.00,48.50,4.88,2.00,55.38,88.62,61.5,20000,0.053
+Solo RE photographer,heavy,35.00,1050,Subscription + included volume,no,as-built (no thumbnails, refresh churn),144.00,48.50,34.39,2.00,84.89,59.11,41.0,20000,0.081
+Solo RE photographer,heavy,35.00,1050,Unlimited $149/mo,no,fixed (thumbnails+caching),149.00,48.50,4.88,2.00,55.38,93.62,62.8,2891,0.053
+Solo RE photographer,heavy,35.00,1050,Unlimited $149/mo,no,as-built (no thumbnails, refresh churn),149.00,48.50,34.39,2.00,84.89,64.11,43.0,1862,0.081
+Solo RE photographer,heavy,35.00,1050,BYO key + $39/mo software fee,yes,fixed (thumbnails+caching),39.00,0.00,4.88,6.00,10.88,28.12,72.1,7098,0.010
+Solo RE photographer,heavy,35.00,1050,BYO key + $39/mo software fee,yes,as-built (no thumbnails, refresh churn),39.00,0.00,34.39,6.00,40.39,-1.39,-3.6,1007,0.038
+Solo RE photographer,heavy,35.00,1050,Hybrid: $49 base + 300 incl + $0.12 over + staging $1.50,no,fixed (thumbnails+caching),202.00,48.50,4.88,2.00,55.38,146.62,72.6,20000,0.053
+Solo RE photographer,heavy,35.00,1050,Hybrid: $49 base + 300 incl + $0.12 over + staging $1.50,no,as-built (no thumbnails, refresh churn),202.00,48.50,34.39,2.00,84.89,117.11,58.0,20000,0.081
+Small RE media co,low,60.00,2100,Per-image $0.75,no,fixed (thumbnails+caching),1575.00,96.74,9.76,2.00,108.51,1466.49,93.1,,0.052
+Small RE media co,low,60.00,2100,Per-image $0.75,no,as-built (no thumbnails, refresh churn),1575.00,96.74,75.89,2.00,174.64,1400.36,88.9,,0.083
+Small RE media co,low,60.00,2100,Per-edit-type tiered,no,fixed (thumbnails+caching),1743.00,96.74,9.76,2.00,108.51,1634.49,93.8,,0.052
+Small RE media co,low,60.00,2100,Per-edit-type tiered,no,as-built (no thumbnails, refresh churn),1743.00,96.74,75.89,2.00,174.64,1568.36,90.0,,0.083
+Small RE media co,low,60.00,2100,Credit packs (~$0.80/credit blended),no,fixed (thumbnails+caching),1881.60,96.74,9.76,2.00,108.51,1773.09,94.2,,0.052
+Small RE media co,low,60.00,2100,Credit packs (~$0.80/credit blended),no,as-built (no thumbnails, refresh churn),1881.60,96.74,75.89,2.00,174.64,1706.96,90.7,,0.083
+Small RE media co,low,60.00,2100,Subscription + included volume,no,fixed (thumbnails+caching),299.00,96.74,9.76,2.00,108.51,190.49,63.7,20000,0.052
+Small RE media co,low,60.00,2100,Subscription + included volume,no,as-built (no thumbnails, refresh churn),299.00,96.74,75.89,2.00,174.64,124.36,41.6,20000,0.083
+Small RE media co,low,60.00,2100,Unlimited $149/mo,no,fixed (thumbnails+caching),149.00,96.74,9.76,2.00,108.51,40.49,27.2,2898,0.052
+Small RE media co,low,60.00,2100,Unlimited $149/mo,no,as-built (no thumbnails, refresh churn),149.00,96.74,75.89,2.00,174.64,-25.64,-17.2,1788,0.083
+Small RE media co,low,60.00,2100,BYO key + $39/mo software fee,yes,fixed (thumbnails+caching),39.00,0.00,9.76,6.00,15.76,23.24,59.6,7098,0.008
+Small RE media co,low,60.00,2100,BYO key + $39/mo software fee,yes,as-built (no thumbnails, refresh churn),39.00,0.00,75.89,6.00,81.89,-42.89,-110.0,913,0.039
+Small RE media co,low,60.00,2100,Hybrid: $49 base + 300 incl + $0.12 over + staging $1.50,no,fixed (thumbnails+caching),391.00,96.74,9.76,2.00,108.51,282.49,72.2,20000,0.052
+Small RE media co,low,60.00,2100,Hybrid: $49 base + 300 incl + $0.12 over + staging $1.50,no,as-built (no thumbnails, refresh churn),391.00,96.74,75.89,2.00,174.64,216.36,55.3,20000,0.083
+Small RE media co,typ,100.00,3500,Per-image $0.75,no,fixed (thumbnails+caching),2625.00,161.24,16.27,2.00,179.51,2445.49,93.2,,0.051
+Small RE media co,typ,100.00,3500,Per-image $0.75,no,as-built (no thumbnails, refresh churn),2625.00,161.24,126.49,2.00,289.73,2335.27,89.0,,0.083
+Small RE media co,typ,100.00,3500,Per-edit-type tiered,no,fixed (thumbnails+caching),2905.00,161.24,16.27,2.00,179.51,2725.49,93.8,,0.051
+Small RE media co,typ,100.00,3500,Per-edit-type tiered,no,as-built (no thumbnails, refresh churn),2905.00,161.24,126.49,2.00,289.73,2615.27,90.0,,0.083
+Small RE media co,typ,100.00,3500,Credit packs (~$0.80/credit blended),no,fixed (thumbnails+caching),3136.00,161.24,16.27,2.00,179.51,2956.49,94.3,,0.051
+Small RE media co,typ,100.00,3500,Credit packs (~$0.80/credit blended),no,as-built (no thumbnails, refresh churn),3136.00,161.24,126.49,2.00,289.73,2846.27,90.8,,0.083
+Small RE media co,typ,100.00,3500,Subscription + included volume,no,fixed (thumbnails+caching),374.00,161.24,16.27,2.00,179.51,194.49,52.0,20000,0.051
+Small RE media co,typ,100.00,3500,Subscription + included volume,no,as-built (no thumbnails, refresh churn),374.00,161.24,126.49,2.00,289.73,84.27,22.5,20000,0.083
+Small RE media co,typ,100.00,3500,Unlimited $149/mo,no,fixed (thumbnails+caching),149.00,161.24,16.27,2.00,179.51,-30.51,-20.5,2898,0.051
+Small RE media co,typ,100.00,3500,Unlimited $149/mo,no,as-built (no thumbnails, refresh churn),149.00,161.24,126.49,2.00,289.73,-140.73,-94.4,1788,0.083
+Small RE media co,typ,100.00,3500,BYO key + $39/mo software fee,yes,fixed (thumbnails+caching),39.00,0.00,16.27,6.00,22.27,16.73,42.9,7098,0.006
+Small RE media co,typ,100.00,3500,BYO key + $39/mo software fee,yes,as-built (no thumbnails, refresh churn),39.00,0.00,126.49,6.00,132.49,-93.49,-239.7,913,0.038
+Small RE media co,typ,100.00,3500,Hybrid: $49 base + 300 incl + $0.12 over + staging $1.50,no,fixed (thumbnails+caching),643.00,161.24,16.27,2.00,179.51,463.49,72.1,20000,0.051
+Small RE media co,typ,100.00,3500,Hybrid: $49 base + 300 incl + $0.12 over + staging $1.50,no,as-built (no thumbnails, refresh churn),643.00,161.24,126.49,2.00,289.73,353.27,54.9,20000,0.083
+Small RE media co,heavy,200.00,7000,Per-image $0.75,no,fixed (thumbnails+caching),5250.00,322.48,32.54,2.00,357.02,4892.98,93.2,,0.051
+Small RE media co,heavy,200.00,7000,Per-image $0.75,no,as-built (no thumbnails, refresh churn),5250.00,322.48,252.98,2.00,577.46,4672.54,89.0,,0.082
+Small RE media co,heavy,200.00,7000,Per-edit-type tiered,no,fixed (thumbnails+caching),5810.00,322.48,32.54,2.00,357.02,5452.98,93.9,,0.051
+Small RE media co,heavy,200.00,7000,Per-edit-type tiered,no,as-built (no thumbnails, refresh churn),5810.00,322.48,252.98,2.00,577.46,5232.54,90.1,,0.082
+Small RE media co,heavy,200.00,7000,Credit packs (~$0.80/credit blended),no,fixed (thumbnails+caching),6272.00,322.48,32.54,2.00,357.02,5914.98,94.3,,0.051
+Small RE media co,heavy,200.00,7000,Credit packs (~$0.80/credit blended),no,as-built (no thumbnails, refresh churn),6272.00,322.48,252.98,2.00,577.46,5694.54,90.8,,0.082
+Small RE media co,heavy,200.00,7000,Subscription + included volume,no,fixed (thumbnails+caching),899.00,322.48,32.54,2.00,357.02,541.98,60.3,20000,0.051
+Small RE media co,heavy,200.00,7000,Subscription + included volume,no,as-built (no thumbnails, refresh churn),899.00,322.48,252.98,2.00,577.46,321.54,35.8,20000,0.082
+Small RE media co,heavy,200.00,7000,Unlimited $149/mo,no,fixed (thumbnails+caching),149.00,322.48,32.54,2.00,357.02,-208.02,-139.6,2898,0.051
+Small RE media co,heavy,200.00,7000,Unlimited $149/mo,no,as-built (no thumbnails, refresh churn),149.00,322.48,252.98,2.00,577.46,-428.46,-287.6,1788,0.082
+Small RE media co,heavy,200.00,7000,BYO key + $39/mo software fee,yes,fixed (thumbnails+caching),39.00,0.00,32.54,6.00,38.54,0.46,1.2,7098,0.006
+Small RE media co,heavy,200.00,7000,BYO key + $39/mo software fee,yes,as-built (no thumbnails, refresh churn),39.00,0.00,252.98,6.00,258.98,-219.98,-564.1,913,0.037
+Small RE media co,heavy,200.00,7000,Hybrid: $49 base + 300 incl + $0.12 over + staging $1.50,no,fixed (thumbnails+caching),1273.00,322.48,32.54,2.00,357.02,915.98,72.0,20000,0.051
+Small RE media co,heavy,200.00,7000,Hybrid: $49 base + 300 incl + $0.12 over + staging $1.50,no,as-built (no thumbnails, refresh churn),1273.00,322.48,252.98,2.00,577.46,695.54,54.6,20000,0.082
