@@ -7,6 +7,7 @@ import { WorkflowConnectivity, useOnlineState } from "@/components/workflow-conn
 import { Button } from "@/components/ui/button"
 import { MAX_UPLOAD_FILES, UPLOAD_FILE_LIMIT_LABEL } from "@/config/uploads"
 import {
+  BACKGROUND_UPLOAD_NOTICE,
   formatUploadBytes,
   getTusEndpoint,
   MAX_CONCURRENT_UPLOADS,
@@ -14,14 +15,22 @@ import {
   QUEUE_STATUS_LABEL,
   queueFingerprint,
   TUS_CHUNK_SIZE,
+  UPLOAD_FINALIZE_POLL_MS,
   UPLOAD_PERSIST_THROTTLE_MS,
+  UPLOAD_POLL_MAX_IDS,
   UPLOAD_REFRESH_DRAIN_MS,
   UPLOAD_REFRESH_INTERVAL_MS,
   type UploadKind,
   type UploadQueueStatus,
   type UploadServerStatus,
+  uploadTokenExpired,
   validateBrowserUpload,
 } from "@/lib/upload-queue"
+import {
+  clearUploadPlaceholders,
+  type PlaceholderStage,
+  syncUploadPlaceholders,
+} from "@/lib/upload-placeholders"
 import { coalesce } from "@/lib/refresh-discipline"
 import { createClient } from "@/lib/supabase/client"
 import { workflowFailureMessage } from "@/lib/workflow-recovery"
@@ -56,9 +65,21 @@ type PrepareResponse = {
     size: number
     contentType: string
     intakePath: string
+    signedUrl: string
     token: string
   }>
   error?: string
+}
+
+// Which grid placeholder (if any) a queue item earns. Floor plans are not in
+// the photo grid; local-only rows never reached the server.
+function placeholderStage(item: QueueItem): PlaceholderStage | null {
+  if (item.localOnly || item.isFloorPlan) return null
+  if (item.status === "finalizing") return "processing"
+  if (item.status === "uploading" || (item.status === "waiting" && item.file)) return "uploading"
+  // keep the local preview in place until the real photo row replaces it
+  if (item.status === "uploaded" && item.file) return "saved"
+  return null
 }
 
 const STATUS_TONE: Record<UploadQueueStatus, string> = {
@@ -166,6 +187,9 @@ export function UploadQueue({ listingId }: { listingId: string }) {
   const recoveryTargetRef = useRef<string | "all" | null>(null)
   const activeUploads = useRef(new Map<string, tus.Upload>())
   const activeIds = useRef(new Set<string>())
+  // finalize is fire-and-forget (Phase 57): remember which items already had
+  // their POST so the scheduler sends exactly one per transfer (Retry clears it)
+  const finalizeRequested = useRef(new Set<string>())
   const itemsRef = useRef<QueueItem[]>([])
   const hydratedRef = useRef(false)
   const persistedSignature = useRef<string | null>(null)
@@ -247,29 +271,39 @@ export function UploadQueue({ listingId }: { listingId: string }) {
           headers: { "content-type": "application/json" },
           body: "{}",
         })
-        await jsonResponse<{ status: "complete"; photoId: string }>(response)
-        updateItem(itemId, {
-          status: "uploaded",
-          serverStatus: "complete",
-          progress: 100,
-          error: null,
-        })
-        refreshPhotos()
+        const body = await jsonResponse<{ status: "finalizing" | "complete"; photoId: string }>(response)
+        if (body.status === "complete") {
+          updateItem(itemId, {
+            status: "uploaded",
+            serverStatus: "complete",
+            progress: 100,
+            error: null,
+          })
+          refreshPhotos()
+        }
+        // 202 "finalizing": the server finishes after its response; the status
+        // poll below moves the item to uploaded (or needs-attention) when it lands.
       } catch (error) {
+        finalizeRequested.current.delete(itemId)
         updateItem(itemId, {
           status: "needs-attention",
           serverStatus: "failed",
           error: `${errorMessage(error, "Finalization failed")}. The uploaded file and every successful item are preserved. Choose Retry, or cancel this item and add a corrected file.`,
         })
-      } finally {
-        activeIds.current.delete(itemId)
-        activeUploads.current.delete(itemId)
-        // Active concurrency lives in refs; trigger one scheduler pass after
-        // the slot is released even when this was the last active request.
-        setItems([...itemsRef.current])
       }
     },
     [refreshPhotos, updateItem]
+  )
+
+  const reauthorize = useCallback(
+    async (item: Pick<QueueItem, "id">) => {
+      const response = await fetch(`/api/uploads/${item.id}/authorize`, { method: "POST" })
+      const body = await jsonResponse<{ token: string; intakePath: string; expiresInSeconds: number }>(response)
+      const tokenExpiresAt = new Date(Date.now() + (body.expiresInSeconds || 7200) * 1000).toISOString()
+      updateItem(item.id, { token: body.token, intakePath: body.intakePath, tokenExpiresAt })
+      return { ...body, tokenExpiresAt }
+    },
+    [updateItem]
   )
 
   const startTransfer = useCallback(
@@ -299,12 +333,29 @@ export function UploadQueue({ listingId }: { listingId: string }) {
         return
       }
 
+      // prepare already signed this object; /authorize is only for a missing or
+      // expiring token (retry, resume after reload, long-paused queue)
+      let token = item.token
+      if (uploadTokenExpired(item, Date.now())) {
+        try {
+          token = (await reauthorize(item)).token
+        } catch (error) {
+          activeIds.current.delete(itemId)
+          updateItem(itemId, {
+            status: "needs-attention",
+            serverStatus: "reserved",
+            error: `${item.name}: ${errorMessage(error, "could not renew upload access")}. Uploaded chunks and completed files are preserved. Choose Retry.`,
+          })
+          return
+        }
+      }
+
       const upload = new tus.Upload(item.file, {
         endpoint: getTusEndpoint(process.env.NEXT_PUBLIC_SUPABASE_URL!),
         retryDelays: [0, 3000, 5000, 10000, 20000],
         headers: {
           authorization: `Bearer ${session.access_token}`,
-          "x-signature": item.token,
+          "x-signature": token,
           "x-upsert": "false",
         },
         uploadDataDuringCreation: true,
@@ -352,14 +403,18 @@ export function UploadQueue({ listingId }: { listingId: string }) {
           })
         },
         onSuccess: () => {
+          // the transfer slot is released here, not after finalize: the
+          // scheduler fires the finalize POST and starts the next transfer
+          activeIds.current.delete(item.id)
+          activeUploads.current.delete(item.id)
           updateItem(item.id, {
             status: "finalizing",
+            serverStatus: "finalizing",
             progress: 100,
             transferComplete: true,
             uploadUrl: upload.url,
             error: null,
           })
-          void finalizeItem(item.id)
         },
       })
 
@@ -385,25 +440,102 @@ export function UploadQueue({ listingId }: { listingId: string }) {
         })
       }
     },
-    [finalizeItem, updateItem]
+    [reauthorize, updateItem]
   )
 
   useEffect(() => {
     if (!hydrated) return
+    // finalize holds no transfer slot: one fire-and-forget POST per transfer
+    for (const item of items) {
+      if (
+        item.status === "finalizing" &&
+        item.transferComplete &&
+        !item.localOnly &&
+        !finalizeRequested.current.has(item.id)
+      ) {
+        finalizeRequested.current.add(item.id)
+        void finalizeItem(item.id)
+      }
+    }
     const capacity = MAX_CONCURRENT_UPLOADS - activeIds.current.size
     if (capacity <= 0) return
     const startable = items.filter(
       (item) =>
-        !activeIds.current.has(item.id) &&
-        ((item.status === "waiting" && !item.paused && item.file) ||
-          (item.status === "finalizing" && item.transferComplete))
+        !activeIds.current.has(item.id) && item.status === "waiting" && !item.paused && item.file
     )
     for (const item of startable.slice(0, capacity)) {
       activeIds.current.add(item.id)
-      if (item.status === "finalizing") void finalizeItem(item.id)
-      else void startTransfer(item.id)
+      void startTransfer(item.id)
     }
   }, [finalizeItem, hydrated, items, startTransfer])
+
+  // Background finalize lands out of band; poll the finalizing rows at the
+  // refresh cadence until each is complete or failed, then refresh the grid.
+  const finalizingKey = useMemo(
+    () =>
+      items
+        .filter((item) => item.status === "finalizing" && !item.localOnly)
+        .map((item) => item.id)
+        .sort()
+        .join(","),
+    [items]
+  )
+  useEffect(() => {
+    if (!hydrated || !finalizingKey) return
+    const ids = finalizingKey.split(",").slice(0, UPLOAD_POLL_MAX_IDS)
+    let disposed = false
+    async function poll() {
+      try {
+        const response = await fetch(
+          `/api/uploads?listingId=${encodeURIComponent(listingId)}&ids=${ids.join(",")}`,
+          { cache: "no-store" }
+        )
+        const body = await jsonResponse<{ items: RecoveryItem[] }>(response)
+        if (disposed) return
+        let landed = false
+        for (const server of body.items) {
+          const current = itemsRef.current.find((item) => item.id === server.id)
+          if (!current || current.status !== "finalizing") continue
+          if (server.status === "complete") {
+            landed = true
+            updateItem(server.id, { status: "uploaded", serverStatus: "complete", progress: 100, error: null })
+          } else if (server.status === "failed") {
+            updateItem(server.id, {
+              status: "needs-attention",
+              serverStatus: "failed",
+              error: `${server.original_filename}: ${server.error || "finalization failed"}. The uploaded file and every successful item are preserved. Choose Retry, or cancel this item and add a corrected file.`,
+            })
+          } else if (server.status === "canceled") {
+            updateItem(server.id, { status: "canceled", serverStatus: "canceled", paused: false, error: null })
+          }
+        }
+        if (landed) refreshPhotos()
+      } catch {
+        // transient; the next tick retries
+      }
+    }
+    const timer = setInterval(() => void poll(), UPLOAD_FINALIZE_POLL_MS)
+    return () => {
+      disposed = true
+      clearInterval(timer)
+    }
+  }, [finalizingKey, hydrated, listingId, refreshPhotos, updateItem])
+
+  // Publish placeholder tiles for the grid; object URLs are created once per
+  // item and revoked when it leaves the pending set or the queue unmounts.
+  useEffect(() => {
+    if (!hydrated) return
+    syncUploadPlaceholders(
+      listingId,
+      items.flatMap((item) => {
+        const stage = placeholderStage(item)
+        return stage
+          ? [{ id: item.id, photoId: item.photoId, name: item.name, isFloorPlan: item.isFloorPlan, stage, file: item.file }]
+          : []
+      })
+    )
+  }, [hydrated, items, listingId])
+  useEffect(() => () => clearUploadPlaceholders(listingId), [listingId])
 
   useEffect(() => {
     if (!hydrated) return
@@ -632,9 +764,11 @@ export function UploadQueue({ listingId }: { listingId: string }) {
         })
         const prepared = await jsonResponse<PrepareResponse>(response)
         const createdAt = new Date().toISOString()
-        const nextItems: QueueItem[] = prepared.items.map((item, index) => ({
+        const tokenExpiresAt = new Date(Date.now() + (prepared.expiresInSeconds || 7200) * 1000).toISOString()
+        const nextItems: QueueItem[] = prepared.items.map(({ signedUrl, ...item }, index) => ({
           ...item,
           batchId: prepared.batchId,
+          tokenExpiresAt: signedUrl ? tokenExpiresAt : null,
           isFloorPlan: kind === "floor-plan",
           status: "waiting",
           serverStatus: "reserved",
@@ -663,13 +797,6 @@ export function UploadQueue({ listingId }: { listingId: string }) {
     },
     [listingId, replaceItems]
   )
-
-  async function reauthorize(item: QueueItem) {
-    const response = await fetch(`/api/uploads/${item.id}/authorize`, { method: "POST" })
-    const body = await jsonResponse<{ token: string; intakePath: string }>(response)
-    updateItem(item.id, { token: body.token, intakePath: body.intakePath })
-    return body
-  }
 
   async function pauseItem(item: QueueItem) {
     const upload = activeUploads.current.get(item.id)
@@ -717,6 +844,7 @@ export function UploadQueue({ listingId }: { listingId: string }) {
       return
     }
     if (item.transferComplete || ["failed", "finalizing"].includes(item.serverStatus)) {
+      finalizeRequested.current.delete(item.id)
       updateItem(item.id, { status: "finalizing", paused: false, error: null })
       return
     }
@@ -864,8 +992,9 @@ export function UploadQueue({ listingId }: { listingId: string }) {
       <p id="upload-heading" className="text-xs leading-relaxed text-muted-foreground">
         JPG, PNG, WebP, HEIC, or HEIF · up to {UPLOAD_FILE_LIMIT_LABEL} each · up to{" "}
         {MAX_UPLOAD_FILES} files per selection. PDFs are accepted only as floor plans. On a phone,
-        choose Camera Roll or Files. Keep this tab open while files are actively transferring; if
-        the browser or phone closes it, return and reselect the exact files to reconnect saved chunks.
+        choose Camera Roll or Files. Keep this tab open while a file is transferring; once it reaches
+        Finalizing the server finishes it on its own. If the browser or phone closes a transfer,
+        return and reselect the exact files to reconnect saved chunks.
       </p>
 
       {recoveryError && (
@@ -884,6 +1013,9 @@ export function UploadQueue({ listingId }: { listingId: string }) {
                 {counts.attention ? ` · ${counts.attention} need attention` : ""}
                 {counts.canceled ? ` · ${counts.canceled} canceled` : ""}
               </p>
+              {counts.active > 0 && (
+                <p className="mt-1 text-xs text-muted-foreground">{BACKGROUND_UPLOAD_NOTICE}</p>
+              )}
             </div>
             <div className="flex flex-wrap gap-1.5">
               {retryable.some((item) => item.file || item.transferComplete) && (

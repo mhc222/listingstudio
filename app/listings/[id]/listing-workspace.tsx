@@ -16,6 +16,7 @@ import {
 import { type JobRow, type SampleRow } from "./job-feed"
 import type { SelectionMethod } from "@/lib/batch-scope"
 import type { EditPresetDefaultRow, EditPresetRow } from "@/lib/edit-presets"
+import { usePendingUploads } from "@/lib/upload-placeholders"
 import {
   ALL_ROOMS,
   RoomBrowser,
@@ -73,6 +74,20 @@ export function ListingWorkspace({
   const dialogRef = useRef<HTMLDivElement>(null)
   const returnFocusRef = useRef<HTMLElement | null>(null)
   const openPhoto = photos.find((p) => p.id === openId) ?? null
+  // Phase 57 placeholder tiles for photos still uploading/finalizing. A
+  // placeholder disappears the moment its photo row is rendered and never
+  // returns for that photo (seenPhotoIds), so a later delete leaves no ghost.
+  const pendingUploads = usePendingUploads(listingId)
+  const seenPhotoIds = useRef(new Set<string>())
+  useEffect(() => {
+    for (const photo of photos) seenPhotoIds.current.add(photo.id)
+  }, [photos])
+  const pendingTiles =
+    (activeRoom === ALL_ROOMS || activeRoom === UNTAGGED_ROOM) && organizationFilter === "all"
+      ? pendingUploads.filter(
+          (item) => !seenPhotoIds.current.has(item.photoId) && !photos.some((photo) => photo.id === item.photoId)
+        )
+      : []
   const studioIds = openPhoto ? [openPhoto.id, ...additionalIds] : []
   const selectedPhotos = selectedIds.flatMap((id) => {
     const photo = photos.find((item) => item.id === id)
@@ -244,7 +259,7 @@ export function ListingWorkspace({
 
   return (
     <div className="grid min-w-0 gap-7">
-      {inventoryPhotos.length === 0 && (
+      {inventoryPhotos.length === 0 && pendingTiles.length === 0 && (
         <section className="ls-surface p-6 text-center sm:p-8" aria-label="Empty listing">
           <h2 className="text-xl font-semibold tracking-[-0.025em]">No listing photos yet</h2>
           <p className="mx-auto mt-2 max-w-lg text-sm text-muted-foreground">Add JPG, PNG, WebP, HEIC, or HEIF photos up to 50 MB each. Originals stay untouched, and each file reports its own resumable progress.</p>
@@ -348,9 +363,10 @@ export function ListingWorkspace({
             </p>
           </div>
         )}
-        {filteredPhotos.length > 0 ? (
+        {filteredPhotos.length > 0 || pendingTiles.length > 0 ? (
           <PhotoGrid
             photos={filteredPhotos}
+            pending={pendingTiles}
             rooms={roomOptions}
             listingId={listingId}
             proposals={roomProposals}

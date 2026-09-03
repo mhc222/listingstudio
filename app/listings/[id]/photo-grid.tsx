@@ -8,6 +8,44 @@ import { Select } from "@/components/ui/select"
 import { ROOM_TYPES } from "@/lib/roomTypes"
 import { tagPhoto } from "../actions"
 import type { RoomProposalRow, SameRoomGroupRow } from "./room-organization"
+import type { UploadPlaceholder } from "@/lib/upload-placeholders"
+
+const PLACEHOLDER_BADGE: Record<UploadPlaceholder["stage"], string> = {
+  uploading: "Uploading",
+  processing: "Processing",
+  saved: "Saved",
+}
+
+// Phase 57: a photo still transferring or finalizing in the background holds
+// its grid position with the local file preview (neutral tile when the page
+// was reloaded and the file is gone) until the real row replaces it.
+function PlaceholderTile({ item }: { item: UploadPlaceholder }) {
+  return (
+    <div
+      aria-busy="true"
+      aria-label={`${item.name} ${PLACEHOLDER_BADGE[item.stage].toLowerCase()}`}
+      data-upload-placeholder={item.id}
+      className="overflow-hidden rounded-2xl border-2 border-dashed border-input/70 bg-card/60"
+    >
+      <div className="relative">
+        {item.previewUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element -- local object URL, never cached
+          <img src={item.previewUrl} alt="" width={480} height={360} className="aspect-[4/3] w-full object-cover opacity-80" />
+        ) : (
+          <div className="flex aspect-[4/3] w-full animate-pulse items-center justify-center bg-muted/60 px-4 text-center text-xs text-muted-foreground">
+            <span className="truncate">{item.name}</span>
+          </div>
+        )}
+        <span className="absolute right-2 top-2 rounded-md bg-black/45 px-2 py-1 text-[0.65rem] font-semibold uppercase tracking-wide text-white">
+          {PLACEHOLDER_BADGE[item.stage]}
+        </span>
+      </div>
+      <div className="flex h-14 items-center px-3">
+        <p className="truncate text-xs text-muted-foreground" title={item.name}>{item.name}</p>
+      </div>
+    </div>
+  )
+}
 
 export type PhotoRow = {
   id: string
@@ -143,8 +181,9 @@ function GroupStatus({ listingId, group, photoId }: { listingId: string; group: 
   )
 }
 
-export function PhotoGrid({ photos, rooms, listingId, proposals = [], sameRoomGroups = [], selectedIds = [], onSelect, onOpen }: {
+export function PhotoGrid({ photos, rooms, listingId, proposals = [], sameRoomGroups = [], selectedIds = [], onSelect, onOpen, pending = [] }: {
   photos: PhotoRow[]
+  pending?: UploadPlaceholder[]
   rooms: Room[]
   listingId: string
   proposals?: RoomProposalRow[]
@@ -156,7 +195,7 @@ export function PhotoGrid({ photos, rooms, listingId, proposals = [], sameRoomGr
   const router = useRouter()
   const [, startTransition] = useTransition()
 
-  if (!photos.length) return <div className="rounded-2xl border border-dashed border-input/70 bg-card/45 p-10 text-center text-muted-foreground">No photos match these filters.</div>
+  if (!photos.length && !pending.length) return <div className="rounded-2xl border border-dashed border-input/70 bg-card/45 p-10 text-center text-muted-foreground">No photos match these filters.</div>
 
   async function changeConfirmedProposal(proposal: RoomProposalRow, roomId: string) {
     if (!roomId) {
@@ -209,6 +248,7 @@ export function PhotoGrid({ photos, rooms, listingId, proposals = [], sameRoomGr
           </div>
         )
       })}
+      {pending.map((item) => <PlaceholderTile key={`pending-${item.id}`} item={item} />)}
     </div>
   )
 }
