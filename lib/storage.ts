@@ -17,9 +17,11 @@ async function resolveClient(client?: SupabaseClient) {
 }
 
 // Process-local memo of minted signed URLs, keyed by object and hourly window
-// (see lib/signed-urls.ts). Storage RLS already grants every authenticated
-// user read on originals/outputs/references, so a URL minted for one session
-// exposes nothing a different session could not have signed itself.
+// (see lib/signed-urls.ts). The memo is not keyed by caller: storage RLS
+// (migration 0009) scopes reads to the owner's folder, and every object path
+// starts with the owner's user id, so a cached URL is only ever handed back to
+// a caller asking for that owner's path. Table RLS keeps other users from
+// learning those paths in the first place.
 const signedUrlCache = new SignedUrlCache()
 
 export async function upload(
